@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="Postcode Atlas">
   <title>Postcode Atlas</title>
   <!-- Solid Nigerian green background -->
-  <rect width="32" height="32" rx="6" fill="#008751"/>
-  <!-- Pin as filled white shape (not stroke) - guaranteed to render -->
-  <path fill="#ffffff" d="M16 4a9 9 0 0 1 9 9c0 7-9 18-9 18S7 20 7 13a9 9 0 0 1 9-9z"/>
-  <circle cx="16" cy="13.5" r="3" fill="#008751"/>
+  <rect width="32" height="32" fill="#008751"/>
+  <!-- Large white pin covering most of canvas - minimal edge anti-aliasing -->
+  <path fill="#ffffff" d="M16 2 L28 24 L4 24 Z"/>
+  <circle cx="16" cy="25" r="3" fill="#ffffff"/>
 </svg>
