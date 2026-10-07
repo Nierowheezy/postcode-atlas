@@ -95,6 +95,8 @@ export default defineConfig(() => {
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
           cleanupOutdatedCaches: true,
+          navigateFallback: '/index.html',
+          navigateFallbackAllowlist: [/^\/$/],
           runtimeCaching: [
             {
               urlPattern: /^https:\/\/api\.postcode\.gov\.ng\/.*/i,
