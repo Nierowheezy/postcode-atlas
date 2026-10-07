@@ -206,7 +206,7 @@ export const MapSearch: React.FC<MapSearchProps> = ({
           }}
           onKeyDown={handleKeyDown}
           placeholder="Search postcode, state, LGA or area..."
-          className="w-full bg-transparent outline-none text-[#111827] dark:text-white placeholder:text-[#9CA3AF] font-sans text-xs tracking-normal"
+          className="w-full max-w-[280px] sm:max-w-[320px] md:max-w-[360px] map-search-input bg-transparent outline-none text-[#111827] dark:text-white placeholder:text-[#9CA3AF] font-sans text-xs tracking-normal"
         />
 
         {isLoading ? (

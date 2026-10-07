@@ -80,12 +80,12 @@ export const TopBar: React.FC<TopBarProps> = ({
             <img
               src="/logo-header.svg"
               alt="Postcode Atlas"
-              className="h-7 w-auto dark:hidden select-none pointer-events-none"
+              className="h-7 w-auto max-w-[160px] dark:hidden select-none pointer-events-none"
             />
             <img
               src="/logo-header-dark.svg"
               alt="Postcode Atlas"
-              className="h-7 w-auto hidden dark:block select-none pointer-events-none"
+              className="h-7 w-auto max-w-[160px] hidden dark:block select-none pointer-events-none"
             />
           </a>
 
@@ -168,9 +168,9 @@ export const TopBar: React.FC<TopBarProps> = ({
 
         {/* Zone 3: Right side - menu, version, theme */}
         <div className="flex items-center gap-1">
-          {/* Mobile hamburger menu */}
+          {/* Mobile hamburger menu - always rendered, shown on mobile via CSS */}
           <button
-            className="md:hidden p-2 text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1F2937] rounded transition-colors"
+            className="mobile-hamburger p-2 text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1F2937] rounded transition-colors"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={mobileMenuOpen}
@@ -183,14 +183,14 @@ export const TopBar: React.FC<TopBarProps> = ({
             onClick={onOpenChangelog}
             title={`Version ${APP_VERSION} — release notes`}
             aria-label={`Version ${APP_VERSION}. Open release notes.`}
-            className="hidden md:flex items-center gap-1 px-1.5 py-1 text-[11px] font-mono text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1F2937] rounded border border-[#E5E7EB] dark:border-[#374151] transition-colors cursor-pointer"
+            className="mobile-version-badge hidden md:flex items-center gap-1 px-1.5 py-1 text-[11px] font-mono text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1F2937] rounded border border-[#E5E7EB] dark:border-[#374151] transition-colors cursor-pointer"
           >
             <GitCommitHorizontal className="w-3 h-3" />
             <span>v{APP_VERSION}</span>
           </button>
 
-          {/* Theme Mode Selector */}
-          <div className="ml-1 pl-1 border-l border-[#E5E7EB] dark:border-[#374151] hidden sm:block">
+          {/* Theme Mode Selector - visible on all screens */}
+          <div className="ml-1 pl-1 border-l border-[#E5E7EB] dark:border-[#374151] mobile-theme-toggle hidden sm:flex">
             <ThemeToggle />
           </div>
         </div>
