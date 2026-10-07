@@ -201,3 +201,38 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Mobile-first touch optimizations */
+@media (pointer: coarse) {
+  .leaflet-container {
+    touch-action: pan-x pan-y pinch-zoom;
+  }
+  .leaflet-control-zoom,
+  .leaflet-control-scale {
+    touch-action: none;
+  }
+  /* Larger hit targets for map markers */
+  .custom-state-marker,
+  .custom-building-marker {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* Prevent zoom on input focus on iOS */
+@media screen and (max-width: 768px) {
+  input[type="text"],
+  input[type="search"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Improve scrolling on mobile drawers */
+@media (pointer: coarse) {
+  .drawer-content {
+    -webkit-overflow-scrolling: touch;
+    overflow-scrolling: touch;
+  }
+}

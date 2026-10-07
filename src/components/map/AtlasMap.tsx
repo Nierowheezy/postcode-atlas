@@ -331,7 +331,7 @@ export const AtlasMap: React.FC<AtlasMapProps> = ({
       : TILE_PROVIDERS[tileStyle];
 
   return (
-    <div ref={containerRef} className="relative w-full h-full bg-[#f8f8f7] dark:bg-[#0B0F17] overflow-hidden">
+    <div ref={containerRef} className="relative w-full h-full bg-[#f8f8f7] dark:bg-[#0B0F17] overflow-hidden touch-pan-y touch-pinch-zoom" style={{ touchAction: 'pan-x pan-y pinch-zoom' }}>
       <MapContainer
         center={NIGERIA_CENTER}
         zoom={NIGERIA_DEFAULT_ZOOM}

@@ -93,7 +93,7 @@ export const PostcodeInspector: React.FC<PostcodeInspectorProps> = ({
       : undefined;
 
   return (
-    <aside className="w-80 sm:w-88 p-4 text-[#111827] dark:text-white select-none z-30 flex flex-col gap-3 font-sans transition-smooth">
+    <aside className="w-full max-w-[280px] sm:max-w-[320px] md:max-w-[340px] p-3 sm:p-4 text-[#111827] dark:text-white select-none z-30 flex flex-col gap-3 font-sans transition-smooth">
       {/* Header: Postcode in Geist Mono + Close */}
       <div className="flex items-start justify-between pb-2 border-b border-[#F3F4F6] dark:border-[#374151]">
         <div>

@@ -187,7 +187,7 @@ export const MapSearch: React.FC<MapSearchProps> = ({
   };
 
   return (
-    <div ref={containerRef} className="relative w-72 sm:w-88 md:w-96 select-none">
+    <div ref={containerRef} className="relative w-full max-w-[280px] sm:max-w-[320px] md:max-w-[360px] select-none">
       {/* Arc / Linear style command search box */}
       <div className="flex items-center bg-white dark:bg-[#111827]/95 backdrop-blur-md rounded-lg border border-[#E5E7EB] dark:border-[#374151] shadow-xs focus-within:border-[#0F7B4D] focus-within:ring-1 focus-within:ring-[#0F7B4D] transition-all px-3 py-2 text-xs">
         {/* Arc-style green dot affordance */}
