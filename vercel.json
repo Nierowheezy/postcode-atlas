@@ -4,20 +4,20 @@
   "outputDirectory": "dist",
   "installCommand": "npm install --legacy-peer-deps",
   "framework": null,
-  "rewrites": [
-    { "source": "/manifest.webmanifest", "destination": "/manifest.webmanifest" },
-    { "source": "/sw.js", "destination": "/sw.js" },
-    { "source": "/workbox-:hash.js", "destination": "/workbox-:hash.js" },
-    { "source": "/favicon.ico", "destination": "/favicon.ico" },
-    { "source": "/favicon.svg", "destination": "/favicon.svg" },
-    { "source": "/apple-touch-icon.png", "destination": "/apple-touch-icon.png" },
-    { "source": "/icon-512.png", "destination": "/icon-512.png" },
-    { "source": "/og-image.png", "destination": "/og-image.png" },
-    { "source": "/logo.svg", "destination": "/logo.svg" },
-    { "source": "/logo-header.svg", "destination": "/logo-header.svg" },
-    { "source": "/logo-header-dark.svg", "destination": "/logo-header-dark.svg" },
-    { "source": "/version.json", "destination": "/version.json" },
-    { "source": "/(.*)", "destination": "/index.html" }
+  "routes": [
+    { "src": "/manifest.webmanifest", "dest": "/manifest.webmanifest" },
+    { "src": "/sw.js", "dest": "/sw.js" },
+    { "src": "/workbox-(.*).js", "dest": "/workbox-$1.js" },
+    { "src": "/favicon.ico", "dest": "/favicon.ico" },
+    { "src": "/favicon.svg", "dest": "/favicon.svg" },
+    { "src": "/apple-touch-icon.png", "dest": "/apple-touch-icon.png" },
+    { "src": "/icon-512.png", "dest": "/icon-512.png" },
+    { "src": "/og-image.png", "dest": "/og-image.png" },
+    { "src": "/logo.svg", "dest": "/logo.svg" },
+    { "src": "/logo-header.svg", "dest": "/logo-header.svg" },
+    { "src": "/logo-header-dark.svg", "dest": "/logo-header-dark.svg" },
+    { "src": "/version.json", "dest": "/version.json" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ],
   "headers": [
     {
