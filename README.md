@@ -92,9 +92,18 @@ The AI SDK is installed but currently unused. `GEMINI_API_KEY` is documented in 
 
 ```
 postcode-atlas/
-├── index.html                  # Entry HTML, fonts, meta/OG tags
+├── index.html                  # Entry HTML, fonts, favicons, meta/OG tags
 ├── vercel.json                 # Vercel build + SPA rewrite config
-├── vite.config.ts              # React + Tailwind plugins, @ alias
+├── vite.config.ts              # React + Tailwind plugins, version injection, @ alias
+├── CHANGELOG.md                # Release history (Keep a Changelog)
+├── public/                     # Static assets, copied verbatim to dist/
+│   ├── favicon.svg / .ico      # Browser tab icons
+│   ├── apple-touch-icon.png    # Home-screen icon (180px)
+│   ├── icon-512.png            # PWA / high-DPI icon
+│   ├── logo.svg                # Full brand lockup
+│   ├── logo-header.svg         # Compact lockup (top bar, light)
+│   ├── logo-header-dark.svg    # Compact lockup (top bar, dark)
+│   └── og-image.png            # 1200x1200 social card
 ├── src/
 │   ├── App.tsx                 # Root component, all app state and orchestration
 │   ├── types/postcode.ts       # NDAPS domain types
@@ -216,6 +225,64 @@ This deployment shape is only safe because the NIPOST key in use is the **publis
 | `npm run preview` | Serve the built bundle locally |
 | `npm run lint` | Type-check with `tsc --noEmit` |
 | `npm run clean` | Remove the `dist/` directory |
+
+---
+
+## Versioning and releases
+
+The app follows [Semantic Versioning](https://semver.org). `package.json` holds
+the single source of truth, and everything else derives from it at build time.
+
+**How a version reaches users.** `vite.config.ts` reads `package.json` and:
+
+1. Inlines the version as `__APP_VERSION__` (`src/lib/version.ts`), which the
+   top-bar badge and release-notes modal display.
+2. Writes `version.json` into the build output, recording the version and build
+   timestamp.
+
+At runtime the app fetches `version.json` with cache-busting every five minutes
+and whenever the tab regains focus. If the deployed version is newer than the
+running bundle, a banner offers a reload. Polling pauses while the tab is
+hidden. This matters because a long-lived SPA keeps executing the JavaScript it
+loaded at first paint, so without this people would sit on a stale build
+indefinitely.
+
+**Shipping a release:**
+
+```bash
+# 1. Bump the version and record what changed
+npm version 1.2.0 --no-git-tag-version     # or edit package.json
+# 2. Add a CHANGELOG.md section for the new version
+# 3. Commit, tag, and publish
+git add -A && git commit -m "Release 1.2.0"
+git tag -a v1.2.0 -m "Release 1.2.0"
+git push origin main --follow-tags
+gh release create v1.2.0 --title "v1.2.0" --notes-file CHANGELOG_SECTION.md
+# 4. Deploy — the version is baked in at build time
+vercel --prod
+```
+
+Because the version is inlined at build time, changing `package.json` without
+rebuilding has no effect on the deployed app. Rebuild and redeploy.
+
+GitHub releases are also mirrored as tags, so the Releases page and the
+in-app changelog stay in step.
+
+---
+
+## Branding
+
+The mark is a location pin on Nigerian green, paired with an `NPA` wordmark. The
+five short bars under the wordmark echo the five segments of an NDAPS postcode
+(`AA-99-H77-BB-55`) — one code for each level of the address hierarchy.
+
+All artwork is hand-authored SVG with no design-tool dependency. Raster fallbacks
+(`favicon.ico`, `apple-touch-icon.png`, `icon-512.png`, `og-image.png`) are
+committed alongside the SVGs so older browsers and platform icon pickers still
+have something to serve.
+
+Primary green is `#008751`, with `#0F7B4D` for text accents and `#10B981` for
+dark-mode equivalents.
 
 ---
 

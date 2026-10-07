@@ -13,6 +13,14 @@ import { PostcodeAssemblyDrawer } from './components/assembly/PostcodeAssemblyDr
 import { DataModeOverlay } from './components/data/DataModeOverlay';
 import { PostcodeHuntModal } from './components/hunt/PostcodeHuntModal';
 import { DatasetStoryModal } from './components/story/DatasetStoryModal';
+import { ChangelogModal } from './components/story/ChangelogModal';
+import { UpdateBanner } from './components/ui/UpdateBanner';
+import {
+  applyUpdate,
+  clearPendingUpdate,
+  persistPendingUpdate,
+  watchForUpdates,
+} from './lib/version';
 import { ToastProvider, useToast } from './hooks/useToast';
 import { ThemeProvider } from './hooks/useTheme';
 import { ToastContainer } from './components/ui/Toast';
@@ -48,6 +56,31 @@ function PostcodeAtlasContent() {
   const [isAssemblyDrawerOpen, setIsAssemblyDrawerOpen] = useState(false);
   const [isHuntModalOpen, setIsHuntModalOpen] = useState(false);
   const [isStoryModalOpen, setIsStoryModalOpen] = useState(false);
+  const [isChangelogOpen, setIsChangelogOpen] = useState(false);
+
+  // Version / update state
+  const [availableVersion, setAvailableVersion] = useState<string | null>(null);
+  const [isJustUpdated, setIsJustUpdated] = useState(() => Boolean(window.__ATLAS_UPDATE_READY__));
+
+  // Confirm the reload we just performed actually brought a newer build.
+  useEffect(() => {
+    if (!window.__ATLAS_UPDATE_READY__) return;
+    const timeout = window.setTimeout(() => {
+      setIsJustUpdated(false);
+      window.__ATLAS_UPDATE_READY__ = false;
+    }, 4000);
+    return () => window.clearTimeout(timeout);
+  }, []);
+
+  // Poll for newer deploys.
+  useEffect(() => {
+    // If we just reloaded into a newer bundle, drop any stale notice.
+    if (window.__ATLAS_UPDATE_READY__) clearPendingUpdate();
+    return watchForUpdates((latest) => {
+      persistPendingUpdate(latest);
+      setAvailableVersion(latest);
+    });
+  }, []);
 
   // Postcode Hunt state
   const [huntTarget, setHuntTarget] = useState<string | null>(null);
@@ -336,6 +369,7 @@ function PostcodeAtlasContent() {
         onRandomPlace={handleRandomPlace}
         onOpenHunt={() => setIsHuntModalOpen(true)}
         onOpenStory={() => setIsStoryModalOpen(true)}
+        onOpenChangelog={() => setIsChangelogOpen(true)}
       />
 
       {/* Main Map Viewport (Occupies 95%+ of screen) */}
@@ -472,6 +506,25 @@ function PostcodeAtlasContent() {
         isOpen={isStoryModalOpen}
         onClose={() => setIsStoryModalOpen(false)}
       />
+
+      {/* Release Notes */}
+      <ChangelogModal
+        isOpen={isChangelogOpen}
+        onClose={() => setIsChangelogOpen(false)}
+      />
+
+      {/* New-version notice */}
+      {availableVersion && (
+        <UpdateBanner
+          latestVersion={availableVersion}
+          isJustUpdated={isJustUpdated}
+          onApply={applyUpdate}
+          onDismiss={() => {
+            clearPendingUpdate();
+            setAvailableVersion(null);
+          }}
+        />
+      )}
     </div>
   );
 }

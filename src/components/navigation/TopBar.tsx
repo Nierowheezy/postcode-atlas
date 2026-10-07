@@ -1,11 +1,13 @@
 import React from 'react';
 import { MapViewMode } from '../../types/postcode';
-import { Compass, Sparkles, Target, Info, ChevronRight, Wrench } from 'lucide-react';
+import { Compass, Sparkles, Target, Info, ChevronRight, Wrench, GitCommitHorizontal } from 'lucide-react';
 import { ThemeToggle } from '../ui/ThemeToggle';
+import { APP_VERSION } from '../../lib/version';
 
 interface TopBarProps {
   currentMode: MapViewMode;
   onModeChange: (mode: MapViewMode) => void;
+  onOpenChangelog: () => void;
   breadcrumbs: {
     state?: { code: string; name: string };
     lga?: { code: string; name: string };
@@ -24,6 +26,7 @@ interface TopBarProps {
 export const TopBar: React.FC<TopBarProps> = ({
   currentMode,
   onModeChange,
+  onOpenChangelog,
   breadcrumbs,
   onResetBreadcrumbs,
   onSelectStateBreadcrumb,
@@ -43,13 +46,18 @@ export const TopBar: React.FC<TopBarProps> = ({
             e.preventDefault();
             onResetBreadcrumbs();
           }}
-          className="text-sm font-semibold tracking-tight text-[#111827] dark:text-white hover:text-[#0F7B4D] dark:hover:text-[#10B981] transition-colors flex items-center gap-2"
+          className="flex items-center gap-2 hover:opacity-80 transition-opacity"
         >
-          <span
-            className="w-2 h-2 rounded-full inline-block"
-            style={{ backgroundColor: '#0F7B4D' }}
+          <img
+            src="/logo-header.svg"
+            alt="Postcode Atlas"
+            className="h-7 w-auto dark:hidden select-none pointer-events-none"
           />
-          <span>Postcode Atlas</span>
+          <img
+            src="/logo-header-dark.svg"
+            alt="Postcode Atlas"
+            className="h-7 w-auto hidden dark:block select-none pointer-events-none"
+          />
         </a>
 
         {/* Hierarchical breadcrumbs in Geist Mono */}
@@ -175,6 +183,17 @@ export const TopBar: React.FC<TopBarProps> = ({
           aria-label="About the system"
         >
           <Info className="w-3.5 h-3.5" />
+        </button>
+
+        {/* Version badge — click opens the in-app release notes */}
+        <button
+          onClick={onOpenChangelog}
+          title={`Version ${APP_VERSION} — release notes`}
+          aria-label={`Version ${APP_VERSION}. Open release notes.`}
+          className="hidden sm:flex items-center gap-1 px-1.5 py-1 text-[11px] font-mono text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1F2937] rounded border border-[#E5E7EB] dark:border-[#374151] transition-colors cursor-pointer"
+        >
+          <GitCommitHorizontal className="w-3 h-3" />
+          <span>v{APP_VERSION}</span>
         </button>
 
         {/* Theme Mode Selector (Light, Dark, System) */}

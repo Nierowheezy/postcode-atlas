@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200" width="1200" height="1200" role="img" aria-label="Postcode Atlas — Nigerian Postalcode Atlas">
+  <title>Postcode Atlas</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0B0F17"/>
+      <stop offset="55%" stop-color="#06231A"/>
+      <stop offset="100%" stop-color="#00432A"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#00C46A"/>
+      <stop offset="100%" stop-color="#00794A"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="1200" fill="url(#bg)"/>
+
+  <!-- Faint graticule, echoing a map -->
+  <g stroke="#ffffff" stroke-opacity="0.04" stroke-width="1">
+    <path d="M0 300h1200M0 600h1200M0 900h1200M300 0v1200M600 0v1200M900 0v1200"/>
+  </g>
+
+  <!-- Mark -->
+  <rect x="490" y="250" width="220" height="220" rx="55" fill="url(#mark)"/>
+  <path fill="#ffffff" d="M600 282a84 84 0 0 1 84 84c0 60-84 150-84 150s-84-90-84-150a84 84 0 0 1 84-84z"/>
+  <circle cx="600" cy="360" r="33" fill="#00794A"/>
+
+  <!-- Five NDAPS segments -->
+  <g fill="#10B981">
+    <rect x="481" y="536" width="38" height="13" rx="6.5"/>
+    <rect x="531" y="536" width="38" height="13" rx="6.5"/>
+    <rect x="581" y="536" width="38" height="13" rx="6.5"/>
+    <rect x="631" y="536" width="38" height="13" rx="6.5"/>
+    <rect x="681" y="536" width="38" height="13" rx="6.5"/>
+  </g>
+
+  <!-- Wordmark -->
+  <g font-family="Geist, Inter, -apple-system, 'Segoe UI', sans-serif" text-anchor="middle">
+    <text x="600" y="672" font-size="132" font-weight="700" letter-spacing="4" fill="#ffffff">NPA</text>
+  </g>
+
+  <g font-family="'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">
+    <text x="600" y="782" font-size="44" font-weight="500" letter-spacing="9" fill="#10B981">POSTCODE ATLAS</text>
+    <text x="600" y="838" font-size="26" letter-spacing="1.5" fill="#9CA3AF">NATIONAL DIGITAL ALPHANUMERIC POSTCODE SYSTEM</text>
+    <text x="600" y="902" font-size="24" letter-spacing="1.5" fill="#6B7280">nigerian-postalcode-atlas.vercel.app</text>
+  </g>
+</svg>
