@@ -1,5 +1,6 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
+import {VitePWA} from 'vite-plugin-pwa';
 import path from 'path';
 import {readFileSync, writeFileSync, mkdirSync} from 'fs';
 import {fileURLToPath} from 'url';
@@ -41,7 +42,109 @@ function versionManifest(): Plugin {
 
 export default defineConfig(() => {
   return {
-    plugins: [react(), tailwindcss(), versionManifest()],
+    plugins: [
+      react(),
+      tailwindcss(),
+      versionManifest(),
+      VitePWA({
+        registerType: 'autoUpdate',
+        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icon-512.png'],
+        manifest: {
+          name: 'Postcode Atlas',
+          short_name: 'NPA',
+          description:
+            "Explore Nigeria's National Digital Alphanumeric Postcode System (NDAPS) as an interactive cartographic data visualization.",
+          start_url: '/',
+          display: 'standalone',
+          background_color: '#FAFAF9',
+          theme_color: '#008751',
+          orientation: 'portrait-primary',
+          scope: '/',
+          icons: [
+            {
+              src: '/icon-512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'any maskable',
+            },
+            {
+              src: '/apple-touch-icon.png',
+              sizes: '180x180',
+              type: 'image/png',
+              purpose: 'any',
+            },
+          ],
+          categories: ['maps', 'navigation', 'utilities'],
+          shortcuts: [
+            {
+              name: 'Surprise me',
+              short_name: 'Random',
+              description: 'Jump to a random verified postcode in Nigeria',
+              url: '/?action=random',
+              icons: [{ src: '/icon-512.png', sizes: '192x192' }],
+            },
+            {
+              name: 'Postcode Hunt',
+              short_name: 'Hunt',
+              description: 'Play the geolocation challenge',
+              url: '/?action=hunt',
+              icons: [{ src: '/icon-512.png', sizes: '192x192' }],
+            },
+          ],
+        },
+        workbox: {
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+          cleanupOutdatedCaches: true,
+          runtimeCaching: [
+            {
+              urlPattern: /^https:\/\/api\.postcode\.gov\.ng\/.*/i,
+              handler: 'NetworkFirst',
+              options: {
+                cacheName: 'nipost-api',
+                expiration: {
+                  maxEntries: 200,
+                  maxAgeSeconds: 60 * 60 * 24, // 24 hours
+                },
+                networkTimeoutSeconds: 10,
+              },
+            },
+            {
+              urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'google-fonts-stylesheets',
+              },
+            },
+            {
+              urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'google-fonts-webfonts',
+                expiration: {
+                  maxEntries: 30,
+                  maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
+                },
+              },
+            },
+            {
+              urlPattern: /^https:\/\/{s}\.tile\.openstreetmap\.org\/.*/i,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'osm-tiles',
+                expiration: {
+                  maxEntries: 500,
+                  maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+                },
+              },
+            },
+          ],
+        },
+        devOptions: {
+          enabled: true,
+          type: 'module',
+        },
+      }),
+    ],
     define: {
       __APP_VERSION__: JSON.stringify(pkg.version),
     },

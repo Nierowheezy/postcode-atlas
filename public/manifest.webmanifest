@@ -1,0 +1,44 @@
+{
+  "name": "Postcode Atlas",
+  "short_name": "NPA",
+  "description": "Explore Nigeria's National Digital Alphanumeric Postcode System (NDAPS) as an interactive cartographic data visualization.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAFAF9",
+  "theme_color": "#008751",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["maps", "navigation", "utilities"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Surprise me",
+      "short_name": "Random",
+      "description": "Jump to a random verified postcode in Nigeria",
+      "url": "/?action=random",
+      "icons": [{ "src": "/icon-512.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Postcode Hunt",
+      "short_name": "Hunt",
+      "description": "Play the geolocation challenge",
+      "url": "/?action=hunt",
+      "icons": [{ "src": "/icon-512.png", "sizes": "192x192" }]
+    }
+  ],
+  "prefer_related_applications": false
+}

@@ -1,6 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { MapViewMode } from '../../types/postcode';
-import { Compass, Sparkles, Target, Info, ChevronRight, Wrench, GitCommitHorizontal } from 'lucide-react';
+import {
+  Compass,
+  Sparkles,
+  Target,
+  Info,
+  ChevronRight,
+  Wrench,
+  GitCommitHorizontal,
+  Menu,
+  X,
+} from 'lucide-react';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { APP_VERSION } from '../../lib/version';
 
@@ -36,171 +46,264 @@ export const TopBar: React.FC<TopBarProps> = ({
   onOpenHunt,
   onOpenStory,
 }) => {
-  return (
-    <header className="h-12 bg-white/95 dark:bg-[#111827]/95 backdrop-blur-md border-b border-[#E5E7EB] dark:border-[#374151] px-4 flex items-center justify-between select-none z-30 shrink-0 font-sans transition-colors">
-      {/* Zone 1: Single text wordmark */}
-      <div className="flex items-center gap-3">
-        <a
-          href="/"
-          onClick={(e) => {
-            e.preventDefault();
-            onResetBreadcrumbs();
-          }}
-          className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-        >
-          <img
-            src="/logo-header.svg"
-            alt="Postcode Atlas"
-            className="h-7 w-auto dark:hidden select-none pointer-events-none"
-          />
-          <img
-            src="/logo-header-dark.svg"
-            alt="Postcode Atlas"
-            className="h-7 w-auto hidden dark:block select-none pointer-events-none"
-          />
-        </a>
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileBreadcrumbsOpen, setMobileBreadcrumbsOpen] = useState(false);
 
-        {/* Hierarchical breadcrumbs in Geist Mono */}
-        <div className="hidden md:flex items-center text-xs text-[#6B7280] dark:text-[#9CA3AF] font-mono pl-3 border-l border-[#E5E7EB] dark:border-[#374151]">
-          <button
-            onClick={onResetBreadcrumbs}
-            className="hover:text-[#111827] dark:hover:text-white transition-colors cursor-pointer"
+  // Mobile action items
+  const mobileActions = [
+    { icon: Compass, label: 'States', onClick: onOpenStatesDrawer, title: 'Browse 37 States' },
+    { icon: Wrench, label: 'Assemble', onClick: onOpenAssemblyDrawer, title: 'NIPOST Assembly Engine' },
+    { icon: Sparkles, label: 'Surprise me', onClick: onRandomPlace, title: 'Explore a random location', color: '#0F7B4D' },
+    { icon: Target, label: 'Hunt', onClick: onOpenHunt, title: 'Postcode Hunt challenge' },
+    { icon: Info, label: 'About', onClick: onOpenStory, title: 'NIPOST NDAPS Documentation', color: undefined },
+  ];
+
+  const closeMobile = () => {
+    setMobileMenuOpen(false);
+    setMobileBreadcrumbsOpen(false);
+  };
+
+  return (
+    <>
+      {/* Main Top Bar */}
+      <header className="h-12 bg-white/95 dark:bg-[#111827]/95 backdrop-blur-md border-b border-[#E5E7EB] dark:border-[#374151] px-3 flex items-center justify-between select-none z-30 shrink-0 font-sans transition-colors">
+        {/* Zone 1: Logo + compact breadcrumbs */}
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <a
+            href="/"
+            onClick={(e) => {
+              e.preventDefault();
+              onResetBreadcrumbs();
+            }}
+            className="flex items-center gap-2 hover:opacity-80 transition-opacity flex-shrink-0"
           >
-            Nigeria
+            <img
+              src="/logo-header.svg"
+              alt="Postcode Atlas"
+              className="h-7 w-auto dark:hidden select-none pointer-events-none"
+            />
+            <img
+              src="/logo-header-dark.svg"
+              alt="Postcode Atlas"
+              className="h-7 w-auto hidden dark:block select-none pointer-events-none"
+            />
+          </a>
+
+          {/* Mobile breadcrumbs - collapsible */}
+          <div className="hidden md:flex items-center text-xs text-[#6B7280] dark:text-[#9CA3AF] font-mono pl-2 border-l border-[#E5E7EB] dark:border-[#374151] min-w-0 overflow-hidden">
+            <button
+              onClick={onResetBreadcrumbs}
+              className="hover:text-[#111827] dark:hover:text-white transition-colors cursor-pointer whitespace-nowrap flex-shrink-0"
+            >
+              Nigeria
+            </button>
+
+            {breadcrumbs.state && (
+              <>
+                <ChevronRight className="w-3 h-3 text-[#9CA3AF] mx-1 flex-shrink-0" />
+                <button
+                  onClick={onSelectStateBreadcrumb}
+                  className="hover:text-[#111827] dark:hover:text-white transition-colors font-medium text-[#111827] dark:text-white cursor-pointer whitespace-nowrap flex-shrink-0 truncate max-w-[120px]"
+                >
+                  {breadcrumbs.state.name}
+                </button>
+              </>
+            )}
+
+            {breadcrumbs.lga && (
+              <>
+                <ChevronRight className="w-3 h-3 text-[#9CA3AF] mx-1 flex-shrink-0" />
+                <span className="text-[#374151] dark:text-[#D1D5DB] whitespace-nowrap flex-shrink-0 truncate max-w-[100px]">
+                  {breadcrumbs.lga.name}
+                </span>
+              </>
+            )}
+
+            {breadcrumbs.district && (
+              <>
+                <ChevronRight className="w-3 h-3 text-[#9CA3AF] mx-1 flex-shrink-0" />
+                <span className="text-[#4B5563] dark:text-[#9CA3AF] whitespace-nowrap flex-shrink-0 truncate max-w-[80px]">
+                  {breadcrumbs.district}
+                </span>
+              </>
+            )}
+
+            {breadcrumbs.area && (
+              <>
+                <ChevronRight className="w-3 h-3 text-[#9CA3AF] mx-1 flex-shrink-0" />
+                <span className="text-[#0F7B4D] dark:text-[#10B981] font-semibold whitespace-nowrap flex-shrink-0 truncate max-w-[80px]">
+                  {breadcrumbs.area}
+                </span>
+              </>
+            )}
+          </div>
+
+          {/* Mobile breadcrumb toggle */}
+          <button
+            className="md:hidden p-2 text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1F2937] rounded transition-colors"
+            onClick={() => setMobileBreadcrumbsOpen(!mobileBreadcrumbsOpen)}
+            aria-label={mobileBreadcrumbsOpen ? 'Hide location' : 'Show location'}
+            aria-expanded={mobileBreadcrumbsOpen}
+          >
+            <ChevronRight className={`w-4 h-4 transition-transform ${mobileBreadcrumbsOpen ? 'rotate-90' : ''}`} />
+          </button>
+        </div>
+
+        {/* Zone 2: Mode control */}
+        <div className="flex items-center gap-0.5 bg-[#F3F4F6] dark:bg-[#1F2937] p-0.5 rounded-md border border-[#E5E7EB] dark:border-[#374151] mx-2">
+          {(['map', 'data', 'density'] as MapViewMode[]).map((mode) => (
+            <button
+              key={mode}
+              onClick={() => onModeChange(mode)}
+              className={`px-2 py-1 text-xs font-medium rounded transition-colors whitespace-nowrap cursor-pointer ${
+                currentMode === mode
+                  ? 'bg-white dark:bg-[#374151] text-[#111827] dark:text-white shadow-xs'
+                  : 'text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white'
+              }`}
+            >
+              {mode.charAt(0).toUpperCase() + mode.slice(1)}
+            </button>
+          ))}
+        </div>
+
+        {/* Zone 3: Right side - menu, version, theme */}
+        <div className="flex items-center gap-1">
+          {/* Mobile hamburger menu */}
+          <button
+            className="md:hidden p-2 text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1F2937] rounded transition-colors"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={mobileMenuOpen}
+          >
+            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
 
-          {breadcrumbs.state && (
-            <>
-              <ChevronRight className="w-3 h-3 text-[#9CA3AF] mx-1" />
+          {/* Version badge - visible on all screens */}
+          <button
+            onClick={onOpenChangelog}
+            title={`Version ${APP_VERSION} — release notes`}
+            aria-label={`Version ${APP_VERSION}. Open release notes.`}
+            className="hidden md:flex items-center gap-1 px-1.5 py-1 text-[11px] font-mono text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1F2937] rounded border border-[#E5E7EB] dark:border-[#374151] transition-colors cursor-pointer"
+          >
+            <GitCommitHorizontal className="w-3 h-3" />
+            <span>v{APP_VERSION}</span>
+          </button>
+
+          {/* Theme Mode Selector */}
+          <div className="ml-1 pl-1 border-l border-[#E5E7EB] dark:border-[#374151] hidden sm:block">
+            <ThemeToggle />
+          </div>
+        </div>
+      </header>
+
+      {/* Mobile breadcrumb drawer */}
+      {mobileBreadcrumbsOpen && (
+        <div className="md:hidden absolute top-12 left-3 right-3 z-40 bg-white dark:bg-[#111827] border border-[#E5E7EB] dark:border-[#374151] rounded-lg shadow-lg p-3 animate-slide-down">
+          <div className="flex items-center gap-2 text-xs font-mono text-[#6B7280] dark:text-[#9CA3AF]">
+            <button
+              onClick={onResetBreadcrumbs}
+              className="hover:text-[#111827] dark:hover:text-white transition-colors"
+            >
+              Nigeria
+            </button>
+            {breadcrumbs.state && (
+              <>
+                <ChevronRight className="w-3 h-3 text-[#9CA3AF]" />
+                <button
+                  onClick={onSelectStateBreadcrumb}
+                  className="hover:text-[#111827] dark:hover:text-white transition-colors font-medium text-[#111827] dark:text-white"
+                >
+                  {breadcrumbs.state.name}
+                </button>
+              </>
+            )}
+            {breadcrumbs.lga && (
+              <>
+                <ChevronRight className="w-3 h-3 text-[#9CA3AF]" />
+                <span>{breadcrumbs.lga.name}</span>
+              </>
+            )}
+            {breadcrumbs.district && (
+              <>
+                <ChevronRight className="w-3 h-3 text-[#9CA3AF]" />
+                <span className="text-[#4B5563] dark:text-[#9CA3AF]">{breadcrumbs.district}</span>
+              </>
+            )}
+            {breadcrumbs.area && (
+              <>
+                <ChevronRight className="w-3 h-3 text-[#9CA3AF]" />
+                <span className="text-[#0F7B4D] dark:text-[#10B981] font-semibold">{breadcrumbs.area}</span>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Mobile action menu */}
+      {mobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 z-50">
+          <div
+            className="absolute inset-0 bg-black/30"
+            onClick={closeMobile}
+            aria-hidden="true"
+          />
+          <div className="absolute bottom-0 left-0 right-0 bg-white dark:bg-[#111827] border-t border-[#E5E7EB] dark:border-[#374151] rounded-t-2xl shadow-xl p-4 animate-slide-up max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-[#111827] dark:text-white">Actions</h3>
               <button
-                onClick={onSelectStateBreadcrumb}
-                className="hover:text-[#111827] dark:hover:text-white transition-colors font-medium text-[#111827] dark:text-white cursor-pointer"
+                onClick={closeMobile}
+                className="p-1 text-[#6B7280] hover:text-[#111827] dark:hover:text-white rounded"
+                aria-label="Close menu"
               >
-                {breadcrumbs.state.name}
+                <X className="w-5 h-5" />
               </button>
-            </>
-          )}
+            </div>
 
-          {breadcrumbs.lga && (
-            <>
-              <ChevronRight className="w-3 h-3 text-[#9CA3AF] mx-1" />
-              <span className="text-[#374151] dark:text-[#D1D5DB]">{breadcrumbs.lga.name}</span>
-            </>
-          )}
+            <div className="grid grid-cols-3 gap-3">
+              {mobileActions.map((action, i) => (
+                <button
+                  key={action.label}
+                  onClick={() => {
+                    action.onClick();
+                    closeMobile();
+                  }}
+                  className="flex flex-col items-center gap-1.5 p-3 bg-[#F3F4F6] dark:bg-[#1F2937] rounded-xl border border-[#E5E7EB] dark:border-[#374151] transition-colors active:scale-[0.98] min-h-[80px]"
+                  style={{ minHeight: '80px' }}
+                >
+                  <action.icon
+                    className="w-6 h-6"
+                    style={{ color: action.color ?? '#6B7280' }}
+                  />
+                  <span className="text-xs font-medium text-[#374151] dark:text-[#D1D5DB] text-center">
+                    {action.label}
+                  </span>
+                </button>
+              ))}
+            </div>
 
-          {breadcrumbs.district && (
-            <>
-              <ChevronRight className="w-3 h-3 text-[#9CA3AF] mx-1" />
-              <span className="text-[#4B5563] dark:text-[#9CA3AF]">{breadcrumbs.district}</span>
-            </>
-          )}
+            {/* Version badge in mobile menu */}
+            <div className="mt-4 pt-4 border-t border-[#E5E7EB] dark:border-[#374151] flex items-center justify-center gap-1 px-1.5 py-1 text-[11px] font-mono text-[#6B7280] dark:text-[#9CA3AF]">
+              <GitCommitHorizontal className="w-3 h-3" />
+              <span>v{APP_VERSION}</span>
+              <button
+                onClick={() => {
+                  onOpenChangelog();
+                  closeMobile();
+                }}
+                className="ml-2 text-xs underline hover:text-[#111827] dark:hover:text-white"
+              >
+                Release notes
+              </button>
+            </div>
 
-          {breadcrumbs.area && (
-            <>
-              <ChevronRight className="w-3 h-3 text-[#9CA3AF] mx-1" />
-              <span className="text-[#0F7B4D] dark:text-[#10B981] font-semibold">{breadcrumbs.area}</span>
-            </>
-          )}
+            {/* Theme toggle in mobile menu */}
+            <div className="mt-3 flex items-center justify-center">
+              <ThemeToggle />
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Zone 2: Segmented Mode control */}
-      <div className="flex items-center gap-0.5 bg-[#F3F4F6] dark:bg-[#1F2937] p-0.5 rounded-md border border-[#E5E7EB] dark:border-[#374151]">
-        <button
-          onClick={() => onModeChange('map')}
-          className={`px-2.5 py-1 text-xs font-medium rounded transition-colors whitespace-nowrap cursor-pointer ${
-            currentMode === 'map'
-              ? 'bg-white dark:bg-[#374151] text-[#111827] dark:text-white shadow-xs'
-              : 'text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white'
-          }`}
-        >
-          Map
-        </button>
-        <button
-          onClick={() => onModeChange('data')}
-          className={`px-2.5 py-1 text-xs font-medium rounded transition-colors whitespace-nowrap cursor-pointer ${
-            currentMode === 'data'
-              ? 'bg-white dark:bg-[#374151] text-[#111827] dark:text-white shadow-xs'
-              : 'text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white'
-          }`}
-        >
-          Data
-        </button>
-        <button
-          onClick={() => onModeChange('density')}
-          className={`px-2.5 py-1 text-xs font-medium rounded transition-colors whitespace-nowrap cursor-pointer ${
-            currentMode === 'density'
-              ? 'bg-white dark:bg-[#374151] text-[#111827] dark:text-white shadow-xs'
-              : 'text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white'
-          }`}
-        >
-          Density
-        </button>
-      </div>
-
-      {/* Zone 3: Primary actions & Theme toggle */}
-      <div className="flex items-center gap-1 sm:gap-1.5">
-        <button
-          onClick={onOpenStatesDrawer}
-          className="px-2.5 py-1.5 text-xs font-medium text-[#374151] dark:text-[#D1D5DB] hover:text-[#111827] dark:hover:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1F2937] rounded border border-[#E5E7EB] dark:border-[#374151] transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
-          title="Browse 37 States"
-        >
-          <Compass className="w-3.5 h-3.5 text-[#6B7280] dark:text-[#9CA3AF]" />
-          <span className="hidden sm:inline">States</span>
-        </button>
-
-        <button
-          onClick={onOpenAssemblyDrawer}
-          className="px-2.5 py-1.5 text-xs font-medium text-[#374151] dark:text-[#D1D5DB] hover:text-[#111827] dark:hover:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1F2937] rounded border border-[#E5E7EB] dark:border-[#374151] transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
-          title="NIPOST Assembly Engine"
-        >
-          <Wrench className="w-3.5 h-3.5 text-[#6B7280] dark:text-[#9CA3AF]" />
-          <span className="hidden lg:inline">Assemble</span>
-        </button>
-
-        <button
-          onClick={onRandomPlace}
-          className="px-2.5 py-1.5 text-xs font-medium text-[#374151] dark:text-[#D1D5DB] hover:text-[#111827] dark:hover:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1F2937] rounded border border-[#E5E7EB] dark:border-[#374151] transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
-          title="Explore a random location in Nigeria"
-        >
-          <Sparkles className="w-3.5 h-3.5 text-[#0F7B4D] dark:text-[#10B981]" />
-          <span className="hidden sm:inline">Surprise me</span>
-        </button>
-
-        <button
-          onClick={onOpenHunt}
-          className="px-2.5 py-1.5 text-xs font-medium text-[#374151] dark:text-[#D1D5DB] hover:text-[#111827] dark:hover:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1F2937] rounded border border-[#E5E7EB] dark:border-[#374151] transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
-          title="Postcode Hunt challenge"
-        >
-          <Target className="w-3.5 h-3.5 text-[#6B7280] dark:text-[#9CA3AF]" />
-          <span className="hidden md:inline">Hunt</span>
-        </button>
-
-        <button
-          onClick={onOpenStory}
-          className="p-1.5 text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1F2937] rounded border border-[#E5E7EB] dark:border-[#374151] transition-colors cursor-pointer"
-          title="NIPOST NDAPS Documentation"
-          aria-label="About the system"
-        >
-          <Info className="w-3.5 h-3.5" />
-        </button>
-
-        {/* Version badge — click opens the in-app release notes */}
-        <button
-          onClick={onOpenChangelog}
-          title={`Version ${APP_VERSION} — release notes`}
-          aria-label={`Version ${APP_VERSION}. Open release notes.`}
-          className="hidden sm:flex items-center gap-1 px-1.5 py-1 text-[11px] font-mono text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1F2937] rounded border border-[#E5E7EB] dark:border-[#374151] transition-colors cursor-pointer"
-        >
-          <GitCommitHorizontal className="w-3 h-3" />
-          <span>v{APP_VERSION}</span>
-        </button>
-
-        {/* Theme Mode Selector (Light, Dark, System) */}
-        <div className="ml-1 pl-1 border-l border-[#E5E7EB] dark:border-[#374151]">
-          <ThemeToggle />
-        </div>
-      </div>
-    </header>
+      </>
   );
 };
