@@ -286,6 +286,41 @@ dark-mode equivalents.
 
 ---
 
+## PWA (Progressive Web App)
+
+The app includes a Web App Manifest (`manifest.webmanifest`) and a Workbox service worker (`sw.js`) for offline support and installability.
+
+**Current limitation:** Vercel's modern project configuration doesn't pick up `vercel.json` routes/rewrites via API. To enable the PWA manifest and service worker, manually add these rewrites in the Vercel Dashboard → Project Settings → Rewrites:
+
+| Source | Destination |
+|--------|-------------|
+| `/manifest.webmanifest` | `/manifest.webmanifest` |
+| `/sw.js` | `/sw.js` |
+| `/workbox-:hash.js` | `/workbox-:hash.js` |
+| `/favicon.ico` | `/favicon.ico` |
+| `/favicon.svg` | `/favicon.svg` |
+| `/apple-touch-icon.png` | `/apple-touch-icon.png` |
+| `/icon-512.png` | `/icon-512.png` |
+| `/og-image.png` | `/og-image.png` |
+| `/logo.svg` | `/logo.svg` |
+| `/logo-header.svg` | `/logo-header.svg` |
+| `/logo-header-dark.svg` | `/logo-header-dark.svg` |
+| `/version.json` | `/version.json` |
+| `/(.*)` | `/index.html` |
+
+Also add these headers:
+- `/sw.js` → `Service-Worker-Allowed: /`, `Cache-Control: no-cache, no-store, must-revalidate`
+- `/manifest.webmanifest` → `Cache-Control: public, max-age=31536000, immutable`
+
+Once configured, the app will be fully installable as a PWA with offline caching for:
+- NIPOST API responses (24hr TTL, NetworkFirst)
+- Google Fonts (1yr TTL, CacheFirst)
+- OpenStreetMap tiles (30d TTL, CacheFirst)
+
+The core app, mobile experience, versioning, and all other features work without this step.
+
+---
+
 ## License
 
 Apache-2.0. Postal and address data is provided by the Nigerian Postal Service (NIPOST) through the official NDAPS API; map tiles are © OpenStreetMap contributors and used under the Open Database License.
