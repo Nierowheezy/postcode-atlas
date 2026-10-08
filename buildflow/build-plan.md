@@ -51,9 +51,9 @@ and deployment readiness. Adapt it to the project as implementation progresses.
 
 - [x] 1. **Ask Atlas interface** - add a conversational entry point to the existing Nigerian Postcode Atlas
 
-- [ ] 2. **N-ATLAS integration** - connect Ask Atlas to N-ATLAS for natural-language understanding
+- [x] 2. **N-ATLAS integration** - connect Ask Atlas to N-ATLAS for natural-language understanding
 
-- [ ] 3. **Atlas tool layer** - expose postcode, location, hierarchy, nearby-search, and decoding capabilities as structured tools
+- [ ] 3. **Atlas tool layer** - expose postcode, location, hierarchy, nearby-search, and decoding capabilities as structured tools. Include a versioned client-side dataset cache (IndexedDB, fetched once per release like version.json) so deterministic lookups run locally with zero provider calls, and a server-side data endpoint to seed it.
 
 - [ ] 4. **Natural-language postcode lookup** - ask for a Nigerian postcode using normal language and return verified Atlas results
 
@@ -65,7 +65,7 @@ and deployment readiness. Adapt it to the project as implementation progresses.
 
 - [ ] 8. **Conversational map control** - allow valid AI requests to navigate, zoom, select, and highlight locations on the map
 
-- [ ] 9. **Grounded responses** - ensure postcode and location facts come from NIPOST/Atlas data rather than model-generated guesses
+- [ ] 9. **Grounded responses** - ensure postcode and location facts come from NIPOST/Atlas data rather than model-generated guesses. Pass the model only the small retrieved match set from the local store, never the whole dataset; outside-topic questions are refused per the feature 2 prompt scope guard.
 
 - [ ] 10. **Conversation context** - support follow-up questions using the current location, selected map state, and previous conversation
 

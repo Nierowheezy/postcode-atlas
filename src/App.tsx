@@ -26,7 +26,7 @@ import { ThemeProvider } from './hooks/useTheme';
 import { ToastContainer } from './components/ui/Toast';
 import { DraggableCard } from './components/ui/DraggableCard';
 import { AskAtlasPanel } from './components/ask/AskAtlasPanel';
-import { createStubResponder } from './lib/ask/responder';
+import { createApiResponder, createStubResponder } from './lib/ask/responder';
 import { AtlasContextSnapshot } from './lib/ask/types';
 import {
   MapViewMode,
@@ -62,8 +62,11 @@ function PostcodeAtlasContent() {
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
   const [isAskAtlasOpen, setIsAskAtlasOpen] = useState(false);
 
-  // Swap this stub for the N-ATLAS implementation in feature 2.
-  const askResponderRef = useRef(createStubResponder());
+  // Real server-backed responder by default; VITE_ASK_MODE=stub keeps the
+  // quota-free canned path for offline/UI work.
+  const askResponderRef = useRef(
+    import.meta.env.VITE_ASK_MODE === 'stub' ? createStubResponder() : createApiResponder(),
+  );
 
   // Version / update state
   const [availableVersion, setAvailableVersion] = useState<string | null>(null);

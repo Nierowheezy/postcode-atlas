@@ -4,9 +4,13 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import { MessageSquare, SendHorizonal, Trash2, X } from 'lucide-react';
 import { DraggableCard } from '../ui/DraggableCard';
-import { AskAtlasMessage, AskAtlasResponder, AtlasContextSnapshot } from '../../lib/ask/types';
+import { AskLanguage, AskAtlasMessage, AskAtlasResponder, AtlasContextSnapshot } from '../../lib/ask/types';
+import { useAskAtlas } from '../../lib/ask/useAskAtlas';
+import { AskAtlasHeader } from './AskAtlasHeader';
+import { AskAtlasMessageBubble } from './AskAtlasMessageBubble';
+import { AskAtlasComposer } from './AskAtlasComposer';
+import { AskAtlasResizeHandle } from './AskAtlasResizeHandle';
 
 interface AskAtlasPanelProps {
   responder: AskAtlasResponder;
@@ -16,22 +20,41 @@ interface AskAtlasPanelProps {
 
 let messageSeq = 0;
 
+/** Factory for one conversation entry with a stable React key. */
 function makeMessage(role: AskAtlasMessage['role'], content: string): AskAtlasMessage {
   messageSeq += 1;
   return { id: `msg-${messageSeq}`, role, content, timestamp: Date.now() };
 }
 
+/** Fallback when an error arrives without a usable message. */
+const GENERIC_ERROR_COPY = 'I could not process that request.\n\nTry: "postcode for Ikeja, Lagos"';
+
+/**
+ * Ask Atlas panel: owns conversation state and delegates the actual send
+ * (cache, retries, pending state) to the `useAskAtlas` hook. Rendering is
+ * split into header / bubble / composer components.
+ */
 export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({ responder, getContext, onClose }) => {
   const [messages, setMessages] = useState<AskAtlasMessage[]>([]);
   const [input, setInput] = useState('');
-  const [isReplying, setIsReplying] = useState(false);
+  // Reply language for the whole conversation; sent on every request.
+  const [language, setLanguage] = useState<AskLanguage>('en');
+  // Conversation area height: null = auto-grow with content (70vh cap);
+  // a number = the px height set by dragging the resize handle.
+  const [listHeight, setListHeight] = useState<number | null>(null);
+
+  // Chat transport: reply cache + transport-aware retry, shared app-wide.
+  const { send, isReplying } = useAskAtlas(responder);
+
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Focus the composer when the panel opens.
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
+  // Escape closes the panel.
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -40,37 +63,43 @@ export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({ responder, getCont
     return () => document.removeEventListener('keydown', handleKey);
   }, [onClose]);
 
+  // Keep the newest message in view.
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
   }, [messages]);
 
   const canSend = input.trim().length > 0 && !isReplying;
 
+  /** Append the user turn, send it through the hook, append the outcome. */
   const handleSend = async () => {
     const text = input.trim();
     if (!text || isReplying) return;
 
-    const ctx = getContext();
-    setMessages((prev) => [...prev, { ...makeMessage('user', text), context: ctx }]);
+    const context = getContext();
+    // History = turns before this one; the current question travels as `text`.
+    const history = messages;
+    setMessages((prev) => [...prev, { ...makeMessage('user', text), context }]);
     setInput('');
-    setIsReplying(true);
 
     try {
-      const res = await responder.respond(text, ctx);
-      setMessages((prev) => [
-        ...prev,
-        { ...makeMessage('assistant', res.text), grounding: res.grounding, context: ctx, location: res.location },
-      ]);
-    } catch {
-      setMessages((prev) => [
-        ...prev,
-        makeMessage('error', 'I could not process that request.\n\nTry: "postcode for Ikeja, Lagos"'),
-      ]);
-    } finally {
-      setIsReplying(false);
+      const res = await send({ text, context, history, language });
+      const reply: AskAtlasMessage = {
+        ...makeMessage('assistant', res.text),
+        grounding: res.grounding,
+        engine: res.engine,
+        context,
+        location: res.location,
+      };
+      setMessages((prev) => [...prev, reply]);
+    } catch (err) {
+      // AskApiError messages are already user-facing copy; fall back to
+      // a generic line for anything unexpected.
+      const detail = err instanceof Error ? err.message : '';
+      setMessages((prev) => [...prev, makeMessage('error', detail || GENERIC_ERROR_COPY)]);
     }
   };
 
+  /** Clear the conversation and return focus to the composer. */
   const handleClear = () => {
     setMessages([]);
     inputRef.current?.focus();
@@ -78,36 +107,21 @@ export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({ responder, getCont
 
   return (
     <DraggableCard dragHandleText="Ask Atlas" className="w-[min(92vw,380px)]">
-      <div className="flex items-center justify-between px-3 pt-2 pb-1">
-        <div className="flex items-center gap-1.5 text-[#0F7B4D] dark:text-[#10B981]">
-          <MessageSquare className="w-4 h-4" />
-          <span className="text-xs font-semibold">Ask Atlas</span>
-        </div>
-        <div className="flex items-center gap-1">
-          {messages.length > 0 && (
-            <button
-              onClick={handleClear}
-              className="p-1 text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white rounded transition-colors"
-              aria-label="Clear conversation"
-              title="Clear conversation"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          )}
-          <button
-            onClick={onClose}
-            className="p-1 text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white rounded transition-colors"
-            aria-label="Close Ask Atlas"
-            title="Close"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
+      <AskAtlasHeader
+        hasMessages={messages.length > 0}
+        language={language}
+        onLanguageChange={setLanguage}
+        onClear={handleClear}
+        onClose={onClose}
+      />
 
       <div
         ref={listRef}
-        className="px-3 py-2 space-y-2 max-h-[45vh] min-h-[96px] overflow-y-auto border-t border-[#E5E7EB] dark:border-[#374151]"
+        className="px-3 py-2 space-y-2 min-h-[96px] overflow-y-auto border-t border-[#E5E7EB] dark:border-[#374151]"
+        style={{
+          maxHeight: listHeight === null ? '70vh' : undefined,
+          height: listHeight === null ? undefined : `${listHeight}px`,
+        }}
         aria-live="polite"
       >
         {messages.length === 0 && (
@@ -119,35 +133,7 @@ export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({ responder, getCont
           </p>
         )}
         {messages.map((m) => (
-          <div
-            key={m.id}
-            className={`text-xs rounded-lg px-2.5 py-2 max-w-[90%] ${
-              m.role === 'user'
-                ? 'bg-[#ECFDF5] dark:bg-[#064E3B]/60 text-[#111827] dark:text-[#D1FAE5] ml-auto'
-                : m.role === 'error'
-                  ? 'bg-[#FEF2F2] dark:bg-[#450A0A]/60 text-[#991B1B] dark:text-[#FECACA] border border-[#FECACA] dark:border-[#7F1D1D]'
-                  : 'bg-[#F3F4F6] dark:bg-[#1F2937] text-[#111827] dark:text-[#E5E7EB]'
-            }`}
-          >
-            <span className="whitespace-pre-wrap break-words block">{m.content}</span>
-            {m.role === 'assistant' && (
-              <span className="block mt-1.5 pt-1.5 border-t border-[#E5E7EB] dark:border-[#374151] text-[10px] font-mono text-[#6B7280] dark:text-[#9CA3AF]">
-                {m.grounding === 'atlas'
-                  ? 'Verified against NIPOST postcode data'
-                  : 'Not verified - placeholder responder'}
-              </span>
-            )}
-            {m.role === 'assistant' && m.location && (
-              <button
-                type="button"
-                disabled
-                title="Map navigation arrives in feature 8"
-                className="mt-1.5 text-[11px] font-medium text-[#0F7B4D] dark:text-[#10B981] opacity-60 cursor-not-allowed"
-              >
-                [View on map]
-              </button>
-            )}
-          </div>
+          <AskAtlasMessageBubble key={m.id} message={m} />
         ))}
         {isReplying && (
           <div className="text-xs rounded-lg px-2.5 py-2 max-w-[90%] bg-[#F3F4F6] dark:bg-[#1F2937] text-[#6B7280] dark:text-[#9CA3AF] animate-pulse">
@@ -156,31 +142,18 @@ export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({ responder, getCont
         )}
       </div>
 
-      <form
-        className="flex items-center gap-2 px-3 py-2 border-t border-[#E5E7EB] dark:border-[#374151]"
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleSend();
-        }}
-      >
-        <input
-          ref={inputRef}
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask about a place or postcode..."
-          aria-label="Ask Atlas message"
-          className="flex-1 min-w-0 text-xs px-2.5 py-2 rounded-md border border-[#E5E7EB] dark:border-[#374151] bg-white dark:bg-[#1F2937] text-[#111827] dark:text-white placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#10B981]/50"
-        />
-        <button
-          type="submit"
-          disabled={!canSend}
-          aria-label="Send message"
-          className="p-2 rounded-md bg-[#008751] text-white enabled:hover:bg-[#0F7B4D] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-        >
-          <SendHorizonal className="w-4 h-4" />
-        </button>
-      </form>
+      <AskAtlasResizeHandle
+        onResize={setListHeight}
+        getCurrentHeight={() => listHeight ?? listRef.current?.getBoundingClientRect().height ?? 0}
+      />
+
+      <AskAtlasComposer
+        value={input}
+        onChange={setInput}
+        onSubmit={handleSend}
+        canSend={canSend}
+        inputRef={inputRef}
+      />
     </DraggableCard>
   );
 };
