@@ -49,7 +49,7 @@ and deployment readiness. Adapt it to the project as implementation progresses.
 
 ## MVP
 
-- [ ] 1. **Ask Atlas interface** - add a conversational entry point to the existing Nigerian Postcode Atlas
+- [x] 1. **Ask Atlas interface** - add a conversational entry point to the existing Nigerian Postcode Atlas
 
 - [ ] 2. **N-ATLAS integration** - connect Ask Atlas to N-ATLAS for natural-language understanding
 

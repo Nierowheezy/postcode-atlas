@@ -9,6 +9,7 @@ import {
   Wrench,
   GitCommitHorizontal,
   Menu,
+  MessageSquare,
   X,
 } from 'lucide-react';
 import { ThemeToggle } from '../ui/ThemeToggle';
@@ -31,6 +32,7 @@ interface TopBarProps {
   onRandomPlace: () => void;
   onOpenHunt: () => void;
   onOpenStory: () => void;
+  onToggleAskAtlas: () => void;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
@@ -45,6 +47,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   onRandomPlace,
   onOpenHunt,
   onOpenStory,
+  onToggleAskAtlas,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileBreadcrumbsOpen, setMobileBreadcrumbsOpen] = useState(false);
@@ -168,6 +171,17 @@ export const TopBar: React.FC<TopBarProps> = ({
 
         {/* Zone 3: Right side - menu, version, theme */}
         <div className="flex items-center gap-1">
+          {/* Ask Atlas conversational entry point */}
+          <button
+            onClick={onToggleAskAtlas}
+            title="Ask Atlas in natural language"
+            aria-label="Open Ask Atlas"
+            className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-[#0F7B4D] dark:text-[#10B981] hover:bg-[#F3F4F6] dark:hover:bg-[#1F2937] rounded border border-[#E5E7EB] dark:border-[#374151] transition-colors cursor-pointer"
+          >
+            <MessageSquare className="w-4 h-4" />
+            <span className="hidden sm:inline">Ask Atlas</span>
+          </button>
+
           {/* Mobile hamburger menu - always rendered, shown on mobile via CSS */}
           <button
             className="mobile-hamburger p-2 text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1F2937] rounded transition-colors"

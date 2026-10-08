@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { TopBar } from './components/navigation/TopBar';
 import { AtlasMap } from './components/map/AtlasMap';
 import { MapSearch } from './components/search/MapSearch';
@@ -25,6 +25,9 @@ import { ToastProvider, useToast } from './hooks/useToast';
 import { ThemeProvider } from './hooks/useTheme';
 import { ToastContainer } from './components/ui/Toast';
 import { DraggableCard } from './components/ui/DraggableCard';
+import { AskAtlasPanel } from './components/ask/AskAtlasPanel';
+import { createStubResponder } from './lib/ask/responder';
+import { AtlasContextSnapshot } from './lib/ask/types';
 import {
   MapViewMode,
   PostcodeLocation,
@@ -57,6 +60,10 @@ function PostcodeAtlasContent() {
   const [isHuntModalOpen, setIsHuntModalOpen] = useState(false);
   const [isStoryModalOpen, setIsStoryModalOpen] = useState(false);
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
+  const [isAskAtlasOpen, setIsAskAtlasOpen] = useState(false);
+
+  // Swap this stub for the N-ATLAS implementation in feature 2.
+  const askResponderRef = useRef(createStubResponder());
 
   // Version / update state
   const [availableVersion, setAvailableVersion] = useState<string | null>(null);
@@ -134,6 +141,19 @@ function PostcodeAtlasContent() {
       setBreadcrumbs({ state: { code: s.code, name: s.name } });
     }
   }, [showToast]);
+
+  const getAskAtlasContext = useCallback(
+    (): AtlasContextSnapshot => ({
+      selectedState: breadcrumbs.state,
+      selectedLga: breadcrumbs.lga,
+      selectedDistrict: breadcrumbs.district,
+      selectedArea: breadcrumbs.area,
+      selectedPostcode: selectedLocation?.postcode,
+      mapCenter,
+      mapZoom,
+    }),
+    [breadcrumbs, selectedLocation, mapCenter, mapZoom],
+  );
 
   const updateUrlLocation = useCallback((code?: string) => {
     const url = new URL(window.location.href);
@@ -370,6 +390,7 @@ function PostcodeAtlasContent() {
         onOpenHunt={() => setIsHuntModalOpen(true)}
         onOpenStory={() => setIsStoryModalOpen(true)}
         onOpenChangelog={() => setIsChangelogOpen(true)}
+        onToggleAskAtlas={() => setIsAskAtlasOpen((v) => !v)}
       />
 
       {/* Main Map Viewport (Occupies 95%+ of screen) */}
@@ -461,6 +482,16 @@ function PostcodeAtlasContent() {
                 activeLgaName={breadcrumbs.lga?.name}
               />
             </DraggableCard>
+          </div>
+        )}
+        {/* Ask Atlas Conversational Panel (Bottom Right) */}
+        {isAskAtlasOpen && (
+          <div className="absolute bottom-6 right-4 z-30 pointer-events-auto">
+            <AskAtlasPanel
+              responder={askResponderRef.current}
+              getContext={getAskAtlasContext}
+              onClose={() => setIsAskAtlasOpen(false)}
+            />
           </div>
         )}
       </main>
