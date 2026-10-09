@@ -9,6 +9,7 @@ import { AskLanguage, AskAtlasMessage, AskAtlasResponder, AtlasContextSnapshot }
 import { useAskAtlas } from '../../lib/ask/useAskAtlas';
 import { AskAtlasHeader } from './AskAtlasHeader';
 import { AskAtlasMessageBubble } from './AskAtlasMessageBubble';
+import { AskAtlasThinkingBubble } from './AskAtlasThinkingBubble';
 import { AskAtlasComposer } from './AskAtlasComposer';
 import { AskAtlasResizeHandle } from './AskAtlasResizeHandle';
 
@@ -136,11 +137,7 @@ export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({ responder, getCont
         {messages.map((m) => (
           <AskAtlasMessageBubble key={m.id} message={m} />
         ))}
-        {isReplying && (
-          <div className="text-xs rounded-lg px-2.5 py-2 max-w-[90%] bg-[#F3F4F6] dark:bg-[#1F2937] text-[#6B7280] dark:text-[#9CA3AF] animate-pulse">
-            Understanding your request...
-          </div>
-        )}
+        {isReplying && <AskAtlasThinkingBubble />}
       </div>
 
       <AskAtlasResizeHandle

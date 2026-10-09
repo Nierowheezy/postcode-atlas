@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { MessageSquare, Trash2, X } from 'lucide-react';
+import { ChevronDown, MessageSquare, Trash2, X } from 'lucide-react';
 import type { AskLanguage } from '../../lib/ask/types';
 
 /** Reply languages offered by the chip; order matches LANGUAGE_NAMES in prompt.ts. */
@@ -44,19 +44,26 @@ export const AskAtlasHeader: React.FC<AskAtlasHeaderProps> = ({
       <span className="text-xs font-semibold">Ask Atlas</span>
     </div>
     <div className="flex items-center gap-1">
-      <select
-        value={language}
-        onChange={(e) => onLanguageChange(e.target.value as AskLanguage)}
-        aria-label="Reply language"
-        title="Reply language"
-        className="text-[10px] font-semibold rounded border border-[#E5E7EB] dark:border-[#374151] bg-transparent text-[#6B7280] dark:text-[#9CA3AF] px-1 py-0.5 outline-none focus:border-[#0F7B4D] dark:focus:border-[#10B981]"
-      >
-        {LANGUAGES.map((lang) => (
-          <option key={lang.value} value={lang.value} title={lang.title}>
-            {lang.label}
-          </option>
-        ))}
-      </select>
+      {/* appearance-none + fixed chevron keeps the arrow clear of the value */}
+      <div className="relative inline-flex">
+        <select
+          value={language}
+          onChange={(e) => onLanguageChange(e.target.value as AskLanguage)}
+          aria-label="Reply language"
+          title="Reply language"
+          className="appearance-none cursor-pointer text-[10px] font-semibold rounded border border-[#E5E7EB] dark:border-[#374151] bg-transparent text-[#6B7280] dark:text-[#9CA3AF] pl-1.5 pr-5 py-0.5 outline-none focus:border-[#0F7B4D] dark:focus:border-[#10B981]"
+        >
+          {LANGUAGES.map((lang) => (
+            <option key={lang.value} value={lang.value} title={lang.title}>
+              {lang.label}
+            </option>
+          ))}
+        </select>
+        <ChevronDown
+          aria-hidden="true"
+          className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 w-3 h-3 text-[#6B7280] dark:text-[#9CA3AF]"
+        />
+      </div>
       {hasMessages && (
         <button
           onClick={onClear}
