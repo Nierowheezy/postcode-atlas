@@ -92,12 +92,30 @@ export function buildSystemPrompt(
       'place from the segment codes alone. For a place name, use',
       'searchLocation instead of decoding.',
     ].join(' '),
+    [
+      'For a nearby question ("what is near me", "postcodes near <place>"):',
+      'call getNearby with a real coordinate. Resolve that coordinate first:',
+      'use the current map center when the user says "here", "near me", or',
+      '"around here"; otherwise take coordinates a landmark search or',
+      'getPostcode returned, or a coordinate the user typed. Never guess or',
+      'invent a coordinate, and never pass a place name as lat or lng. State',
+      'the radius you searched. The interface already lists the units it',
+      'returned, so keep the prose short. When the result is empty, say no',
+      'verified units are within that range; do not widen the radius or',
+      'substitute results from somewhere else.',
+    ].join(' '),
   ].join('\n');
+}
+
+/** The map center as prompt text, so a "near me" question has a real origin. */
+function formatCenter(mapCenter: [number, number]): string {
+  const [lat, lng] = mapCenter;
+  return Number.isFinite(lat) && Number.isFinite(lng) ? `map center ${lat}, ${lng}` : 'map center unknown';
 }
 
 /** Compact, prompt-safe description of what the map is showing right now. */
 function describeSelection(context: AtlasContextSnapshot): string {
-  const parts: string[] = [];
+  const parts: string[] = [formatCenter(context.mapCenter)];
   if (context.selectedState) parts.push(`state ${context.selectedState.name}`);
   if (context.selectedLga) parts.push(`LGA ${context.selectedLga.name}`);
   if (context.selectedDistrict) parts.push(`district ${context.selectedDistrict}`);

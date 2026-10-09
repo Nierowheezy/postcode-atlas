@@ -7,6 +7,7 @@ import React from 'react';
 import type { AskAtlasMessage } from '../../lib/ask/types';
 import { AskAtlasResultsList } from './AskAtlasResultsList';
 import { AskAtlasDecodedCard } from './AskAtlasDecodedCard';
+import { AskAtlasNearbyList } from './AskAtlasNearbyList';
 
 /** Props for a single conversation bubble. */
 export interface AskAtlasMessageBubbleProps {
@@ -54,6 +55,9 @@ export const AskAtlasMessageBubble: React.FC<AskAtlasMessageBubbleProps> = ({ me
     )}
     {message.role === 'assistant' && message.decoded && (
       <AskAtlasDecodedCard decoded={message.decoded} />
+    )}
+    {message.role === 'assistant' && message.nearby && (
+      <AskAtlasNearbyList list={message.nearby} />
     )}
     {message.role === 'assistant' && (
       <span className="block mt-1.5 pt-1.5 border-t border-[#E5E7EB] dark:border-[#374151] text-[10px] font-mono text-[#6B7280] dark:text-[#9CA3AF]">

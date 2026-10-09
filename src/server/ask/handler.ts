@@ -85,8 +85,18 @@ function errorBody(
   return JSON.stringify(body);
 }
 
+/** A finite lat/lng pair inside the valid ranges, or the `[0, 0]` fallback. */
+function sanitizeMapCenter(value: unknown): [number, number] {
+  if (!Array.isArray(value) || value.length < 2) return [0, 0];
+  const [lat, lng] = value;
+  if (typeof lat !== 'number' || typeof lng !== 'number') return [0, 0];
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return [0, 0];
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return [0, 0];
+  return [lat, lng];
+}
+
 /** Strip + validate the request body into a safe `AtlasContextSnapshot`. */
-function sanitizeContext(context: unknown): AtlasContextSnapshot {
+export function sanitizeContext(context: unknown): AtlasContextSnapshot {
   if (typeof context !== 'object' || context === null) return { mapCenter: [0, 0], mapZoom: 4 };
   const raw = context as Record<string, unknown>;
 
@@ -99,7 +109,7 @@ function sanitizeContext(context: unknown): AtlasContextSnapshot {
     selectedDistrict: str(raw.selectedDistrict),
     selectedArea: str(raw.selectedArea),
     selectedPostcode: str(raw.selectedPostcode),
-    mapCenter: [0, 0],
+    mapCenter: sanitizeMapCenter(raw.mapCenter),
     mapZoom: 4,
   };
 }

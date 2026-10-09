@@ -64,7 +64,7 @@ and deployment readiness. Adapt it to the project as implementation progresses.
 
 - [x] 6. **Postcode decoding** - submit a postcode conversationally and explain its structure and location
 
-- [ ] 7. **Nearby location queries** - ask conversationally about nearby postcode areas and locations
+- [x] 7. **Nearby location queries** - ask conversationally about nearby postcode areas and locations
 
 - [ ] 8. **Conversational map control** - allow valid AI requests to navigate, zoom, select, and highlight locations on the map
 

@@ -12,6 +12,8 @@ import {
   AskToolTurn,
   AtlasResultItem,
   AtlasResultList,
+  NearbyResultItem,
+  NearbyResultList,
   VerifiedLookup,
 } from './types';
 import { ASK_API_ENDPOINT, AskApiErrorResponse } from './api-types';
@@ -19,13 +21,16 @@ import { AskApiError } from './errors';
 import { runTool } from '../tools/registry';
 import { atlasStore } from '../atlas/store';
 import type { PostcodeLocation } from '../../types/postcode';
-import type { DecodedPostcode } from '../tools/types';
+import type { DecodedPostcode, NearbyUnit } from '../tools/types';
 import type { AtlasArea, AtlasDistrict, AtlasLga, AtlasState, LocationCandidate } from '../atlas/dataset';
 
 const RESPONSE_DELAY_MS = 400;
 
 /** Most bundled verified units to attach to one exploration list (feature 5). */
 const MAX_RESULT_UNITS = 8;
+
+/** Default nearby radius, matching the 3b executor's own cap (feature 7). */
+const DEFAULT_NEARBY_RADIUS_M = 300;
 
 interface StubRule {
   pattern: RegExp;
@@ -442,7 +447,83 @@ export function deriveDecoded(toolTurns: AskToolTurn[]): DecodedPostcode | undef
   return decoded;
 }
 
-/** Attach the feature 4 lookup, feature 5 list, and feature 6 decode to a final reply. */
+/** Narrow executed data to nearby unit records. */
+function asNearbyUnits(value: unknown): NearbyUnit[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(
+    (item): item is NearbyUnit =>
+      typeof item === 'object' && item !== null && typeof (item as Record<string, unknown>).postcode === 'string',
+  );
+}
+
+/** Map one nearby unit to a display row: address label, distance, and parent. */
+function toNearbyItem(unit: NearbyUnit): NearbyResultItem {
+  const parent = [unit.lgaName, unit.stateName].filter((part): part is string => Boolean(part)).join(', ');
+  return {
+    postcode: unit.postcode,
+    label: unit.address || undefined,
+    distance_m: typeof unit.distance_m === 'number' ? unit.distance_m : undefined,
+    parent: parent || undefined,
+  };
+}
+
+/** A finite lat/lng within the schema ranges, or undefined for anything else. */
+function asCoordinatePair(value: unknown): { lat: number; lng: number } | undefined {
+  if (!Array.isArray(value) || value.length < 2) return undefined;
+  const [lat, lng] = value;
+  if (typeof lat !== 'number' || typeof lng !== 'number') return undefined;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return undefined;
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return undefined;
+  return { lat, lng };
+}
+
+/**
+ * The origin and radius a `getNearby` call actually used, read from the
+ * call's own arguments rather than the prose. Malformed JSON or an
+ * out-of-range coordinate drops the origin but keeps the rows.
+ */
+function originFromCall(call: AskToolCall | undefined): { origin?: NearbyResultList['origin']; radius_m: number } {
+  if (!call) return { radius_m: DEFAULT_NEARBY_RADIUS_M };
+
+  let args: unknown;
+  try {
+    args = JSON.parse(call.arguments);
+  } catch {
+    return { radius_m: DEFAULT_NEARBY_RADIUS_M };
+  }
+
+  const raw = (typeof args === 'object' && args !== null ? args : {}) as Record<string, unknown>;
+  const origin = asCoordinatePair([raw.lat, raw.lng]);
+  const radius = raw.radius;
+  const radius_m =
+    typeof radius === 'number' && Number.isFinite(radius) && radius > 0 ? radius : DEFAULT_NEARBY_RADIUS_M;
+
+  return { origin, radius_m };
+}
+
+/**
+ * Derive the nearby unit list (feature 7) from the executed tool results.
+ * Deterministic: the last successful `getNearby` result wins. An empty array
+ * is a real "nothing nearby" answer, so it still yields a payload; a failed
+ * result or a reply with no `getNearby` leaves it unset.
+ */
+export function deriveNearby(toolTurns: AskToolTurn[]): NearbyResultList | undefined {
+  let nearby: NearbyResultList | undefined;
+
+  for (const turn of toolTurns) {
+    turn.toolResults.forEach((result, index) => {
+      if (!result.ok || result.name !== 'getNearby' || !Array.isArray(result.data)) return;
+
+      const { origin, radius_m } = originFromCall(turn.assistantToolCalls[index]);
+      const items = asNearbyUnits(result.data).map(toNearbyItem);
+      nearby = { ...(origin ? { origin } : {}), items, total: items.length, radius_m };
+    });
+  }
+
+  return nearby;
+}
+
+/** Attach the feature 4 lookup, feature 5 list, feature 6 decode, and feature 7 nearby list to a final reply. */
 async function attachDerived(response: AskAtlasResponse, toolTurns: AskToolTurn[]): Promise<AskAtlasResponse> {
   const withLookupResponse = withLookup(response, toolTurns);
   const results = await deriveResults(toolTurns);
@@ -462,6 +543,9 @@ async function attachDerived(response: AskAtlasResponse, toolTurns: AskToolTurn[
       };
     }
   }
+
+  const nearby = deriveNearby(toolTurns);
+  if (nearby) next = { ...next, nearby };
 
   return next;
 }

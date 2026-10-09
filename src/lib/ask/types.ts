@@ -9,7 +9,7 @@
  * interface; the UI must not know which implementation it is talking to.
  */
 
-import type { DecodedPostcode, ToolError } from '../tools/types';
+import type { DecodedPostcode, NearbyUnit, ToolError } from '../tools/types';
 
 export interface AtlasContextSnapshot {
   selectedState?: { code: string; name: string };
@@ -61,6 +61,12 @@ export interface AskAtlasResponse {
    */
   decoded?: DecodedPostcode;
   /**
+   * Nearby postcode units for the reply (feature 7). Derived on the client
+   * from the executed tool results; always absent on stub replies and on
+   * intermediate toolCalls responses.
+   */
+  nearby?: NearbyResultList;
+  /**
    * Present when the model asked for tool calls instead of answering.
    * `text` is empty then; the client executes the calls and feeds the
    * results back via the next request's `toolTurns`.
@@ -86,6 +92,8 @@ export interface AskAtlasMessage {
   results?: AtlasResultList;
   /** Decoded postcode breakdown rendered as the feature 6 card. */
   decoded?: DecodedPostcode;
+  /** Nearby postcode units rendered as the feature 7 list. */
+  nearby?: NearbyResultList;
   timestamp: number;
 }
 
@@ -179,6 +187,29 @@ export interface VerifiedLookup {
   coordinates?: [number, number];
   /** True when the source is the bundled verified dataset (landmark). */
   verified: boolean;
+}
+
+/** One nearby postcode unit (feature 7). */
+export interface NearbyResultItem {
+  postcode: string;
+  label?: string;
+  distance_m?: number;
+  parent?: string;
+}
+
+/**
+ * Nearby postcode units derived from the executed `getNearby` result
+ * (feature 7). Load-bearing for the later grounded replies; keep the shape
+ * stable. Built on the client, never from the reply prose.
+ */
+export interface NearbyResultList {
+  /** The coordinate the tool actually searched around, when the call parsed. */
+  origin?: { lat: number; lng: number; label?: string };
+  items: NearbyResultItem[];
+  /** Number of rows before display capping. */
+  total: number;
+  /** Search radius in metres; the executor's 300 m cap by default. */
+  radius_m?: number;
 }
 
 export interface AskAtlasResponder {
