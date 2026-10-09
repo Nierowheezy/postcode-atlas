@@ -92,6 +92,7 @@ export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({ responder, getCont
         location: res.location,
         lookup: res.lookup,
         results: res.results,
+        decoded: res.decoded,
       };
       setMessages((prev) => [...prev, reply]);
     } catch (err) {

@@ -152,7 +152,10 @@ export async function decodePostcode(args: DecodePostcodeArgs): Promise<DecodedP
       states.find((state) => state.code.toUpperCase() === segments.state)?.name ?? lookup?.stateName,
     lgaName: lgas.find((lga) => lga.code === segments.lga)?.name ?? lookup?.lgaName,
     coordinates: toCoordinates(lookup?.lat, lookup?.lng),
-    verified: lookup?.verified,
+    // A decode confirms a location only when the full postcode mapped to a
+    // record. An explicit gateway `verified: false` is respected; a missing
+    // flag (bundled landmarks) counts as confirmed, matching feature 4.
+    verified: lookup ? lookup.verified !== false : false,
   };
 }
 

@@ -9,7 +9,7 @@
  * interface; the UI must not know which implementation it is talking to.
  */
 
-import type { ToolError } from '../tools/types';
+import type { DecodedPostcode, ToolError } from '../tools/types';
 
 export interface AtlasContextSnapshot {
   selectedState?: { code: string; name: string };
@@ -55,6 +55,12 @@ export interface AskAtlasResponse {
    */
   results?: AtlasResultList;
   /**
+   * Decoded postcode breakdown for the reply (feature 6). Derived on the
+   * client from the executed tool results; always absent on stub replies
+   * and on intermediate toolCalls responses.
+   */
+  decoded?: DecodedPostcode;
+  /**
    * Present when the model asked for tool calls instead of answering.
    * `text` is empty then; the client executes the calls and feeds the
    * results back via the next request's `toolTurns`.
@@ -78,6 +84,8 @@ export interface AskAtlasMessage {
   lookup?: VerifiedLookup;
   /** Hierarchy listing payload rendered as the feature 5 list. */
   results?: AtlasResultList;
+  /** Decoded postcode breakdown rendered as the feature 6 card. */
+  decoded?: DecodedPostcode;
   timestamp: number;
 }
 

@@ -79,6 +79,19 @@ export function buildSystemPrompt(
       '   user to pick before answering with a code.',
       'Never guess or compute a postcode: quote one only from a tool result.',
     ].join(' '),
+    [
+      'Decoding a postcode, explaining what a code means, or asking what its',
+      'parts are: call decodePostcode. Answer from its result by reading the',
+      'five segments left to right (STATE, LGA, DISTRICT, AREA, UNIT) and say',
+      'what each one is. Name the state and LGA when the result resolves them.',
+      'The interface already shows the breakdown, so keep the prose short.',
+      'When the result has valid false, say the input is not a valid postcode',
+      'and give the expected form: STATE-LGA-DISTRICT-AREA-UNIT, for example',
+      'FC-02-D43-LG-01. When verified is not true, say the structure is valid',
+      'but the location is not confirmed in the Atlas dataset: do not infer a',
+      'place from the segment codes alone. For a place name, use',
+      'searchLocation instead of decoding.',
+    ].join(' '),
   ].join('\n');
 }
 

@@ -62,7 +62,7 @@ and deployment readiness. Adapt it to the project as implementation progresses.
 
 - [x] 5. **Natural-language location exploration** - explore states, LGAs, districts, areas, and postcode units through conversation
 
-- [ ] 6. **Postcode decoding** - submit a postcode conversationally and explain its structure and location
+- [x] 6. **Postcode decoding** - submit a postcode conversationally and explain its structure and location
 
 - [ ] 7. **Nearby location queries** - ask conversationally about nearby postcode areas and locations
 

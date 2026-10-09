@@ -19,6 +19,7 @@ import { AskApiError } from './errors';
 import { runTool } from '../tools/registry';
 import { atlasStore } from '../atlas/store';
 import type { PostcodeLocation } from '../../types/postcode';
+import type { DecodedPostcode } from '../tools/types';
 import type { AtlasArea, AtlasDistrict, AtlasLga, AtlasState, LocationCandidate } from '../atlas/dataset';
 
 const RESPONSE_DELAY_MS = 400;
@@ -411,11 +412,58 @@ export async function deriveResults(toolTurns: AskToolTurn[]): Promise<AtlasResu
   return list ? withUnits(list) : undefined;
 }
 
-/** Attach the feature 4 lookup and the feature 5 result list to a final reply. */
+/** Narrow executed data to a decoded postcode payload; a bad shape yields undefined. */
+function asDecodedPostcode(value: unknown): DecodedPostcode | undefined {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const decoded = value as Record<string, unknown>;
+  const segments = decoded.segments;
+  return typeof decoded.postcode === 'string' && typeof segments === 'object' && segments !== null
+    ? (value as DecodedPostcode)
+    : undefined;
+}
+
+/**
+ * Derive the decoded postcode breakdown (feature 6) from the executed tool
+ * results. Deterministic: the last successful `decodePostcode` result wins,
+ * including an invalid-structure payload so the card can explain it. A failed
+ * result or a reply with no decode leaves it unset.
+ */
+export function deriveDecoded(toolTurns: AskToolTurn[]): DecodedPostcode | undefined {
+  let decoded: DecodedPostcode | undefined;
+
+  for (const turn of toolTurns) {
+    for (const result of turn.toolResults) {
+      if (!result.ok || result.name !== 'decodePostcode') continue;
+      const payload = asDecodedPostcode(result.data);
+      if (payload) decoded = payload;
+    }
+  }
+
+  return decoded;
+}
+
+/** Attach the feature 4 lookup, feature 5 list, and feature 6 decode to a final reply. */
 async function attachDerived(response: AskAtlasResponse, toolTurns: AskToolTurn[]): Promise<AskAtlasResponse> {
   const withLookupResponse = withLookup(response, toolTurns);
   const results = await deriveResults(toolTurns);
-  return results ? { ...withLookupResponse, results } : withLookupResponse;
+  let next = results ? { ...withLookupResponse, results } : withLookupResponse;
+
+  const decoded = deriveDecoded(toolTurns);
+  if (decoded) {
+    next = { ...next, decoded };
+    if (decoded.coordinates && !next.location) {
+      next = {
+        ...next,
+        location: {
+          lat: decoded.coordinates[0],
+          lng: decoded.coordinates[1],
+          label: decoded.postcode,
+        },
+      };
+    }
+  }
+
+  return next;
 }
 
 /** One POST to `/api/ask`. Transport + error mapping only; no loop logic. */
