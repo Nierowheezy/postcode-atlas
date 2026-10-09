@@ -10,6 +10,26 @@ import { AskAtlasDecodedCard } from './AskAtlasDecodedCard';
 import { AskAtlasNearbyList } from './AskAtlasNearbyList';
 import type { AskAtlasViewLocation } from './AskAtlasPanel';
 
+/**
+ * What the grounding footer may claim (feature 9). A reply is only labelled
+ * verified when it carries a payload the app itself derived from an executed
+ * tool result; "a tool ran somewhere" is a weaker claim.
+ */
+export function groundingBasis(message: AskAtlasMessage): 'payload' | 'tools' | 'none' {
+  // A payload is derived client-side from an executed tool result, so it
+  // carries its own proof. The 3c `grounding` flag is only a fallback for a
+  // reply that carries no payload: it can disagree with a payload (a cached
+  // reply, or a provider that answered from memory after a tool ran).
+  if (message.lookup || message.results || message.decoded || message.nearby || message.mapAction) return 'payload';
+  return message.grounding === 'atlas' ? 'tools' : 'none';
+}
+
+const FOOTER_TEXT: Record<ReturnType<typeof groundingBasis>, string> = {
+  payload: 'Verified against NIPOST postcode data',
+  tools: 'Answered from NIPOST tool results',
+  none: 'Not verified against NIPOST data',
+};
+
 /** Props for a single conversation bubble. */
 export interface AskAtlasMessageBubbleProps {
   message: AskAtlasMessage;
@@ -67,9 +87,7 @@ export const AskAtlasMessageBubble: React.FC<AskAtlasMessageBubbleProps> = ({
     )}
     {message.role === 'assistant' && (
       <span className="block mt-1.5 pt-1.5 border-t border-[#E5E7EB] dark:border-[#374151] text-[10px] font-mono text-[#6B7280] dark:text-[#9CA3AF]">
-        {message.grounding === 'atlas'
-          ? 'Verified against NIPOST postcode data'
-          : 'Not verified against NIPOST data'}
+        {FOOTER_TEXT[groundingBasis(message)]}
       </span>
     )}
     {message.role === 'assistant' && message.engine && (

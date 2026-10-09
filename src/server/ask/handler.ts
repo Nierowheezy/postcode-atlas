@@ -28,6 +28,12 @@ const LANGUAGES: readonly AskLanguage[] = ['en', 'yo', 'ha', 'ig'];
 const MAX_TOOL_TURNS = 4;
 const MAX_TOOL_MESSAGES_PER_TURN = 8;
 const MAX_TOOL_RESULT_CHARS = 2000;
+
+/** Leading rows kept when a result is too large to send whole (feature 9). */
+const MAX_TRUNCATED_ROWS = 20;
+
+/** Longest error message forwarded to the provider before it is cut. */
+const MAX_ERROR_MESSAGE_CHARS = 400;
 const MAX_TOOL_ID_CHARS = 64;
 const MAX_TOOL_NAME_CHARS = 64;
 const MAX_TOOL_ARGUMENT_CHARS = 4000;
@@ -205,13 +211,61 @@ function toProviderToolCalls(turn: AskToolTurn): ProviderToolCall[] {
   }));
 }
 
-/** Compact JSON for a tool result; truncated so a bad reply cannot bloat the request. */
-function serializeToolResult(result: AskToolResult): string {
+/**
+ * Compact JSON for a tool result, bounded so a bad reply cannot bloat the
+ * request. An oversized result is never sliced mid-token: it is sent as valid
+ * JSON that names itself as partial, so the model cannot read a broken prefix
+ * as a complete list.
+ */
+export function serializeToolResult(result: AskToolResult): string {
   const payload = result.ok ? { ok: true, data: result.data } : { ok: false, error: result.error };
   const json = JSON.stringify(payload) ?? '';
-  return json.length <= MAX_TOOL_RESULT_CHARS
-    ? json
-    : `${json.slice(0, MAX_TOOL_RESULT_CHARS)}...(truncated)`;
+  if (json.length <= MAX_TOOL_RESULT_CHARS) return json;
+
+  if (result.ok) {
+    return JSON.stringify({
+      ok: true,
+      data: narrowOversizedData(result.data),
+      truncated: true,
+      note: 'This result was too large to send in full, so it is PARTIAL. Treat it as incomplete: say how many rows you actually received rather than presenting them as the whole list, and ask for a narrower scope to see the rest.',
+    });
+  }
+  const error = result.error ?? { code: 'internal_error', message: 'Unknown tool failure.' };
+  const message =
+    error.message.length > MAX_ERROR_MESSAGE_CHARS
+      ? `${error.message.slice(0, MAX_ERROR_MESSAGE_CHARS)}...`
+      : error.message;
+  return JSON.stringify({
+    ok: false,
+    error: { ...error, message },
+    truncated: true,
+    note: 'Error detail was shortened; the message may be cut off.',
+  });
+}
+
+/**
+ * Keep as many leading rows of an oversized result as fit, rather than
+ * discarding it. A bare array keeps its first rows; a hierarchy page keeps the
+ * first rows of `items` while preserving the real `total` and `truncated`, so
+ * the model can still say how many exist. Anything else falls back to a short
+ * summary of its shape.
+ */
+function narrowOversizedData(data: unknown): unknown {
+  const limit = MAX_TRUNCATED_ROWS;
+  if (Array.isArray(data)) {
+    return { items: data.slice(0, limit), total: data.length, truncated: true };
+  }
+  if (typeof data === 'object' && data !== null && Array.isArray((data as { items?: unknown }).items)) {
+    const page = data as { items: unknown[]; total?: unknown; truncated?: unknown };
+    return { ...page, items: page.items.slice(0, limit), truncated: true };
+  }
+  return { summary: 'Result omitted: too large to send.', keys: describeShape(data) };
+}
+
+/** Top-level key names, so a model that lost the payload still sees its shape. */
+function describeShape(data: unknown): string[] {
+  if (typeof data !== 'object' || data === null) return [];
+  return Object.keys(data).slice(0, 20);
 }
 
 /** Append the completed tool rounds after the last user text, in order. */

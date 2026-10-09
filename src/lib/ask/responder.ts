@@ -285,12 +285,27 @@ async function resultFromLgas(value: unknown): Promise<AtlasResultList | undefin
   return { level: 'lga', scope: stateName, scopePath: { state }, items, total: items.length };
 }
 
+/**
+ * Read one capped hierarchy page (feature 9). The list total comes from the
+ * page's own `total`, so "+N more" reflects what actually exists rather than
+ * what fitted inside the cap.
+ */
+function asHierarchyPage<T extends { code: string }>(value: unknown): { rows: T[]; total: number } | undefined {
+  if (typeof value !== 'object' || value === null || !Array.isArray((value as { items?: unknown }).items)) {
+    return undefined;
+  }
+  const page = value as { items: unknown; total?: unknown };
+  const rows = asCodeRecords<T>(page.items);
+  const total = typeof page.total === 'number' && Number.isFinite(page.total) ? page.total : rows.length;
+  return { rows, total: Math.max(total, rows.length) };
+}
+
 async function resultFromDistricts(value: unknown): Promise<AtlasResultList | undefined> {
-  const districts = asCodeRecords<AtlasDistrict>(value);
-  if (districts.length === 0) return undefined;
-  const { state, lga } = districts[0];
+  const page = asHierarchyPage<AtlasDistrict>(value);
+  if (!page || page.rows.length === 0) return undefined;
+  const { state, lga } = page.rows[0];
   const [stateName, lgaName] = await Promise.all([stateNameOf(state), lgaNameOf(state, lga)]);
-  const items = districts.map(
+  const items = page.rows.map(
     (district): AtlasResultItem => ({ type: 'district', code: district.code, name: district.name }),
   );
   return {
@@ -298,22 +313,22 @@ async function resultFromDistricts(value: unknown): Promise<AtlasResultList | un
     scope: joinLabels([lgaName ?? lga, stateName]),
     scopePath: { state, lga },
     items,
-    total: items.length,
+    total: page.total,
   };
 }
 
 async function resultFromAreas(value: unknown): Promise<AtlasResultList | undefined> {
-  const areas = asCodeRecords<AtlasArea>(value);
-  if (areas.length === 0) return undefined;
-  const { state, lga, district } = areas[0];
+  const page = asHierarchyPage<AtlasArea>(value);
+  if (!page || page.rows.length === 0) return undefined;
+  const { state, lga, district } = page.rows[0];
   const [stateName, lgaName] = await Promise.all([stateNameOf(state), lgaNameOf(state, lga)]);
-  const items = areas.map((area): AtlasResultItem => ({ type: 'area', code: area.code, name: area.name }));
+  const items = page.rows.map((area): AtlasResultItem => ({ type: 'area', code: area.code, name: area.name }));
   return {
     level: 'area',
     scope: joinLabels([district, lgaName ?? lga, stateName]),
     scopePath: { state, lga, district },
     items,
-    total: items.length,
+    total: page.total,
   };
 }
 

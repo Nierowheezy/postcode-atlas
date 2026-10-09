@@ -106,6 +106,17 @@ export type MapAction =
   | { target: 'postcode'; postcode: string; location: PostcodeLocation }
   | { target: 'reset'; center: [number, number]; zoom: number };
 
+/**
+ * A capped hierarchy list handed to the model (feature 9). `total` is the row
+ * count before capping, so the model can say how many exist instead of
+ * implying the page is the whole list.
+ */
+export interface HierarchyPage<T> {
+  items: T[];
+  total: number;
+  truncated: boolean;
+}
+
 export interface NearbyUnit {
   postcode: string;
   compact?: string;
@@ -128,8 +139,8 @@ export interface ToolResultMap {
   getState: StateSummary;
   getStates: AtlasState[];
   getLgas: AtlasLga[];
-  getDistricts: AtlasDistrict[];
-  getAreas: AtlasArea[];
+  getDistricts: HierarchyPage<AtlasDistrict>;
+  getAreas: HierarchyPage<AtlasArea>;
   getPostcode: PostcodeLocation | null;
   decodePostcode: DecodedPostcode;
   getNearby: NearbyUnit[];

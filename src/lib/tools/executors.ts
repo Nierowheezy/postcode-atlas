@@ -26,9 +26,16 @@ import type {
   NavigateMapArgs,
   SearchLocationArgs,
 } from './schemas';
-import { ToolFault, type DecodedPostcode, type MapAction, type NearbyUnit, type StateSummary } from './types';
+import { ToolFault, type DecodedPostcode, type HierarchyPage, type MapAction, type NearbyUnit, type StateSummary } from './types';
 
 const NEARBY_RADIUS_CAP = 300;
+
+/**
+ * Most hierarchy rows handed to the model at once (feature 9). Districts and
+ * areas run into the hundreds per parent, so a bare array would hand the
+ * model a dump and get cut mid-JSON by the request size guard.
+ */
+const MAX_HIERARCHY_ROWS = 50;
 
 /** Zoom used when the map frames an LGA, matching the explorer's own view. */
 const LGA_VIEW_ZOOM = 12;
@@ -76,6 +83,15 @@ export function getStates(): Promise<AtlasState[]> {
   return atlasStore.getStates();
 }
 
+/** Cap one hierarchy list, keeping order and reporting the real total. */
+function toHierarchyPage<T>(rows: T[]): HierarchyPage<T> {
+  return {
+    items: rows.slice(0, MAX_HIERARCHY_ROWS),
+    total: rows.length,
+    truncated: rows.length > MAX_HIERARCHY_ROWS,
+  };
+}
+
 export async function getState(args: GetStateArgs): Promise<StateSummary> {
   const match = await resolveState(args.state.trim());
 
@@ -98,16 +114,16 @@ export async function getLgas(args: GetLgasArgs): Promise<AtlasLga[]> {
   return atlasStore.getLgas(state.code);
 }
 
-export async function getDistricts(args: GetDistrictsArgs): Promise<AtlasDistrict[]> {
+export async function getDistricts(args: GetDistrictsArgs): Promise<HierarchyPage<AtlasDistrict>> {
   const state = await resolveState(args.state.trim());
   const lga = await resolveLgaCode(state.code, args.lga.trim());
-  return atlasStore.getDistricts(state.code, lga);
+  return toHierarchyPage(await atlasStore.getDistricts(state.code, lga));
 }
 
-export async function getAreas(args: GetAreasArgs): Promise<AtlasArea[]> {
+export async function getAreas(args: GetAreasArgs): Promise<HierarchyPage<AtlasArea>> {
   const state = await resolveState(args.state.trim());
   const lga = await resolveLgaCode(state.code, args.lga.trim());
-  return atlasStore.getAreas(state.code, lga, args.district.trim());
+  return toHierarchyPage(await atlasStore.getAreas(state.code, lga, args.district.trim()));
 }
 
 export function getPostcode(args: GetPostcodeArgs): Promise<PostcodeLocation | null> {

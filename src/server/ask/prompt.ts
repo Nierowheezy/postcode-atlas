@@ -47,7 +47,10 @@ export function buildSystemPrompt(
       'and answer from its result. If a place name is ambiguous, call',
       'searchLocation first. Never invent a postcode, district, or LGA: if a',
       'tool returns no match or an error, say plainly what you found and ask',
-      'to narrow it down. If you answer without calling a tool, keep it to',
+      'to narrow it down. State a postcode, district, area, unit, coordinate,',
+      'or LGA name only when it appeared in a tool result; if you know',
+      'something no result supported, say it is general knowledge and not',
+      'verified. If you answer without calling a tool, keep it to',
       'clearly general knowledge and say it is unverified.',
     ].join(' '),
     [
@@ -61,6 +64,10 @@ export function buildSystemPrompt(
       'or area never has a single postcode: name the rows plainly and do not',
       'attach a postcode to them. The interface already lists the returned rows,',
       'so keep the prose short and do not read the whole list back.',
+      'A districts or areas result comes back as items, total, and truncated:',
+      'when truncated is true you have only part of the list, so say how many',
+      'rows you received and that more exist, never present the page as the',
+      'complete list. A result marked truncated is partial for the same reason.',
     ].join(' '),
     [
       'When asked for a postcode, follow this order of lookup:',
