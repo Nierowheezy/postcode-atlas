@@ -55,7 +55,7 @@ and deployment readiness. Adapt it to the project as implementation progresses.
 
 - [ ] 3. **Atlas tool layer** - expose postcode, location, hierarchy, nearby-search, and decoding capabilities as structured tools
   - [x] 3a. **Atlas dataset cache** - versioned IndexedDB store of the NDAPS naming hierarchy (states + LGAs; districts/areas are code-only at measured scale and stay gateway-served) and discovery postcodes, seeded once per release from a committed static snapshot, with local-first reads and gateway fallback
-  - [ ] 3b. **Atlas structured tools** - shared, validated schemas and client executors for the eight data tools (searchLocation, getState, getLgas, getDistricts, getAreas, getPostcode, decodePostcode, getNearby) backed by the 3a store; result shapes become the load-bearing contract for features 4-9
+  - [x] 3b. **Atlas structured tools** - shared, validated schemas and client executors for the eight data tools (searchLocation, getState, getLgas, getDistricts, getAreas, getPostcode, decodePostcode, getNearby) backed by the 3a store; result shapes become the load-bearing contract for features 4-9
   - [ ] 3c. **Tool-calling chat loop** - OpenAI-compatible tools in the Ask provider chain, a multi-round `/api/ask` contract with client-side tool execution and feed-back, plus an honest text-only fallback when a model does not call tools
 
 - [ ] 4. **Natural-language postcode lookup** - ask for a Nigerian postcode using normal language and return verified Atlas results
