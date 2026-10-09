@@ -9,6 +9,7 @@
     "start": "vite preview",
     "preview": "vite preview",
     "clean": "rm -rf dist",
+    "dataset": "node scripts/build-atlas-dataset.mjs",
     "lint": "tsc --noEmit"
   },
   "dependencies": {

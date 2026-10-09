@@ -37,6 +37,7 @@ import {
 } from './types/postcode';
 import { NIGERIA_CENTER, NIGERIA_DEFAULT_ZOOM, NIGERIA_STATES } from './lib/geo/nigeriaData';
 import { postcodeApi } from './lib/api/postcodeClient';
+import { atlasStore } from './lib/atlas/store';
 
 function PostcodeAtlasContent() {
   const [currentMode, setCurrentMode] = useState<MapViewMode>('map');
@@ -90,6 +91,12 @@ function PostcodeAtlasContent() {
       persistPendingUpdate(latest);
       setAvailableVersion(latest);
     });
+  }, []);
+
+  // Hydrate the local Atlas dataset once per release so grounded lookups
+  // run locally with zero provider calls and keep working offline.
+  useEffect(() => {
+    void atlasStore.ensureHydrated();
   }, []);
 
   // Postcode Hunt state

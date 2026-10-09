@@ -16,6 +16,7 @@
     { "source": "/logo-header-dark.svg", "destination": "/logo-header-dark.svg" },
     { "source": "/manifest.webmanifest", "destination": "/manifest.webmanifest" },
     { "source": "/version.json", "destination": "/version.json" },
+    { "source": "/atlas-data.json", "destination": "/atlas-data.json" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
