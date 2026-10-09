@@ -3,10 +3,20 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AskAtlasRequest, AskAtlasResponder, AskAtlasResponse, AskToolCall, AskToolResult, AskToolTurn } from './types';
+import {
+  AskAtlasRequest,
+  AskAtlasResponder,
+  AskAtlasResponse,
+  AskToolCall,
+  AskToolResult,
+  AskToolTurn,
+  VerifiedLookup,
+} from './types';
 import { ASK_API_ENDPOINT, AskApiErrorResponse } from './api-types';
 import { AskApiError } from './errors';
 import { runTool } from '../tools/registry';
+import type { PostcodeLocation } from '../../types/postcode';
+import type { LocationCandidate } from '../atlas/dataset';
 
 const RESPONSE_DELAY_MS = 400;
 
@@ -19,9 +29,8 @@ const RULES: StubRule[] = [
   {
     pattern: /\b(ikeja|yaba|surulere|lekki|ikoyi|victoria island)\b/i,
     reply: () => ({
-      text: 'I found Ikeja, Lagos.\n\nPostcode: 100001\n\nLagos\n  Ikeja\n    A12\n      100001',
+      text: 'That is a real Lagos place, but the placeholder responder cannot look up verified postcodes. Start the app with the answer service connected (API mode, the default) to ask for real lookups.',
       grounding: 'unverified',
-      location: { lat: 6.6018, lng: 3.3515, label: 'Ikeja, Lagos' },
     }),
   },
   {
@@ -41,14 +50,14 @@ const RULES: StubRule[] = [
   {
     pattern: /\b(postcode|postal code|zip)\b/i,
     reply: () => ({
-      text: 'Tell me a place name (for example "postcode for Ikeja") and I will look it up once N-ATLAS is connected.',
+      text: 'The placeholder responder cannot verify postcodes. Start the app with the answer service connected (API mode, the default) and I can look up real postcodes for places, landmarks, and codes.',
       grounding: 'unverified',
     }),
   },
 ];
 
 const FALLBACK: AskAtlasResponse = {
-  text: 'Ask Atlas is running with a placeholder responder. N-ATLAS integration arrives in feature 2, so replies are canned for now.',
+  text: 'Ask Atlas is running with its placeholder responder. Start the app in API mode (the default) for live answers; stub mode replies are canned.',
   grounding: 'unverified',
 };
 
@@ -115,6 +124,106 @@ async function executeToolCalls(calls: AskToolCall[]): Promise<AskToolResult[]> 
     });
   }
   return results;
+}
+
+/**
+ * Narrow an executed `getPostcode` result's data to a location record.
+ * A `null` (unmapped code) or shape-mismatched payload yields undefined.
+ */
+function asPostcodeLocation(value: unknown): PostcodeLocation | undefined {
+  if (typeof value !== 'object' || value === null) return undefined;
+  return typeof (value as Record<string, unknown>).postcode === 'string'
+    ? (value as PostcodeLocation)
+    : undefined;
+}
+
+/** Narrow executed search data to candidate records (unknowns are dropped). */
+function asLocationCandidates(value: unknown): LocationCandidate[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(
+    (item): item is LocationCandidate =>
+      typeof item === 'object' && item !== null && typeof (item as Record<string, unknown>).code === 'string',
+  );
+}
+
+/** A landmark candidate is always backed by the bundled verified dataset. */
+function landmarkToLookup(candidate: LocationCandidate): VerifiedLookup {
+  return {
+    postcode: candidate.code,
+    label: candidate.name,
+    coordinates: candidate.coordinates,
+    verified: true,
+  };
+}
+
+function locationToLookup(location: PostcodeLocation): VerifiedLookup {
+  return {
+    postcode: location.postcode,
+    label: location.name,
+    stateName: location.stateName,
+    lgaName: location.lgaName,
+    coordinates:
+      location.lat !== undefined && location.lng !== undefined ? [location.lat, location.lng] : undefined,
+    // A lookup is built only from an executed Atlas tool result; discovery and
+    // gateway records are NIPOST data, so it is verified by construction even
+    // when the record omits a `verified` flag (the bundled discovery list does).
+    verified: true,
+  };
+}
+
+/**
+ * Derive the verified postcode payload (feature 4) from the tool results the
+ * client already executed. Deterministic and side-effect free: a later result
+ * replaces the payload only when it itself yields one - the last successful
+ * `getPostcode` record, else the last `searchLocation` holding exactly one
+ * landmark candidate. Zero or multiple landmark postcodes, a failed result, or
+ * an unmapped `getPostcode` is ambiguous for this contract and leaves the
+ * payload as it was; an empty turn list yields undefined.
+ */
+export function deriveLookup(toolTurns: AskToolTurn[]): VerifiedLookup | undefined {
+  let lookup: VerifiedLookup | undefined;
+
+  for (const turn of toolTurns) {
+    for (const result of turn.toolResults) {
+      if (!result.ok) continue;
+
+      if (result.name === 'getPostcode') {
+        const location = asPostcodeLocation(result.data);
+        if (location) lookup = locationToLookup(location);
+        continue;
+      }
+      if (result.name === 'searchLocation') {
+        const landmarks = asLocationCandidates(result.data).filter((c) => c.type === 'landmark');
+        if (landmarks.length === 1) lookup = landmarkToLookup(landmarks[0]);
+      }
+    }
+  }
+
+  return lookup;
+}
+
+/**
+ * Attach the derived lookup to a final reply, plus the feature 8 location
+ * slot when the lookup carries coordinates. Returns the reply unchanged when
+ * no unambiguous postcode-bearing result backs it.
+ */
+function withLookup(response: AskAtlasResponse, toolTurns: AskToolTurn[]): AskAtlasResponse {
+  const lookup = deriveLookup(toolTurns);
+  if (!lookup) return response;
+
+  return {
+    ...response,
+    lookup,
+    ...(lookup.coordinates
+      ? {
+          location: {
+            lat: lookup.coordinates[0],
+            lng: lookup.coordinates[1],
+            label: lookup.label ?? lookup.postcode,
+          },
+        }
+      : {}),
+  };
 }
 
 /** One POST to `/api/ask`. Transport + error mapping only; no loop logic. */
@@ -200,17 +309,21 @@ export function createApiResponder(): AskAtlasResponder {
         const response = await postAsk({ ...request, toolTurns });
 
         if (!response.toolCalls || response.toolCalls.length === 0) {
-          // Final answer. Upgrade its grounding only when tools really ran.
-          return grounded ? { ...response, grounding: 'atlas' } : response;
+          // Final answer. Upgrade its grounding only when tools really ran,
+          // and attach the derived verified lookup (feature 4).
+          return grounded ? withLookup({ ...response, grounding: 'atlas' }, toolTurns) : withLookup(response, toolTurns);
         }
 
         if (round === MAX_TOOL_ROUNDS) {
           // Cap reached and the model still wants tools: honest text reply.
-          return {
-            text: TOOL_LOOP_EXHAUSTED_COPY,
-            grounding: grounded ? 'atlas' : 'unverified',
-            engine: response.engine,
-          };
+          return withLookup(
+            {
+              text: TOOL_LOOP_EXHAUSTED_COPY,
+              grounding: grounded ? 'atlas' : 'unverified',
+              engine: response.engine,
+            },
+            toolTurns,
+          );
         }
 
         const toolResults = await executeToolCalls(response.toolCalls);

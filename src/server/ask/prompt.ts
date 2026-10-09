@@ -50,6 +50,23 @@ export function buildSystemPrompt(
       'to narrow it down. If you answer without calling a tool, keep it to',
       'clearly general knowledge and say it is unverified.',
     ].join(' '),
+    [
+      'When asked for a postcode, follow this order of lookup:',
+      '1. For a place name or landmark, call searchLocation first. Never',
+      '   call getPostcode with a code you made up.',
+      '2. A landmark search result with a five-segment postcode (for',
+      '   example FC-02-D43-LG-01) is verified: quote the code exactly as',
+      '   returned, with its name.',
+      '3. A state, LGA, district, or area result has NO single postcode:',
+      '   Nigerian postcodes are unit-level. Say that plainly and offer to',
+      '   narrow to a district, area, street, building, or landmark.',
+      '4. For an explicit postcode (with or without dashes), call',
+      '   getPostcode and report the returned record exactly. When it',
+      '   returns no record, say that code is not mapped.',
+      '5. When a search is ambiguous, list the few candidates and ask the',
+      '   user to pick before answering with a code.',
+      'Never guess or compute a postcode: quote one only from a tool result.',
+    ].join(' '),
   ].join('\n');
 }
 

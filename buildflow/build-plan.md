@@ -58,7 +58,7 @@ and deployment readiness. Adapt it to the project as implementation progresses.
   - [x] 3b. **Atlas structured tools** - shared, validated schemas and client executors for the eight data tools (searchLocation, getState, getLgas, getDistricts, getAreas, getPostcode, decodePostcode, getNearby) backed by the 3a store; result shapes become the load-bearing contract for features 4-9
   - [x] 3c. **Tool-calling chat loop** - OpenAI-compatible tools in the Ask provider chain, a multi-round `/api/ask` contract with client-side tool execution and feed-back, plus an honest text-only fallback when a model does not call tools
 
-- [ ] 4. **Natural-language postcode lookup** - ask for a Nigerian postcode using normal language and return verified Atlas results
+- [x] 4. **Natural-language postcode lookup** - ask for a Nigerian postcode using normal language and return verified Atlas results
 
 - [ ] 5. **Natural-language location exploration** - explore states, LGAs, districts, areas, and postcode units through conversation
 

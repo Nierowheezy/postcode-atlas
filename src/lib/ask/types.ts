@@ -43,6 +43,12 @@ export interface AskAtlasResponse {
   /** Slot only; acting on it (map navigation) is feature 8. */
   location?: { lat: number; lng: number; label: string };
   /**
+   * Verified postcode payload for the reply (feature 4). Derived on the
+   * client from the executed tool results; always absent on stub replies
+   * and on intermediate toolCalls responses.
+   */
+  lookup?: VerifiedLookup;
+  /**
    * Present when the model asked for tool calls instead of answering.
    * `text` is empty then; the client executes the calls and feeds the
    * results back via the next request's `toolTurns`.
@@ -62,6 +68,8 @@ export interface AskAtlasMessage {
   context?: AtlasContextSnapshot;
   /** Slot only; acting on it (map navigation) is feature 8. */
   location?: { lat: number; lng: number; label: string };
+  /** Verified postcode payload rendered as the feature 4 chip. */
+  lookup?: VerifiedLookup;
   timestamp: number;
 }
 
@@ -110,6 +118,24 @@ export interface AskToolResult {
 export interface AskToolTurn {
   assistantToolCalls: AskToolCall[];
   toolResults: AskToolResult[];
+}
+
+/**
+ * Deterministic, verified postcode found for the user's lookup (feature 4).
+ * Built from the executed tool results, never from the reply prose, so the
+ * rendered chip is authoritative even when the model formats the code
+ * differently in its text.
+ */
+export interface VerifiedLookup {
+  /** Dashed form, for example FC-02-D43-LG-01. */
+  postcode: string;
+  /** Landmark/building name from the source record, when it has one. */
+  label?: string;
+  stateName?: string;
+  lgaName?: string;
+  coordinates?: [number, number];
+  /** True when the source is the bundled verified dataset (landmark). */
+  verified: boolean;
 }
 
 export interface AskAtlasResponder {

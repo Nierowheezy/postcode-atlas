@@ -27,6 +27,26 @@ export const AskAtlasMessageBubble: React.FC<AskAtlasMessageBubbleProps> = ({ me
     }`}
   >
     <span className="whitespace-pre-wrap break-words block">{message.content}</span>
+    {message.role === 'assistant' && message.lookup && (
+      <span className="block mt-1.5 pt-1.5 border-t border-[#E5E7EB] dark:border-[#374151]">
+        <span className="block font-mono text-sm font-semibold text-[#0F7B4D] dark:text-[#10B981]">
+          {message.lookup.postcode}
+        </span>
+        {message.lookup.label && (
+          <span className="block mt-0.5 text-[11px] text-[#111827] dark:text-[#E5E7EB]">
+            {message.lookup.label}
+          </span>
+        )}
+        {(message.lookup.stateName || message.lookup.lgaName) && (
+          <span className="block text-[10px] text-[#6B7280] dark:text-[#9CA3AF]">
+            {[message.lookup.stateName, message.lookup.lgaName].filter(Boolean).join(' / ')}
+          </span>
+        )}
+        <span className="inline-block mt-1 text-[9px] font-mono uppercase tracking-wide text-[#0F7B4D] dark:text-[#10B981]">
+          Verified postcode
+        </span>
+      </span>
+    )}
     {message.role === 'assistant' && (
       <span className="block mt-1.5 pt-1.5 border-t border-[#E5E7EB] dark:border-[#374151] text-[10px] font-mono text-[#6B7280] dark:text-[#9CA3AF]">
         {message.grounding === 'atlas'
