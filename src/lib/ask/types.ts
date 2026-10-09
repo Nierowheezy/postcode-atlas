@@ -9,7 +9,7 @@
  * interface; the UI must not know which implementation it is talking to.
  */
 
-import type { DecodedPostcode, NearbyUnit, ToolError } from '../tools/types';
+import type { DecodedPostcode, MapAction, NearbyUnit, ToolError } from '../tools/types';
 
 export interface AtlasContextSnapshot {
   selectedState?: { code: string; name: string };
@@ -67,6 +67,12 @@ export interface AskAtlasResponse {
    */
   nearby?: NearbyResultList;
   /**
+   * Validated map action for the reply (feature 8). Derived on the client
+   * from the executed tool results; always absent on stub replies and on
+   * intermediate toolCalls responses.
+   */
+  mapAction?: MapAction;
+  /**
    * Present when the model asked for tool calls instead of answering.
    * `text` is empty then; the client executes the calls and feeds the
    * results back via the next request's `toolTurns`.
@@ -94,6 +100,8 @@ export interface AskAtlasMessage {
   decoded?: DecodedPostcode;
   /** Nearby postcode units rendered as the feature 7 list. */
   nearby?: NearbyResultList;
+  /** Validated map action applied by the app (feature 8). */
+  mapAction?: MapAction;
   timestamp: number;
 }
 

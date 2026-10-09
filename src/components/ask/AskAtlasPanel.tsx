@@ -6,6 +6,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { DraggableCard } from '../ui/DraggableCard';
 import { AskLanguage, AskAtlasMessage, AskAtlasResponder, AtlasContextSnapshot } from '../../lib/ask/types';
+import type { MapAction } from '../../lib/tools/types';
 import { useAskAtlas } from '../../lib/ask/useAskAtlas';
 import { AskAtlasHeader } from './AskAtlasHeader';
 import { AskAtlasMessageBubble } from './AskAtlasMessageBubble';
@@ -13,10 +14,21 @@ import { AskAtlasThinkingBubble } from './AskAtlasThinkingBubble';
 import { AskAtlasComposer } from './AskAtlasComposer';
 import { AskAtlasResizeHandle } from './AskAtlasResizeHandle';
 
+/** Where a reply's `[View on map]` button points, feature 8. */
+export interface AskAtlasViewLocation {
+  lat: number;
+  lng: number;
+  label: string;
+}
+
 interface AskAtlasPanelProps {
   responder: AskAtlasResponder;
   getContext: () => AtlasContextSnapshot;
   onClose: () => void;
+  /** Applies a validated `navigateMap` action (feature 8). */
+  onMapAction?: (action: MapAction) => void;
+  /** Moves the map to the coordinates on a reply (feature 8). */
+  onViewLocation?: (location: AskAtlasViewLocation) => void;
 }
 
 let messageSeq = 0;
@@ -35,7 +47,13 @@ const GENERIC_ERROR_COPY = 'I could not process that request.\n\nTry: "postcode 
  * (cache, retries, pending state) to the `useAskAtlas` hook. Rendering is
  * split into header / bubble / composer components.
  */
-export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({ responder, getContext, onClose }) => {
+export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({
+  responder,
+  getContext,
+  onClose,
+  onMapAction,
+  onViewLocation,
+}) => {
   const [messages, setMessages] = useState<AskAtlasMessage[]>([]);
   const [input, setInput] = useState('');
   // Reply language for the whole conversation; sent on every request.
@@ -94,8 +112,12 @@ export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({ responder, getCont
         results: res.results,
         decoded: res.decoded,
         nearby: res.nearby,
+        mapAction: res.mapAction,
       };
       setMessages((prev) => [...prev, reply]);
+      // Feature 8: the tool already validated this action, so the map moves
+      // for the request the user actually made.
+      if (res.mapAction) onMapAction?.(res.mapAction);
     } catch (err) {
       // AskApiError messages are already user-facing copy; fall back to
       // a generic line for anything unexpected.
@@ -142,7 +164,7 @@ export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({ responder, getCont
           </p>
         )}
         {messages.map((m) => (
-          <AskAtlasMessageBubble key={m.id} message={m} />
+          <AskAtlasMessageBubble key={m.id} message={m} onViewLocation={onViewLocation} />
         ))}
         {isReplying && <AskAtlasThinkingBubble />}
       </div>

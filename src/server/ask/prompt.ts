@@ -104,6 +104,17 @@ export function buildSystemPrompt(
       'verified units are within that range; do not widen the radius or',
       'substitute results from somewhere else.',
     ].join(' '),
+    [
+      'When the user wants the map to move ("show me", "take me to", "go to",',
+      '"zoom into", "show me on the map"), call navigateMap with one real',
+      'target: target state for a state, target lga with its state and lga,',
+      'target postcode with a full postcode, or target reset to go back to',
+      'the national view. If the place name is unresolved, call',
+      'searchLocation first. Do not call navigateMap for a question that only',
+      'needs facts, and never invent a place to navigate to. The map moves on',
+      'its own once the tool returns, so say the place briefly instead of',
+      'describing the movement.',
+    ].join(' '),
   ].join('\n');
 }
 

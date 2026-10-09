@@ -61,6 +61,23 @@ export const getNearbySchema = z.object({
 });
 export type GetNearbyArgs = z.infer<typeof getNearbySchema>;
 
+/**
+ * Exactly one map target per request. The union rejects a partial or
+ * conflicting request at validation time, so a malformed call never reaches
+ * the executor.
+ */
+export const navigateMapSchema = z.discriminatedUnion('target', [
+  z.strictObject({ target: z.literal('state'), state: z.string().trim().min(1).max(60) }),
+  z.strictObject({
+    target: z.literal('lga'),
+    state: z.string().trim().min(1).max(60),
+    lga: z.string().trim().min(1).max(80),
+  }),
+  z.strictObject({ target: z.literal('postcode'), code: z.string().trim().min(1).max(40) }),
+  z.strictObject({ target: z.literal('reset') }),
+]);
+export type NavigateMapArgs = z.infer<typeof navigateMapSchema>;
+
 export const TOOL_DESCRIPTIONS = {
   searchLocation: 'Find Nigerian states, LGAs, districts, areas, and landmark postcodes by name or code.',
   getState: 'Get one Nigerian state with its capital, geopolitical zone, center, and LGA count.',
@@ -71,4 +88,6 @@ export const TOOL_DESCRIPTIONS = {
   getPostcode: 'Look up a full Nigerian postcode and return its location detail.',
   decodePostcode: 'Decode a Nigerian postcode into its state, LGA, district, area, and unit segments.',
   getNearby: 'List postcode units within 300 metres of a coordinate.',
+  navigateMap:
+    'Move the map to a Nigerian place: a state, an LGA, a full postcode, or back to the national view.',
 } as const satisfies Record<ToolName, string>;

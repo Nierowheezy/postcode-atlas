@@ -18,6 +18,7 @@ import {
   getPostcode,
   getState,
   getStates,
+  navigateMap,
   searchLocation,
 } from './executors';
 import {
@@ -30,6 +31,7 @@ import {
   getPostcodeSchema,
   getStateSchema,
   getStatesSchema,
+  navigateMapSchema,
   searchLocationSchema,
 } from './schemas';
 import {
@@ -105,6 +107,12 @@ export const TOOL_REGISTRY: Record<ToolName, RegisteredTool> = {
     description: TOOL_DESCRIPTIONS.getNearby,
     schema: getNearbySchema,
     execute: getNearby,
+  }),
+  navigateMap: register({
+    name: 'navigateMap',
+    description: TOOL_DESCRIPTIONS.navigateMap,
+    schema: navigateMapSchema,
+    execute: navigateMap,
   }),
 };
 

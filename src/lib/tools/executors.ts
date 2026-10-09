@@ -14,7 +14,7 @@ import type { PostcodeLocation, PostcodeSegments } from '../../types/postcode';
 import { postcodeApi } from '../api/postcodeClient';
 import { atlasStore } from '../atlas/store';
 import type { AtlasArea, AtlasDistrict, AtlasLga, AtlasState, LocationCandidate } from '../atlas/dataset';
-import { NIGERIA_STATES } from '../geo/nigeriaData';
+import { NIGERIA_CENTER, NIGERIA_DEFAULT_ZOOM, NIGERIA_STATES } from '../geo/nigeriaData';
 import type {
   DecodePostcodeArgs,
   GetAreasArgs,
@@ -23,11 +23,15 @@ import type {
   GetNearbyArgs,
   GetPostcodeArgs,
   GetStateArgs,
+  NavigateMapArgs,
   SearchLocationArgs,
 } from './schemas';
-import { ToolFault, type DecodedPostcode, type NearbyUnit, type StateSummary } from './types';
+import { ToolFault, type DecodedPostcode, type MapAction, type NearbyUnit, type StateSummary } from './types';
 
 const NEARBY_RADIUS_CAP = 300;
+
+/** Zoom used when the map frames an LGA, matching the explorer's own view. */
+const LGA_VIEW_ZOOM = 12;
 const MAX_NEARBY_UNITS = 50;
 const POSTCODE_PATTERN = /^([A-Z]{2})-(\d{2})-([A-Z0-9]{3})-([A-Z]{2})-(\d{2})$/;
 const COMPACT_POSTCODE_LENGTH = 11;
@@ -156,6 +160,50 @@ export async function decodePostcode(args: DecodePostcodeArgs): Promise<DecodedP
     // record. An explicit gateway `verified: false` is respected; a missing
     // flag (bundled landmarks) counts as confirmed, matching feature 4.
     verified: lookup ? lookup.verified !== false : false,
+  };
+}
+
+/**
+ * Resolve a map request to a real target (feature 8). Read-only: it returns
+ * the action the app should perform and never touches map state itself, so a
+ * conversational request and a sidebar click run the same code path.
+ */
+export async function navigateMap(args: NavigateMapArgs): Promise<MapAction> {
+  if (args.target === 'reset') {
+    return { target: 'reset', center: NIGERIA_CENTER, zoom: NIGERIA_DEFAULT_ZOOM };
+  }
+
+  if (args.target === 'postcode') {
+    const location = await atlasStore.getPostcode(args.code);
+    if (!location) {
+      throw new ToolFault('not_found', `No mapped postcode matches "${args.code}".`);
+    }
+    if (location.lat === undefined || location.lng === undefined) {
+      throw new ToolFault('not_found', `"${location.postcode}" has no coordinates to show on the map.`);
+    }
+    return { target: 'postcode', postcode: location.postcode, location };
+  }
+
+  const state = await resolveState(args.state.trim());
+  const geo = NIGERIA_STATES[state.code.toUpperCase()];
+  if (!geo) {
+    throw new ToolFault('not_found', `No map view is available for "${state.name}".`);
+  }
+  const stateRef = { code: state.code, name: state.name };
+
+  if (args.target === 'state') {
+    return { target: 'state', state: stateRef, center: geo.center, zoom: geo.zoom };
+  }
+
+  const lgaCode = await resolveLgaCode(state.code, args.lga.trim());
+  const lgas = await atlasStore.getLgas(state.code);
+  const lgaName = lgas.find((lga) => lga.code === lgaCode)?.name ?? lgaCode;
+  return {
+    target: 'lga',
+    state: stateRef,
+    lga: { code: lgaCode, name: lgaName },
+    center: geo.center,
+    zoom: LGA_VIEW_ZOOM,
   };
 }
 

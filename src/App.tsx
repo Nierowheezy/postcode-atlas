@@ -28,6 +28,7 @@ import { DraggableCard } from './components/ui/DraggableCard';
 import { AskAtlasPanel } from './components/ask/AskAtlasPanel';
 import { createApiResponder, createStubResponder } from './lib/ask/responder';
 import { AtlasContextSnapshot } from './lib/ask/types';
+import type { MapAction } from './lib/tools/types';
 import {
   MapViewMode,
   PostcodeLocation,
@@ -260,6 +261,40 @@ function PostcodeAtlasContent() {
     setFlyToZoom(NIGERIA_DEFAULT_ZOOM);
     showToast({ title: 'View Reset', description: 'National Overview', type: 'info' });
   };
+
+  // Feature 8: move the map to the coordinates on an Ask Atlas reply.
+  const handleViewLocation = useCallback(
+    ({ lat, lng, label }: { lat: number; lng: number; label: string }) => {
+      setFlyToCoords([lat, lng]);
+      setFlyToZoom(17);
+      showToast({ title: 'Map moved', description: label, type: 'info' });
+    },
+    [showToast],
+  );
+
+  // Feature 8: apply a validated navigateMap action. Every branch reuses the
+  // same handlers the sidebar and search use, so a spoken request and a click
+  // leave identical state.
+  const handleMapAction = useCallback(
+    (action: MapAction) => {
+      if (action.target === 'postcode') {
+        handleSelectLocation(action.location);
+        return;
+      }
+      if (action.target === 'reset') {
+        handleResetBreadcrumbs();
+        return;
+      }
+      const stateInfo = NIGERIA_STATES[action.state.code.toUpperCase()];
+      if (!stateInfo) return;
+      if (action.target === 'state') {
+        handleSelectState(stateInfo);
+        return;
+      }
+      handleSelectLGA(stateInfo, { code: action.lga.code, name: action.lga.name });
+    },
+    [handleSelectLocation, handleSelectState, handleSelectLGA, handleResetBreadcrumbs],
+  );
 
   // "Surprise me" random discovery
   const handleRandomPlace = async () => {
@@ -501,6 +536,8 @@ function PostcodeAtlasContent() {
               responder={askResponderRef.current}
               getContext={getAskAtlasContext}
               onClose={() => setIsAskAtlasOpen(false)}
+              onMapAction={handleMapAction}
+              onViewLocation={handleViewLocation}
             />
           </div>
         )}

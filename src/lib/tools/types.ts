@@ -23,6 +23,7 @@ export const TOOL_NAMES = [
   'getPostcode',
   'decodePostcode',
   'getNearby',
+  'navigateMap',
 ] as const;
 
 export type ToolName = (typeof TOOL_NAMES)[number];
@@ -83,6 +84,28 @@ export interface DecodedPostcode {
   verified?: boolean;
 }
 
+/**
+ * A validated request to move the map (feature 8). The tool resolves and
+ * returns this; it never acts on it, so React stays the only place that
+ * mutates map state.
+ */
+export type MapAction =
+  | {
+      target: 'state';
+      state: { code: string; name: string };
+      center: [number, number];
+      zoom: number;
+    }
+  | {
+      target: 'lga';
+      state: { code: string; name: string };
+      lga: { code: string; name: string };
+      center: [number, number];
+      zoom: number;
+    }
+  | { target: 'postcode'; postcode: string; location: PostcodeLocation }
+  | { target: 'reset'; center: [number, number]; zoom: number };
+
 export interface NearbyUnit {
   postcode: string;
   compact?: string;
@@ -110,4 +133,5 @@ export interface ToolResultMap {
   getPostcode: PostcodeLocation | null;
   decodePostcode: DecodedPostcode;
   getNearby: NearbyUnit[];
+  navigateMap: MapAction;
 }

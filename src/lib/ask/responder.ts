@@ -21,7 +21,7 @@ import { AskApiError } from './errors';
 import { runTool } from '../tools/registry';
 import { atlasStore } from '../atlas/store';
 import type { PostcodeLocation } from '../../types/postcode';
-import type { DecodedPostcode, NearbyUnit } from '../tools/types';
+import type { DecodedPostcode, MapAction, NearbyUnit } from '../tools/types';
 import type { AtlasArea, AtlasDistrict, AtlasLga, AtlasState, LocationCandidate } from '../atlas/dataset';
 
 const RESPONSE_DELAY_MS = 400;
@@ -523,7 +523,71 @@ export function deriveNearby(toolTurns: AskToolTurn[]): NearbyResultList | undef
   return nearby;
 }
 
-/** Attach the feature 4 lookup, feature 5 list, feature 6 decode, and feature 7 nearby list to a final reply. */
+/** A finite coordinate pair, or undefined for anything malformed. */
+function asMapCenter(value: unknown): [number, number] | undefined {
+  if (!Array.isArray(value) || value.length < 2) return undefined;
+  const [lat, lng] = value;
+  if (typeof lat !== 'number' || typeof lng !== 'number') return undefined;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return undefined;
+  return [lat, lng];
+}
+
+function asNamedCode(value: unknown): { code: string; name: string } | undefined {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const named = value as Record<string, unknown>;
+  return typeof named.code === 'string' && typeof named.name === 'string'
+    ? { code: named.code, name: named.name }
+    : undefined;
+}
+
+/** Narrow executed data to one of the four map actions, or undefined. */
+function asMapAction(value: unknown): MapAction | undefined {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const action = value as Record<string, unknown>;
+  const zoom = typeof action.zoom === 'number' && Number.isFinite(action.zoom) ? action.zoom : undefined;
+
+  if (action.target === 'reset') {
+    return { target: 'reset', center: asMapCenter(action.center) ?? [0, 0], zoom: zoom ?? 0 };
+  }
+  if (action.target === 'postcode') {
+    return typeof action.postcode === 'string' && typeof action.location === 'object' && action.location !== null
+      ? (value as MapAction)
+      : undefined;
+  }
+
+  const state = asNamedCode(action.state);
+  const center = asMapCenter(action.center);
+  if (!state || !center || zoom === undefined) return undefined;
+
+  if (action.target === 'state') return { target: 'state', state, center, zoom };
+  if (action.target === 'lga') {
+    const lga = asNamedCode(action.lga);
+    return lga ? { target: 'lga', state, lga, center, zoom } : undefined;
+  }
+  return undefined;
+}
+
+/**
+ * Derive the validated map action (feature 8) from the executed tool results.
+ * Deterministic: the last successful `navigateMap` result wins. A failed
+ * result or a reply with no `navigateMap` leaves it unset, so the map only
+ * moves for an action the tool itself resolved.
+ */
+export function deriveMapAction(toolTurns: AskToolTurn[]): MapAction | undefined {
+  let action: MapAction | undefined;
+
+  for (const turn of toolTurns) {
+    for (const result of turn.toolResults) {
+      if (!result.ok || result.name !== 'navigateMap') continue;
+      const next = asMapAction(result.data);
+      if (next) action = next;
+    }
+  }
+
+  return action;
+}
+
+/** Attach the feature 4 lookup, feature 5 list, feature 6 decode, feature 7 nearby list, and feature 8 map action to a final reply. */
 async function attachDerived(response: AskAtlasResponse, toolTurns: AskToolTurn[]): Promise<AskAtlasResponse> {
   const withLookupResponse = withLookup(response, toolTurns);
   const results = await deriveResults(toolTurns);
@@ -546,6 +610,9 @@ async function attachDerived(response: AskAtlasResponse, toolTurns: AskToolTurn[
 
   const nearby = deriveNearby(toolTurns);
   if (nearby) next = { ...next, nearby };
+
+  const mapAction = deriveMapAction(toolTurns);
+  if (mapAction) next = { ...next, mapAction };
 
   return next;
 }

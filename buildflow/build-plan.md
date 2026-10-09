@@ -66,7 +66,7 @@ and deployment readiness. Adapt it to the project as implementation progresses.
 
 - [x] 7. **Nearby location queries** - ask conversationally about nearby postcode areas and locations
 
-- [ ] 8. **Conversational map control** - allow valid AI requests to navigate, zoom, select, and highlight locations on the map
+- [x] 8. **Conversational map control** - allow valid AI requests to navigate, zoom, select, and highlight locations on the map
 
 - [ ] 9. **Grounded responses** - ensure postcode and location facts come from NIPOST/Atlas data rather than model-generated guesses. Pass the model only the small retrieved match set from the local store, never the whole dataset; outside-topic questions are refused per the feature 2 prompt scope guard.
 

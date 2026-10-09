@@ -8,18 +8,24 @@ import type { AskAtlasMessage } from '../../lib/ask/types';
 import { AskAtlasResultsList } from './AskAtlasResultsList';
 import { AskAtlasDecodedCard } from './AskAtlasDecodedCard';
 import { AskAtlasNearbyList } from './AskAtlasNearbyList';
+import type { AskAtlasViewLocation } from './AskAtlasPanel';
 
 /** Props for a single conversation bubble. */
 export interface AskAtlasMessageBubbleProps {
   message: AskAtlasMessage;
+  /** Moves the map to this reply's location (feature 8). */
+  onViewLocation?: (location: AskAtlasViewLocation) => void;
 }
 
 /**
  * One conversation entry: user, assistant, or error bubble, plus the
- * grounding footer on assistant replies and the (feature 8) map-navigation
- * placeholder when a reply carries a location.
+ * grounding footer on assistant replies and the `[View on map]` control when
+ * a reply carries a location.
  */
-export const AskAtlasMessageBubble: React.FC<AskAtlasMessageBubbleProps> = ({ message }) => (
+export const AskAtlasMessageBubble: React.FC<AskAtlasMessageBubbleProps> = ({
+  message,
+  onViewLocation,
+}) => (
   <div
     className={`text-xs rounded-lg px-2.5 py-2 max-w-[90%] ${
       message.role === 'user'
@@ -87,9 +93,14 @@ export const AskAtlasMessageBubble: React.FC<AskAtlasMessageBubbleProps> = ({ me
     {message.role === 'assistant' && message.location && (
       <button
         type="button"
-        disabled
-        title="Map navigation arrives in feature 8"
-        className="mt-1.5 text-[11px] font-medium text-[#0F7B4D] dark:text-[#10B981] opacity-60 cursor-not-allowed"
+        onClick={() => onViewLocation?.(message.location as AskAtlasViewLocation)}
+        disabled={!onViewLocation}
+        title={
+          onViewLocation
+            ? `Show ${message.location.label} on the map`
+            : 'Map control is not connected in this view'
+        }
+        className="mt-1.5 text-[11px] font-medium text-[#0F7B4D] dark:text-[#10B981] enabled:hover:underline disabled:opacity-60 disabled:cursor-not-allowed"
       >
         [View on map]
       </button>
