@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { AskToolCall } from '../../lib/ask/types';
+import type { ProviderTool } from '../../lib/tools/provider';
 import {
   callProvider,
   ProviderError,
@@ -15,6 +17,8 @@ import {
 /** One successful chain run. */
 export interface ChainResult {
   text: string;
+  /** Non-empty when the model asked the client to run tools instead of answering. */
+  toolCalls: AskToolCall[];
   provider: AskProvider;
   /** 1-based position in the attempt order of the provider that answered. */
   attempt: number;
@@ -119,6 +123,7 @@ function earliestCooldownEnd(order: AskProviderId[]): number | null {
 export async function runChain(
   env: Record<string, string | undefined>,
   messages: AskChatMessage[],
+  tools?: ProviderTool[],
 ): Promise<ChainResult> {
   const order = resolveOrder(env);
   const byId = new Map(resolveProviders(env).map((provider) => [provider.id, provider]));
@@ -135,8 +140,8 @@ export async function runChain(
 
     attempt += 1;
     try {
-      const text = await callProvider(provider, messages);
-      return { text, provider, attempt };
+      const result = await callProvider(provider, messages, tools);
+      return { text: result.text, toolCalls: result.toolCalls, provider, attempt };
     } catch (cause) {
       if (cause instanceof ProviderError) {
         lastFailure = cause;

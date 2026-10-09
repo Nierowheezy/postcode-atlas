@@ -8,7 +8,16 @@
  *
  * Servers only. Provider keys live in `process.env`, are resolved here, and
  * never leave the server.
+ *
+ * Tool calling (3c): every call may carry the Atlas `tools` payload. When the
+ * model answers with `tool_calls` instead of text, the call returns them so
+ * the chain can hand them to the handler, which sends them back to the client.
+ * A provider that rejects the tools payload (HTTP 400) is retried once
+ * without tools so the chat still degrades to an honest text-only answer.
  */
+
+import type { AskToolCall } from '../../lib/ask/types';
+import type { ProviderTool } from '../../lib/tools/provider';
 
 /** The always-available free-tier providers, plus the optional N-ATLAS slot. */
 export type AskProviderId = 'gemini' | 'openrouter' | 'nvidia' | 'natlas';
@@ -21,10 +30,27 @@ export interface AskProvider {
   model: string;
 }
 
-/** Chat message shape sent to the provider (bare roles only). */
-export interface AskChatMessage {
-  role: 'system' | 'user' | 'assistant';
-  content: string;
+/** A tool call in the provider's native OpenAI shape. */
+export interface ProviderToolCall {
+  id: string;
+  type: 'function';
+  function: { name: string; arguments: string };
+}
+
+/**
+ * Chat message shapes sent to the provider. Assistant messages may carry a
+ * `tool_calls` array (a round the client is about to execute), and `role:
+ * 'tool'` messages carry the client-executed results back.
+ */
+export type AskChatMessage =
+  | { role: 'system' | 'user'; content: string }
+  | { role: 'assistant'; content: string | null; tool_calls?: ProviderToolCall[] }
+  | { role: 'tool'; tool_call_id: string; content: string };
+
+/** One provider completion: the text answer and/or the tool calls requested. */
+export interface ProviderCallResult {
+  text: string;
+  toolCalls: AskToolCall[];
 }
 
 /** Why a provider call failed, so the failover chain can decide what to do. */
@@ -136,14 +162,44 @@ export function resolveProviders(env: Record<string, string | undefined>): AskPr
 const TIMEOUT_MS = 15_000;
 
 /**
- * One OpenAI-compatible chat completion call against `provider`.
- * Throws `ProviderError` with a `kind` the failover chain can act on.
+ * One OpenAI-compatible chat completion call against `provider`, optionally
+ * with the Atlas tools payload. Throws `ProviderError` with a `kind` the
+ * failover chain can act on. A provider that rejects the tools payload with a
+ * 400 is retried once without tools (task is on the caller to make sure the
+ * text-only answer stays honest via the system prompt).
  */
 export async function callProvider(
   provider: AskProvider,
   messages: AskChatMessage[],
+  tools?: ProviderTool[],
   timeoutMs = TIMEOUT_MS,
-): Promise<string> {
+): Promise<ProviderCallResult> {
+  const attempts: (ProviderTool[] | undefined)[] = tools ? [tools, undefined] : [undefined];
+  let lastError: ProviderError | null = null;
+
+  for (const attemptTools of attempts) {
+    try {
+      return await callCompletion(provider, messages, attemptTools, timeoutMs);
+    } catch (cause) {
+      if (cause instanceof ProviderError && cause.kind === 'bad-request' && attemptTools) {
+        console.warn(`[ask] provider ${provider.id} rejected the tools payload, retrying without tools`);
+        lastError = cause;
+        continue;
+      }
+      throw cause;
+    }
+  }
+
+  throw lastError ?? new ProviderError('bad-request', `Provider ${provider.id} rejected the request`);
+}
+
+/** One raw POST + response parse; no fallback logic. */
+async function callCompletion(
+  provider: AskProvider,
+  messages: AskChatMessage[],
+  tools: ProviderTool[] | undefined,
+  timeoutMs: number,
+): Promise<ProviderCallResult> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -152,14 +208,16 @@ export async function callProvider(
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     // The N-ATLAS key is optional (public gateways); send auth only when set.
     if (provider.apiKey) headers.Authorization = `Bearer ${provider.apiKey}`;
+    const body: Record<string, unknown> = {
+      model: provider.model,
+      messages,
+      temperature: 0.4,
+    };
+    if (tools) body.tools = tools;
     response = await fetch(`${provider.baseUrl}/chat/completions`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({
-        model: provider.model,
-        messages,
-        temperature: 0.4,
-      }),
+      body: JSON.stringify(body),
       signal: controller.signal,
     });
   } catch (cause) {
@@ -182,11 +240,7 @@ export async function callProvider(
     throw new ProviderError('invalid-response', `Provider ${provider.id} returned non-JSON`);
   }
 
-  const content = extractContent(data);
-  if (content === null) {
-    throw new ProviderError('invalid-response', `Provider ${provider.id} returned no usable content`);
-  }
-  return content;
+  return extractCompletion(data, provider.id);
 }
 
 /** Map a non-2xx provider response onto a ProviderError constructor tuple. */
@@ -208,12 +262,45 @@ function classifyHttpFailure(response: Response): ConstructorParameters<typeof P
   return ['server', `Provider error (HTTP ${response.status})`];
 }
 
-/** Pull `choices[0].message.content` out of an OpenAI-style response. */
-function extractContent(data: unknown): string | null {
-  if (typeof data !== 'object' || data === null) return null;
+/**
+ * Pull `choices[0].message.content` (text answer) and `tool_calls` (tool-call
+ * round) out of an OpenAI-style response. Content may be empty when the model
+ * only asked for tools; both empty is an unusable completion.
+ */
+function extractCompletion(data: unknown, providerId: string): ProviderCallResult {
+  if (typeof data !== 'object' || data === null) {
+    throw new ProviderError('invalid-response', `Provider ${providerId} returned a non-object body`);
+  }
   const choices = (data as { choices?: unknown }).choices;
-  if (!Array.isArray(choices) || choices.length === 0) return null;
-  const message = (choices[0] as { message?: { content?: unknown } }).message;
-  const content = message?.content;
-  return typeof content === 'string' ? content : null;
+  if (!Array.isArray(choices) || choices.length === 0) {
+    throw new ProviderError('invalid-response', `Provider ${providerId} returned no choices`);
+  }
+  const message = (choices[0] as { message?: { content?: unknown; tool_calls?: unknown } }).message;
+  if (typeof message !== 'object' || message === null) {
+    throw new ProviderError('invalid-response', `Provider ${providerId} returned no message`);
+  }
+
+  const toolCalls = parseToolCalls(message.tool_calls);
+  const text = typeof message.content === 'string' ? message.content : '';
+  if (toolCalls.length === 0 && text.length === 0) {
+    throw new ProviderError('invalid-response', `Provider ${providerId} returned no usable content`);
+  }
+  return { text, toolCalls };
+}
+
+/** Keep only well-formed function calls, dropping anything unexpected. */
+function parseToolCalls(value: unknown): AskToolCall[] {
+  if (!Array.isArray(value)) return [];
+  const calls: AskToolCall[] = [];
+  for (const item of value) {
+    if (typeof item !== 'object' || item === null) continue;
+    const call = item as { id?: unknown; type?: unknown; function?: unknown };
+    if (call.type !== 'function') continue;
+    const fn = (call.function ?? {}) as { name?: unknown; arguments?: unknown };
+    if (typeof call.id !== 'string' || typeof fn.name !== 'string' || typeof fn.arguments !== 'string') {
+      continue;
+    }
+    calls.push({ id: call.id, name: fn.name, arguments: fn.arguments });
+  }
+  return calls;
 }

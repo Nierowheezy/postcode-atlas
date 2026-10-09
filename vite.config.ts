@@ -58,12 +58,17 @@ function askDevMiddleware(env: Record<string, string>): Plugin {
           return;
         }
 
-        // Collect the request body so the shared handler can parse it.
+        // Collect the request body so the shared handler can parse it, and
+        // forward the client's content-length so the handler's body-size
+        // guard behaves in dev exactly as it does on Vercel.
         const chunks: Buffer[] = [];
         for await (const chunk of req) chunks.push(Buffer.from(chunk));
+        const contentLength = req.headers['content-length'];
+        const headers: Record<string, string> = { 'content-type': 'application/json' };
+        if (contentLength) headers['content-length'] = contentLength;
         const request = new Request('http://localhost/api/ask', {
           method: 'POST',
-          headers: { 'content-type': 'application/json' },
+          headers,
           body: Buffer.concat(chunks).toString('utf-8'),
         });
 

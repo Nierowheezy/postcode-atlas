@@ -17,10 +17,10 @@ const LANGUAGE_NAMES: Record<AskLanguage, string> = {
  * Build the system prompt for one request.
  *
  * Sets the role, reply tone, language, current map-selection context, a hard
- * platform scope, and honest data handling: the Atlas data tools are not
- * connected yet (feature 3+), so the model must never invent postcodes,
- * districts, or LGAs. Every prompt is derived from the request, never from
- * raw user text.
+ * platform scope, and honest data handling: the Atlas tools are connected
+ * (feature 3c), so the model should call them for real data and never invent
+ * postcodes, districts, or LGAs. Every prompt is derived from the request,
+ * never from raw user text.
  */
 export function buildSystemPrompt(
   context: AtlasContextSnapshot,
@@ -39,10 +39,16 @@ export function buildSystemPrompt(
       'offer to look up a Nigerian place or postcode instead.',
     ].join(' '),
     [
-      'The Atlas postcode database tools are not connected yet, so treat',
-      'specific postcode, district, and LGA claims as unverified general',
-      'knowledge. Never invent a postcode, district, or LGA: if you do not',
-      'know the answer, say so plainly and offer the closest safe answer.',
+      'You have the Atlas tools: searchLocation (find a place by name),',
+      'getState, getLgas, getDistricts, and getAreas (postal hierarchy),',
+      'getPostcode (one full postcode), decodePostcode (explain a postcode),',
+      'and getNearby (units near a coordinate). Call the matching tool when',
+      'the question asks for a real postcode, place, district, LGA, or area,',
+      'and answer from its result. If a place name is ambiguous, call',
+      'searchLocation first. Never invent a postcode, district, or LGA: if a',
+      'tool returns no match or an error, say plainly what you found and ask',
+      'to narrow it down. If you answer without calling a tool, keep it to',
+      'clearly general knowledge and say it is unverified.',
     ].join(' '),
   ].join('\n');
 }

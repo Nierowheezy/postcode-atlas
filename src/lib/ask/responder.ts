@@ -3,9 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AskAtlasRequest, AskAtlasResponder, AskAtlasResponse } from './types';
+import { AskAtlasRequest, AskAtlasResponder, AskAtlasResponse, AskToolCall, AskToolResult, AskToolTurn } from './types';
 import { ASK_API_ENDPOINT, AskApiErrorResponse } from './api-types';
 import { AskApiError } from './errors';
+import { runTool } from '../tools/registry';
 
 const RESPONSE_DELAY_MS = 400;
 
@@ -79,74 +80,146 @@ const ALL_ENGINES_DOWN_COPY =
   'Ask Atlas is having trouble answering right now.\n\nTry again in a few minutes.';
 const GENERIC_ERROR_COPY =
   'Ask Atlas could not process that request.\n\nTry rephrasing or ask again in a moment.';
+const TOOL_LOOP_EXHAUSTED_COPY =
+  'I could not finish verifying that with the available tools in time. Please try again or rephrase.';
+
+/** Max completed tool rounds per ask (the server allows one more, so we stay under it). */
+const MAX_TOOL_ROUNDS = 3;
+
+/** Error fed back when a tool call's `arguments` is not valid JSON. */
+function invalidArgsError(): AskToolResult['error'] {
+  return { code: 'invalid_args', message: 'Tool arguments were not valid JSON.' };
+}
+
+/**
+ * Run one tool call locally through the 3b dispatcher. `runTool` never throws
+ * and safe-parses arguments again, so malformed arguments surface as a failed
+ * result (`ok: false`, `invalid_args`) that feeds back - never a rejection.
+ */
+async function executeToolCalls(calls: AskToolCall[]): Promise<AskToolResult[]> {
+  const results: AskToolResult[] = [];
+  for (const call of calls) {
+    let args: unknown;
+    try {
+      args = JSON.parse(call.arguments);
+    } catch {
+      results.push({ tool_call_id: call.id, name: call.name, ok: false, error: invalidArgsError() });
+      continue;
+    }
+    const outcome = await runTool(call.name, args);
+    results.push({
+      tool_call_id: call.id,
+      name: call.name,
+      ok: outcome.ok,
+      ...(outcome.ok ? { data: outcome.data } : { error: outcome.error }),
+    });
+  }
+  return results;
+}
+
+/** One POST to `/api/ask`. Transport + error mapping only; no loop logic. */
+async function postAsk(request: AskAtlasRequest): Promise<AskAtlasResponse> {
+  let raw: Response;
+  try {
+    raw = await fetch(ASK_API_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: request.text,
+        context: request.context,
+        history: request.history,
+        language: request.language,
+        ...(request.toolTurns && request.toolTurns.length > 0 ? { toolTurns: request.toolTurns } : {}),
+      }),
+    });
+  } catch {
+    // fetch() itself failed: offline, DNS, connection reset.
+    throw new AskApiError('network', SERVICE_UNAVAILABLE_COPY, { retryable: true });
+  }
+
+  // Vite's SPA fallback and Vercel's catch-all rewrite answer unknown
+  // routes with index.html, so trust only real JSON responses.
+  const contentType = raw.headers.get('content-type') ?? '';
+  if (!contentType.includes('application/json')) {
+    throw new AskApiError(
+      // A 5xx HTML page is likely a transient gateway failure (retriable);
+      // a 200/404 HTML page means the endpoint is simply not deployed yet.
+      raw.status >= 500 ? 'network' : 'service-unavailable',
+      SERVICE_UNAVAILABLE_COPY,
+      { retryable: raw.status >= 500 },
+    );
+  }
+
+  let body: unknown;
+  try {
+    body = await raw.json();
+  } catch {
+    throw new AskApiError('unexpected', GENERIC_ERROR_COPY, { retryable: false });
+  }
+
+  if (!raw.ok) {
+    const error = (body as Partial<AskApiErrorResponse>)?.error;
+    // Server said quota is gone for every provider: back off hard.
+    if (error?.code === 'all_providers_unavailable') {
+      throw new AskApiError('all-providers-unavailable', ALL_ENGINES_DOWN_COPY, {
+        retryable: false,
+        retryAfterSeconds: error.retryAfterSeconds,
+      });
+    }
+    // Bad request will fail identically on every retry.
+    if (error?.code === 'bad_request') {
+      throw new AskApiError('bad-request', error.message || GENERIC_ERROR_COPY, { retryable: false });
+    }
+    // Other 5xx JSON errors are worth one more attempt later.
+    throw new AskApiError(
+      raw.status >= 500 ? 'network' : 'unexpected',
+      error?.message || GENERIC_ERROR_COPY,
+      { retryable: raw.status >= 500 },
+    );
+  }
+
+  return body as AskAtlasResponse;
+}
 
 /**
  * Production responder: POSTs to the server-side `/api/ask` endpoint, so
- * provider keys never reach the browser. Until the endpoint exists (feature 2
- * Step 2) it fails gracefully into the panel's existing error state.
+ * provider keys never reach the browser, and runs the 3c multi-round tool
+ * loop: while the server answers with `toolCalls`, execute each call locally
+ * via `runTool` and feed the results back. Capped at `MAX_TOOL_ROUNDS`;
+ * a final reply is grounded `'atlas'` iff at least one executed tool result
+ * succeeded.
  */
 export function createApiResponder(): AskAtlasResponder {
   return {
     async respond(request: AskAtlasRequest): Promise<AskAtlasResponse> {
-      let raw: Response;
-      try {
-        raw = await fetch(ASK_API_ENDPOINT, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            text: request.text,
-            context: request.context,
-            history: request.history,
-            language: request.language,
-          }),
-        });
-      } catch {
-        // fetch() itself failed: offline, DNS, connection reset.
-        throw new AskApiError('network', SERVICE_UNAVAILABLE_COPY, { retryable: true });
-      }
+      let toolTurns: AskToolTurn[] = [];
+      let grounded = false;
 
-      // Vite's SPA fallback and Vercel's catch-all rewrite answer unknown
-      // routes with index.html, so trust only real JSON responses.
-      const contentType = raw.headers.get('content-type') ?? '';
-      if (!contentType.includes('application/json')) {
-        throw new AskApiError(
-          // A 5xx HTML page is likely a transient gateway failure (retriable);
-          // a 200/404 HTML page means the endpoint is simply not deployed yet.
-          raw.status >= 500 ? 'network' : 'service-unavailable',
-          SERVICE_UNAVAILABLE_COPY,
-          { retryable: raw.status >= 500 },
-        );
-      }
+      // Round 0 posts without tool turns; each later round appends one more.
+      for (let round = 0; round <= MAX_TOOL_ROUNDS; round += 1) {
+        const response = await postAsk({ ...request, toolTurns });
 
-      let body: unknown;
-      try {
-        body = await raw.json();
-      } catch {
-        throw new AskApiError('unexpected', GENERIC_ERROR_COPY, { retryable: false });
-      }
-
-      if (!raw.ok) {
-        const error = (body as Partial<AskApiErrorResponse>)?.error;
-        // Server said quota is gone for every provider: back off hard.
-        if (error?.code === 'all_providers_unavailable') {
-          throw new AskApiError('all-providers-unavailable', ALL_ENGINES_DOWN_COPY, {
-            retryable: false,
-            retryAfterSeconds: error.retryAfterSeconds,
-          });
+        if (!response.toolCalls || response.toolCalls.length === 0) {
+          // Final answer. Upgrade its grounding only when tools really ran.
+          return grounded ? { ...response, grounding: 'atlas' } : response;
         }
-        // Bad request will fail identically on every retry.
-        if (error?.code === 'bad_request') {
-          throw new AskApiError('bad-request', error.message || GENERIC_ERROR_COPY, { retryable: false });
+
+        if (round === MAX_TOOL_ROUNDS) {
+          // Cap reached and the model still wants tools: honest text reply.
+          return {
+            text: TOOL_LOOP_EXHAUSTED_COPY,
+            grounding: grounded ? 'atlas' : 'unverified',
+            engine: response.engine,
+          };
         }
-        // Other 5xx JSON errors are worth one more attempt later.
-        throw new AskApiError(
-          raw.status >= 500 ? 'network' : 'unexpected',
-          error?.message || GENERIC_ERROR_COPY,
-          { retryable: raw.status >= 500 },
-        );
+
+        const toolResults = await executeToolCalls(response.toolCalls);
+        grounded = grounded || toolResults.some((result) => result.ok);
+        toolTurns = [...toolTurns, { assistantToolCalls: response.toolCalls, toolResults }];
       }
 
-      return body as AskAtlasResponse;
+      // The loop always returns inside; this keeps the type checker honest.
+      throw new Error('unreachable: ask loop over-ran its bounds');
     },
   };
 }

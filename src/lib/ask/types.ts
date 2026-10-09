@@ -9,6 +9,8 @@
  * interface; the UI must not know which implementation it is talking to.
  */
 
+import type { ToolError } from '../tools/types';
+
 export interface AtlasContextSnapshot {
   selectedState?: { code: string; name: string };
   selectedLga?: { code: string; name: string };
@@ -40,6 +42,12 @@ export interface AskAtlasResponse {
   engine?: AskEngineInfo;
   /** Slot only; acting on it (map navigation) is feature 8. */
   location?: { lat: number; lng: number; label: string };
+  /**
+   * Present when the model asked for tool calls instead of answering.
+   * `text` is empty then; the client executes the calls and feeds the
+   * results back via the next request's `toolTurns`.
+   */
+  toolCalls?: AskToolCall[];
 }
 
 export type AskAtlasMessageRole = 'user' | 'assistant' | 'error';
@@ -69,6 +77,39 @@ export interface AskAtlasRequest {
   history?: AskAtlasMessage[];
   /** Desired reply language; absent means English. */
   language?: AskLanguage;
+  /**
+   * Completed tool-call rounds from the client (3c multi-round loop).
+   * The server appends these to the provider messages after the last user
+   * text, in order; absent on the first round.
+   */
+  toolTurns?: AskToolTurn[];
+}
+
+/**
+ * A tool call requested by the model, exactly as the provider returned it.
+ * `arguments` is the raw JSON string; the client parses it (guarded) and
+ * `runTool` safe-parses it again, so malformed arguments always surface as
+ * `invalid_args`.
+ */
+export interface AskToolCall {
+  id: string;
+  name: string;
+  arguments: string;
+}
+
+/** The client-executed outcome of one `AskToolCall` (mirrors 3b `ToolExecutionResult`). */
+export interface AskToolResult {
+  tool_call_id: string;
+  name: string;
+  ok: boolean;
+  data?: unknown;
+  error?: ToolError;
+}
+
+/** One completed round: the calls the model made and their client results. */
+export interface AskToolTurn {
+  assistantToolCalls: AskToolCall[];
+  toolResults: AskToolResult[];
 }
 
 export interface AskAtlasResponder {
