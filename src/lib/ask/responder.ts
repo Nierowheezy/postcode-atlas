@@ -10,15 +10,21 @@ import {
   AskToolCall,
   AskToolResult,
   AskToolTurn,
+  AtlasResultItem,
+  AtlasResultList,
   VerifiedLookup,
 } from './types';
 import { ASK_API_ENDPOINT, AskApiErrorResponse } from './api-types';
 import { AskApiError } from './errors';
 import { runTool } from '../tools/registry';
+import { atlasStore } from '../atlas/store';
 import type { PostcodeLocation } from '../../types/postcode';
-import type { LocationCandidate } from '../atlas/dataset';
+import type { AtlasArea, AtlasDistrict, AtlasLga, AtlasState, LocationCandidate } from '../atlas/dataset';
 
 const RESPONSE_DELAY_MS = 400;
+
+/** Most bundled verified units to attach to one exploration list (feature 5). */
+const MAX_RESULT_UNITS = 8;
 
 interface StubRule {
   pattern: RegExp;
@@ -226,6 +232,192 @@ function withLookup(response: AskAtlasResponse, toolTurns: AskToolTurn[]): AskAt
   };
 }
 
+/** Narrow executed data to records that carry a string `code`. */
+function asCodeRecords<T extends { code: string }>(value: unknown): T[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(
+    (item): item is T =>
+      typeof item === 'object' && item !== null && typeof (item as Record<string, unknown>).code === 'string',
+  );
+}
+
+/** Join non-empty labels into one scope or parent line. */
+function joinLabels(parts: Array<string | undefined>): string | undefined {
+  const kept = parts.filter((part): part is string => Boolean(part));
+  return kept.length > 0 ? kept.join(', ') : undefined;
+}
+
+/** Resolve a state code to its name from the local snapshot; undefined if unknown. */
+async function stateNameOf(code: string | undefined): Promise<string | undefined> {
+  if (!code) return undefined;
+  const states = await atlasStore.getStates();
+  return states.find((state) => state.code.toUpperCase() === code.toUpperCase())?.name;
+}
+
+/** Resolve an LGA code within a state to its name; undefined if unknown. */
+async function lgaNameOf(state: string | undefined, code: string | undefined): Promise<string | undefined> {
+  if (!state || !code) return undefined;
+  const lgas = await atlasStore.getLgas(state);
+  return lgas.find((lga) => lga.code === code)?.name;
+}
+
+function resultFromStates(value: unknown): AtlasResultList | undefined {
+  const states = asCodeRecords<AtlasState>(value);
+  if (states.length === 0) return undefined;
+  const items = states.map(
+    (state): AtlasResultItem => ({ type: 'state', code: state.code, name: state.name }),
+  );
+  return { level: 'state', items, total: items.length };
+}
+
+async function resultFromLgas(value: unknown): Promise<AtlasResultList | undefined> {
+  const lgas = asCodeRecords<AtlasLga>(value);
+  if (lgas.length === 0) return undefined;
+  const state = lgas[0].state;
+  const stateName = await stateNameOf(state);
+  const items = lgas.map((lga): AtlasResultItem => ({ type: 'lga', code: lga.code, name: lga.name }));
+  return { level: 'lga', scope: stateName, scopePath: { state }, items, total: items.length };
+}
+
+async function resultFromDistricts(value: unknown): Promise<AtlasResultList | undefined> {
+  const districts = asCodeRecords<AtlasDistrict>(value);
+  if (districts.length === 0) return undefined;
+  const { state, lga } = districts[0];
+  const [stateName, lgaName] = await Promise.all([stateNameOf(state), lgaNameOf(state, lga)]);
+  const items = districts.map(
+    (district): AtlasResultItem => ({ type: 'district', code: district.code, name: district.name }),
+  );
+  return {
+    level: 'district',
+    scope: joinLabels([lgaName ?? lga, stateName]),
+    scopePath: { state, lga },
+    items,
+    total: items.length,
+  };
+}
+
+async function resultFromAreas(value: unknown): Promise<AtlasResultList | undefined> {
+  const areas = asCodeRecords<AtlasArea>(value);
+  if (areas.length === 0) return undefined;
+  const { state, lga, district } = areas[0];
+  const [stateName, lgaName] = await Promise.all([stateNameOf(state), lgaNameOf(state, lga)]);
+  const items = areas.map((area): AtlasResultItem => ({ type: 'area', code: area.code, name: area.name }));
+  return {
+    level: 'area',
+    scope: joinLabels([district, lgaName ?? lga, stateName]),
+    scopePath: { state, lga, district },
+    items,
+    total: items.length,
+  };
+}
+
+function resultFromSearch(value: unknown): AtlasResultList | undefined {
+  const candidates = asLocationCandidates(value);
+  if (candidates.length === 0) return undefined;
+  const items = candidates.map(
+    (candidate): AtlasResultItem => ({
+      type: candidate.type === 'landmark' ? 'unit' : candidate.type,
+      code: candidate.code,
+      name: candidate.name,
+    }),
+  );
+  // Mixed search replies take the first row's type as the list level.
+  return { level: items[0].type, items, total: items.length };
+}
+
+/** Match a bundled landmark postcode against a scope path by dashed prefix. */
+function unitInScope(postcode: string, path: { state?: string; lga?: string; district?: string }): boolean {
+  const prefix = [path.state, path.lga, path.district]
+    .filter((part): part is string => Boolean(part))
+    .map((part) => part.toUpperCase())
+    .join('-');
+  return prefix.length > 0 && postcode.trim().toUpperCase().startsWith(`${prefix}-`);
+}
+
+/**
+ * Select the bundled verified units inside a scope, deduped and capped for
+ * display. Pure so the cap and prefix matching are testable; returns undefined
+ * when nothing matches.
+ */
+export function selectScopeUnits(
+  landmarks: PostcodeLocation[],
+  path: { state?: string; lga?: string; district?: string },
+): { units: AtlasResultItem[]; unitsTotal: number } | undefined {
+  const seen = new Set<string>();
+  const all: AtlasResultItem[] = [];
+  for (const landmark of landmarks) {
+    if (!landmark.postcode || !unitInScope(landmark.postcode, path) || seen.has(landmark.postcode)) continue;
+    seen.add(landmark.postcode);
+    all.push({
+      type: 'unit',
+      code: landmark.postcode,
+      name: landmark.name,
+      parent: joinLabels([landmark.lgaName, landmark.stateName]),
+    });
+  }
+  return all.length > 0 ? { units: all.slice(0, MAX_RESULT_UNITS), unitsTotal: all.length } : undefined;
+}
+
+/**
+ * Attach the bundled verified postcode units inside an LGA, district, or area
+ * scope (feature 5). Discovery landmarks stay offline, so this never touches
+ * the gateway.
+ */
+async function withUnits(list: AtlasResultList): Promise<AtlasResultList> {
+  const path = list.scopePath;
+  const enrichable = list.level === 'lga' || list.level === 'district' || list.level === 'area';
+  if (!path || !enrichable) return list;
+
+  const selected = selectScopeUnits(await atlasStore.getDiscoveryPoints(), path);
+  return selected ? { ...list, ...selected } : list;
+}
+
+/** Map one successful tool result to a result list, or undefined if it has none. */
+async function deriveOne(result: AskToolResult): Promise<AtlasResultList | undefined> {
+  switch (result.name) {
+    case 'getStates':
+      return resultFromStates(result.data);
+    case 'getLgas':
+      return resultFromLgas(result.data);
+    case 'getDistricts':
+      return resultFromDistricts(result.data);
+    case 'getAreas':
+      return resultFromAreas(result.data);
+    case 'searchLocation':
+      return resultFromSearch(result.data);
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * Derive the exploration result list (feature 5) from the executed tool
+ * results. Deterministic: the last list-producing result wins. A failed
+ * result or an empty array leaves the list as it was, and a reply with no
+ * list-producing result does no store reads. The final list gains the bundled
+ * verified units for its scope.
+ */
+export async function deriveResults(toolTurns: AskToolTurn[]): Promise<AtlasResultList | undefined> {
+  let list: AtlasResultList | undefined;
+
+  for (const turn of toolTurns) {
+    for (const result of turn.toolResults) {
+      if (!result.ok) continue;
+      const next = await deriveOne(result);
+      if (next) list = next;
+    }
+  }
+
+  return list ? withUnits(list) : undefined;
+}
+
+/** Attach the feature 4 lookup and the feature 5 result list to a final reply. */
+async function attachDerived(response: AskAtlasResponse, toolTurns: AskToolTurn[]): Promise<AskAtlasResponse> {
+  const withLookupResponse = withLookup(response, toolTurns);
+  const results = await deriveResults(toolTurns);
+  return results ? { ...withLookupResponse, results } : withLookupResponse;
+}
+
 /** One POST to `/api/ask`. Transport + error mapping only; no loop logic. */
 async function postAsk(request: AskAtlasRequest): Promise<AskAtlasResponse> {
   let raw: Response;
@@ -310,13 +502,13 @@ export function createApiResponder(): AskAtlasResponder {
 
         if (!response.toolCalls || response.toolCalls.length === 0) {
           // Final answer. Upgrade its grounding only when tools really ran,
-          // and attach the derived verified lookup (feature 4).
-          return grounded ? withLookup({ ...response, grounding: 'atlas' }, toolTurns) : withLookup(response, toolTurns);
+          // then attach the derived lookup (feature 4) and list (feature 5).
+          return attachDerived(grounded ? { ...response, grounding: 'atlas' } : response, toolTurns);
         }
 
         if (round === MAX_TOOL_ROUNDS) {
           // Cap reached and the model still wants tools: honest text reply.
-          return withLookup(
+          return attachDerived(
             {
               text: TOOL_LOOP_EXHAUSTED_COPY,
               grounding: grounded ? 'atlas' : 'unverified',

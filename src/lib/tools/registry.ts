@@ -17,6 +17,7 @@ import {
   getNearby,
   getPostcode,
   getState,
+  getStates,
   searchLocation,
 } from './executors';
 import {
@@ -28,6 +29,7 @@ import {
   getNearbySchema,
   getPostcodeSchema,
   getStateSchema,
+  getStatesSchema,
   searchLocationSchema,
 } from './schemas';
 import {
@@ -61,6 +63,12 @@ export const TOOL_REGISTRY: Record<ToolName, RegisteredTool> = {
     description: TOOL_DESCRIPTIONS.getState,
     schema: getStateSchema,
     execute: getState,
+  }),
+  getStates: register({
+    name: 'getStates',
+    description: TOOL_DESCRIPTIONS.getStates,
+    schema: getStatesSchema,
+    execute: getStates,
   }),
   getLgas: register({
     name: 'getLgas',

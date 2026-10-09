@@ -60,7 +60,7 @@ and deployment readiness. Adapt it to the project as implementation progresses.
 
 - [x] 4. **Natural-language postcode lookup** - ask for a Nigerian postcode using normal language and return verified Atlas results
 
-- [ ] 5. **Natural-language location exploration** - explore states, LGAs, districts, areas, and postcode units through conversation
+- [x] 5. **Natural-language location exploration** - explore states, LGAs, districts, areas, and postcode units through conversation
 
 - [ ] 6. **Postcode decoding** - submit a postcode conversationally and explain its structure and location
 

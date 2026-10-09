@@ -5,6 +5,7 @@
 
 import React from 'react';
 import type { AskAtlasMessage } from '../../lib/ask/types';
+import { AskAtlasResultsList } from './AskAtlasResultsList';
 
 /** Props for a single conversation bubble. */
 export interface AskAtlasMessageBubbleProps {
@@ -46,6 +47,9 @@ export const AskAtlasMessageBubble: React.FC<AskAtlasMessageBubbleProps> = ({ me
           Verified postcode
         </span>
       </span>
+    )}
+    {message.role === 'assistant' && message.results && (
+      <AskAtlasResultsList list={message.results} />
     )}
     {message.role === 'assistant' && (
       <span className="block mt-1.5 pt-1.5 border-t border-[#E5E7EB] dark:border-[#374151] text-[10px] font-mono text-[#6B7280] dark:text-[#9CA3AF]">

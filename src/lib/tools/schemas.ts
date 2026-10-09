@@ -22,6 +22,10 @@ export const getStateSchema = z.object({
 });
 export type GetStateArgs = z.infer<typeof getStateSchema>;
 
+/** No arguments: lists the full state catalogue. */
+export const getStatesSchema = z.object({});
+export type GetStatesArgs = z.infer<typeof getStatesSchema>;
+
 export const getLgasSchema = z.object({
   state: z.string().trim().min(1).max(60),
 });
@@ -60,6 +64,7 @@ export type GetNearbyArgs = z.infer<typeof getNearbySchema>;
 export const TOOL_DESCRIPTIONS = {
   searchLocation: 'Find Nigerian states, LGAs, districts, areas, and landmark postcodes by name or code.',
   getState: 'Get one Nigerian state with its capital, geopolitical zone, center, and LGA count.',
+  getStates: 'List all Nigerian states with their 2-letter codes.',
   getLgas: 'List the LGAs of a Nigerian state, given the state 2-letter code.',
   getDistricts: 'List the postal districts of a state and LGA.',
   getAreas: 'List the postal areas of a district.',

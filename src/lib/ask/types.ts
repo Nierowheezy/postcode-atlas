@@ -49,6 +49,12 @@ export interface AskAtlasResponse {
    */
   lookup?: VerifiedLookup;
   /**
+   * Hierarchy listing payload for the reply (feature 5). Derived on the
+   * client from the executed tool results; always absent on stub replies
+   * and on intermediate toolCalls responses.
+   */
+  results?: AtlasResultList;
+  /**
    * Present when the model asked for tool calls instead of answering.
    * `text` is empty then; the client executes the calls and feeds the
    * results back via the next request's `toolTurns`.
@@ -70,6 +76,8 @@ export interface AskAtlasMessage {
   location?: { lat: number; lng: number; label: string };
   /** Verified postcode payload rendered as the feature 4 chip. */
   lookup?: VerifiedLookup;
+  /** Hierarchy listing payload rendered as the feature 5 list. */
+  results?: AtlasResultList;
   timestamp: number;
 }
 
@@ -118,6 +126,33 @@ export interface AskToolResult {
 export interface AskToolTurn {
   assistantToolCalls: AskToolCall[];
   toolResults: AskToolResult[];
+}
+
+/** One row of an exploration result list (feature 5). */
+export interface AtlasResultItem {
+  type: 'state' | 'lga' | 'district' | 'area' | 'unit';
+  code: string;
+  name?: string;
+  parent?: string;
+}
+
+/**
+ * Hierarchy listing derived from the executed tool results (feature 5).
+ * Load-bearing for the later grounded lookups (features 6-9); keep the shape
+ * stable. Built on the client, never from the reply prose.
+ */
+export interface AtlasResultList {
+  level: 'state' | 'lga' | 'district' | 'area' | 'unit';
+  /** Human container label, for example "Lagos". Absent for a global list. */
+  scope?: string;
+  /** Codes behind the scope, for the bundled unit lookup. */
+  scopePath?: { state?: string; lga?: string; district?: string };
+  items: AtlasResultItem[];
+  /** Number of rows before display capping. */
+  total: number;
+  /** Bundled verified postcode units inside the scope (feature 5). */
+  units?: AtlasResultItem[];
+  unitsTotal?: number;
 }
 
 /**

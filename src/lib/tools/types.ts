@@ -11,11 +11,12 @@
 
 import type { ZodType } from 'zod';
 import type { PostcodeLocation, PostcodeSegments, StateGeoInfo } from '../../types/postcode';
-import type { AtlasArea, AtlasDistrict, AtlasLga, LocationCandidate } from '../atlas/dataset';
+import type { AtlasArea, AtlasDistrict, AtlasLga, AtlasState, LocationCandidate } from '../atlas/dataset';
 
 export const TOOL_NAMES = [
   'searchLocation',
   'getState',
+  'getStates',
   'getLgas',
   'getDistricts',
   'getAreas',
@@ -102,6 +103,7 @@ export interface NearbyUnit {
 export interface ToolResultMap {
   searchLocation: LocationCandidate[];
   getState: StateSummary;
+  getStates: AtlasState[];
   getLgas: AtlasLga[];
   getDistricts: AtlasDistrict[];
   getAreas: AtlasArea[];

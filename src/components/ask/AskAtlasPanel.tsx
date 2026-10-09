@@ -91,6 +91,7 @@ export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({ responder, getCont
         context,
         location: res.location,
         lookup: res.lookup,
+        results: res.results,
       };
       setMessages((prev) => [...prev, reply]);
     } catch (err) {
@@ -131,6 +132,10 @@ export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({ responder, getCont
             Ask a question in plain language, for example{' '}
             <span className="font-mono text-[#0F7B4D] dark:text-[#10B981]">
               &quot;What&apos;s the postcode for Ikeja?&quot;
+            </span>{' '}
+            or{' '}
+            <span className="font-mono text-[#0F7B4D] dark:text-[#10B981]">
+              &quot;List the LGAs in Lagos.&quot;
             </span>
           </p>
         )}

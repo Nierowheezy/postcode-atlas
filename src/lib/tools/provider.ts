@@ -20,6 +20,7 @@ import {
   getNearbySchema,
   getPostcodeSchema,
   getStateSchema,
+  getStatesSchema,
   searchLocationSchema,
 } from './schemas';
 import { TOOL_NAMES, type ToolName } from './types';
@@ -38,6 +39,7 @@ export interface ProviderTool {
 const SCHEMAS: Record<ToolName, z.ZodType> = {
   searchLocation: searchLocationSchema,
   getState: getStateSchema,
+  getStates: getStatesSchema,
   getLgas: getLgasSchema,
   getDistricts: getDistrictsSchema,
   getAreas: getAreasSchema,

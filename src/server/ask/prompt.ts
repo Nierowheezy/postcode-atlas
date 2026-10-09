@@ -51,6 +51,18 @@ export function buildSystemPrompt(
       'clearly general knowledge and say it is unverified.',
     ].join(' '),
     [
+      'When asked to list or explore the hierarchy (states, LGAs, districts,',
+      'or areas), call the matching tool and answer from its result:',
+      'getStates for the states, getLgas for the LGAs of a state, getDistricts',
+      'for the districts of an LGA, getAreas for the areas of a district.',
+      'The state and LGA arguments take a name or a code; the district argument',
+      'takes the district code from the previous result. If you only have an',
+      'unresolved place name, call searchLocation first. A state, LGA, district,',
+      'or area never has a single postcode: name the rows plainly and do not',
+      'attach a postcode to them. The interface already lists the returned rows,',
+      'so keep the prose short and do not read the whole list back.',
+    ].join(' '),
+    [
       'When asked for a postcode, follow this order of lookup:',
       '1. For a place name or landmark, call searchLocation first. Never',
       '   call getPostcode with a code you made up.',

@@ -13,7 +13,7 @@
 import type { PostcodeLocation, PostcodeSegments } from '../../types/postcode';
 import { postcodeApi } from '../api/postcodeClient';
 import { atlasStore } from '../atlas/store';
-import type { AtlasArea, AtlasDistrict, AtlasLga, LocationCandidate } from '../atlas/dataset';
+import type { AtlasArea, AtlasDistrict, AtlasLga, AtlasState, LocationCandidate } from '../atlas/dataset';
 import { NIGERIA_STATES } from '../geo/nigeriaData';
 import type {
   DecodePostcodeArgs,
@@ -36,8 +36,11 @@ export function searchLocation(args: SearchLocationArgs): Promise<LocationCandid
   return atlasStore.searchLocations(args.query);
 }
 
-export async function getState(args: GetStateArgs): Promise<StateSummary> {
-  const wanted = args.state.trim();
+/**
+ * Resolve a state name or 2-letter code to its canonical snapshot record.
+ * Reads the bundled catalogue, so it works offline once the store hydrates.
+ */
+async function resolveState(wanted: string): Promise<AtlasState> {
   const states = await atlasStore.getStates();
   const match = states.find(
     (state) =>
@@ -47,6 +50,30 @@ export async function getState(args: GetStateArgs): Promise<StateSummary> {
   if (!match) {
     throw new ToolFault('not_found', `No Nigerian state matches "${wanted}".`);
   }
+  return match;
+}
+
+/** Resolve an LGA name or code within a resolved state to its canonical code. */
+async function resolveLgaCode(stateCode: string, wanted: string): Promise<string> {
+  const lgas = await atlasStore.getLgas(stateCode);
+  const match = lgas.find(
+    (lga) =>
+      lga.code.toUpperCase() === wanted.toUpperCase() ||
+      lga.name.toLowerCase() === wanted.toLowerCase(),
+  );
+  if (!match) {
+    throw new ToolFault('not_found', `No LGA matches "${wanted}" in state ${stateCode}.`);
+  }
+  return match.code;
+}
+
+/** List every state in the catalogue. */
+export function getStates(): Promise<AtlasState[]> {
+  return atlasStore.getStates();
+}
+
+export async function getState(args: GetStateArgs): Promise<StateSummary> {
+  const match = await resolveState(args.state.trim());
 
   const geo = NIGERIA_STATES[match.code.toUpperCase()];
   if (!geo) return { code: match.code, name: match.name };
@@ -62,16 +89,21 @@ export async function getState(args: GetStateArgs): Promise<StateSummary> {
   };
 }
 
-export function getLgas(args: GetLgasArgs): Promise<AtlasLga[]> {
-  return atlasStore.getLgas(args.state);
+export async function getLgas(args: GetLgasArgs): Promise<AtlasLga[]> {
+  const state = await resolveState(args.state.trim());
+  return atlasStore.getLgas(state.code);
 }
 
-export function getDistricts(args: GetDistrictsArgs): Promise<AtlasDistrict[]> {
-  return atlasStore.getDistricts(args.state, args.lga);
+export async function getDistricts(args: GetDistrictsArgs): Promise<AtlasDistrict[]> {
+  const state = await resolveState(args.state.trim());
+  const lga = await resolveLgaCode(state.code, args.lga.trim());
+  return atlasStore.getDistricts(state.code, lga);
 }
 
-export function getAreas(args: GetAreasArgs): Promise<AtlasArea[]> {
-  return atlasStore.getAreas(args.state, args.lga, args.district);
+export async function getAreas(args: GetAreasArgs): Promise<AtlasArea[]> {
+  const state = await resolveState(args.state.trim());
+  const lga = await resolveLgaCode(state.code, args.lga.trim());
+  return atlasStore.getAreas(state.code, lga, args.district.trim());
 }
 
 export function getPostcode(args: GetPostcodeArgs): Promise<PostcodeLocation | null> {
