@@ -20,11 +20,12 @@ export const config = {
 };
 
 /**
- * Vercel's Node runtime invokes the default export with a Node-style
- * IncomingMessage (headers as a plain object, body as a readable stream),
- * while `handleAsk` expects the Web `Request` API. This mirrors the dev
- * middleware in `vite.config.ts`: drain the stream, copy the headers, and
- * build a `Request`. A real Web `Request` passes through unchanged.
+ * Vercel's Node runtime invokes a named HTTP method (here `POST`) with a Web
+ * `Request` and honors the returned `Response`. A default export would be
+ * treated as `(req, res) => void` and its return ignored, which hangs the
+ * request. This code still defends against a Node-style IncomingMessage
+ * (headers as a plain object, body as a readable stream) by converting it the
+ * same way the dev middleware in `vite.config.ts` does.
  */
 type NodeIncomingMessage = {
   method?: string;
@@ -32,6 +33,10 @@ type NodeIncomingMessage = {
   headers: Record<string, string | string[] | number | undefined>;
   [Symbol.asyncIterator](): AsyncIterableIterator<Uint8Array>;
 };
+
+function isWebRequest(value: unknown): value is Request {
+  return typeof (value as { headers?: { get?: unknown } } | null)?.headers?.get === 'function';
+}
 
 async function toWebRequest(value: unknown): Promise<Request> {
   const message = value as Partial<NodeIncomingMessage>;
@@ -57,7 +62,7 @@ async function toWebRequest(value: unknown): Promise<Request> {
   return new Request(new URL(message.url ?? '/', 'http://localhost').toString(), init);
 }
 
-export default async function ask(request: unknown): Promise<Response> {
-  const webRequest = request instanceof Request ? request : await toWebRequest(request);
+export async function POST(request: unknown): Promise<Response> {
+  const webRequest = isWebRequest(request) ? request : await toWebRequest(request);
   return handleAsk(webRequest, process.env);
 }
