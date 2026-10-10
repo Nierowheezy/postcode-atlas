@@ -143,12 +143,25 @@ export async function runChain(
       const result = await callProvider(provider, messages, tools);
       return { text: result.text, toolCalls: result.toolCalls, provider, attempt };
     } catch (cause) {
-      if (cause instanceof ProviderError) {
-        lastFailure = cause;
-        console.error(`[ask] provider ${provider.id} failed (${cause.kind}): ${cause.message}`);
-        markCooldown(provider.id, cause.kind, cause.retryAfterSeconds);
+      // N-ATLAS (llama.cpp) 500s when the model's sampled tool-call output
+      // fails the strict grammar parse; the next sample usually succeeds, so
+      // retry once on transient server errors before giving up. Other
+      // providers and error kinds fall through unchanged.
+      let error: unknown = cause;
+      if (provider.id === 'natlas' && error instanceof ProviderError && error.kind === 'server') {
+        try {
+          const retried = await callProvider(provider, messages, tools);
+          return { text: retried.text, toolCalls: retried.toolCalls, provider, attempt };
+        } catch (retryCause) {
+          error = retryCause;
+        }
+      }
+      if (error instanceof ProviderError) {
+        lastFailure = error;
+        console.error(`[ask] provider ${provider.id} failed (${error.kind}): ${error.message}`);
+        markCooldown(provider.id, error.kind, error.retryAfterSeconds);
       } else {
-        lastFailure = new ProviderError('server', `Provider ${provider.id} threw ${String(cause)}`);
+        lastFailure = new ProviderError('server', `Provider ${provider.id} threw ${String(error)}`);
         markCooldown(provider.id, 'server');
       }
     }
