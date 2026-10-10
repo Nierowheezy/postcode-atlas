@@ -130,15 +130,15 @@ export interface AskAtlasMessage {
 }
 
 /**
- * Single request object so context, history, and language travel together.
- * Replaces the feature 1 positional `respond(text, ctx)` signature; this is a
- * load-bearing change (features 3+ build on it).
+ * Single request object so context and language travel together. Replaces the
+ * feature 1 positional `respond(text, ctx)` signature; this is a load-bearing
+ * change (features 3+ build on it). Follow-up context travels as the structured
+ * `referent` on `context`, never as raw history: N-ATLAS degrades once prior
+ * turns are in the provider messages.
  */
 export interface AskAtlasRequest {
   text: string;
   context: AtlasContextSnapshot;
-  /** Recent turns; the panel sends them, the server caps them (last 10). */
-  history?: AskAtlasMessage[];
   /** Desired reply language; absent means English. */
   language?: AskLanguage;
   /**

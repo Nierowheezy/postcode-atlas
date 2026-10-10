@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { AskApiError } from './errors';
+import { isRefusalText } from './refusal';
 import type { AskAtlasRequest, AskAtlasResponse, AskAtlasResponder, AskPhase } from './types';
 
 /**
@@ -88,7 +89,9 @@ export function useAskAtlas(responder: AskAtlasResponder): UseAskAtlasResult {
       if (cached) return cached;
 
       const response = await responder.respond(request, (progress) => setPhase(progress.phase));
-      queryClient.setQueryData(cacheKey, response);
+      // Never memoize a refusal: a cached refusal would repeat for the rest of
+      // the session even after the model recovers.
+      if (!isRefusalText(response.text)) queryClient.setQueryData(cacheKey, response);
       return response;
     },
     // Start the indicator immediately, before the first phase ping arrives,

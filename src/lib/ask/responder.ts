@@ -20,6 +20,7 @@ import {
 } from './types';
 import { ASK_API_ENDPOINT, AskApiErrorResponse } from './api-types';
 import { AskApiError } from './errors';
+import { postcodesIn, stripUnbackedPostcodes } from './postcode';
 import { runTool } from '../tools/registry';
 import { atlasStore } from '../atlas/store';
 import type { PostcodeLocation } from '../../types/postcode';
@@ -688,7 +689,11 @@ function referentFromResult(result: AskToolResult): { rank: number; referent: At
 }
 
 /** Attach the feature 4 lookup, feature 5 list, feature 6 decode, feature 7 nearby list, feature 8 map action, and feature 10 referent to a final reply. */
-async function attachDerived(response: AskAtlasResponse, toolTurns: AskToolTurn[]): Promise<AskAtlasResponse> {
+async function attachDerived(
+  response: AskAtlasResponse,
+  toolTurns: AskToolTurn[],
+  userText: string,
+): Promise<AskAtlasResponse> {
   const withLookupResponse = withLookup(response, toolTurns);
   const results = await deriveResults(toolTurns);
   let next = results ? { ...withLookupResponse, results } : withLookupResponse;
@@ -717,7 +722,88 @@ async function attachDerived(response: AskAtlasResponse, toolTurns: AskToolTurn[
   const referent = deriveReferent(toolTurns);
   if (referent) next = { ...next, referent };
 
-  return next;
+  // A pure map move carries no rows to quote, so the model tends to pad the
+  // reply with remembered facts (population, area, capital) that no tool
+  // returned. Use a short deterministic line instead, so a map action makes no
+  // unverified claim. When a data payload exists the model's prose is kept.
+  const hasData = Boolean(next.lookup || next.results || next.decoded || next.nearby);
+  if (mapAction && !hasData) {
+    return { ...next, text: mapActionCopy(mapAction) };
+  }
+
+  const guarded = withVerifiedPostcodes(next, toolTurns, userText);
+
+  // The user asked for a postcode but the tools only resolved a state or LGA,
+  // which has no single postcode. Answer deterministically so the flagship
+  // starter question never drifts into "the postcode is 11".
+  if (asksForPostcode(userText) && !next.lookup && !next.decoded && next.results) {
+    const copy = postcodeScopeCopy(next.results);
+    if (copy) return { ...guarded, text: copy };
+  }
+
+  return guarded;
+}
+
+/** True when the user explicitly asked for a postcode. */
+function asksForPostcode(userText: string): boolean {
+  return /\b(postcode|postal code|zip)\b/i.test(userText);
+}
+
+/** Deterministic reply when a postcode request resolved to a state or LGA only. */
+function postcodeScopeCopy(list: AtlasResultList): string | undefined {
+  const kind = list.level === 'state' ? 'state' : list.level === 'lga' ? 'Local Government Area' : undefined;
+  if (!kind) return undefined;
+  const name = list.items[0]?.name;
+  const scope = list.scope ? ` in ${list.scope}` : '';
+  const subject = name ? `${name} is a ${kind}${scope}` : `That is a ${kind}`;
+  return `${subject}, so it has no single postcode. Tell me a specific area, street, or landmark and I will find its unit postcode.`;
+}
+
+/** One factual sentence describing where a map action moved the view. */
+function mapActionCopy(action: MapAction): string {
+  if (action.target === 'reset') return 'Showing the whole of Nigeria again.';
+  if (action.target === 'postcode') return `Showing ${action.postcode} on the map.`;
+  if (action.target === 'lga') return `Showing ${action.lga.name} LGA, ${action.state.name}, on the map.`;
+  return `Showing ${action.state.name} on the map.`;
+}
+
+/** Every postcode a tool actually returned, plus anything the user typed themselves. */
+function groundedPostcodes(toolTurns: AskToolTurn[], userText: string): Set<string> {
+  const allowed = postcodesIn(userText);
+  for (const turn of toolTurns) {
+    for (const result of turn.toolResults) {
+      if (!result.ok) continue;
+      for (const code of postcodesIn(JSON.stringify(result.data ?? ''))) allowed.add(code);
+    }
+  }
+  return allowed;
+}
+
+/** Honest reply used when a reply's only postcode claims were unverified. */
+function postcodeFallback(response: AskAtlasResponse): string {
+  const level = response.results?.level;
+  const label = { state: 'A state', lga: 'An LGA', district: 'A district', area: 'An area' }[
+    level as 'state' | 'lga' | 'district' | 'area'
+  ];
+  if (label) {
+    return `${label} has no single postcode; postcodes are assigned at the area or street level. Ask for a specific area, street, or landmark and I will find its unit postcode.`;
+  }
+  return 'I could not verify a postcode for that from the available data. Ask for a specific area, street, or landmark.';
+}
+
+/**
+ * Drop any postcode sentence the model wrote that no tool returned and the user
+ * did not type. The derived cards still show the real data, so the reply stays
+ * honest even when a sentence has to be removed.
+ */
+function withVerifiedPostcodes(
+  response: AskAtlasResponse,
+  toolTurns: AskToolTurn[],
+  userText: string,
+): AskAtlasResponse {
+  const allowed = groundedPostcodes(toolTurns, userText);
+  const text = stripUnbackedPostcodes(response.text, allowed, postcodeFallback(response));
+  return text === response.text ? response : { ...response, text };
 }
 
 /** One POST to `/api/ask`. Transport + error mapping only; no loop logic. */
@@ -730,7 +816,6 @@ async function postAsk(request: AskAtlasRequest): Promise<AskAtlasResponse> {
       body: JSON.stringify({
         text: request.text,
         context: request.context,
-        history: request.history,
         language: request.language,
         ...(request.toolTurns && request.toolTurns.length > 0 ? { toolTurns: request.toolTurns } : {}),
       }),
@@ -813,7 +898,7 @@ export function createApiResponder(): AskAtlasResponder {
           // Final answer. Upgrade its grounding only when tools really ran,
           // then attach the derived lookup (feature 4) and list (feature 5).
           onProgress?.({ phase: 'composing' });
-          return attachDerived(grounded ? { ...response, grounding: 'atlas' } : response, toolTurns);
+          return attachDerived(grounded ? { ...response, grounding: 'atlas' } : response, toolTurns, request.text);
         }
 
         if (round === MAX_TOOL_ROUNDS) {
@@ -825,6 +910,7 @@ export function createApiResponder(): AskAtlasResponder {
               engine: response.engine,
             },
             toolTurns,
+            request.text,
           );
         }
 

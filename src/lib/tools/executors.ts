@@ -47,16 +47,34 @@ export function searchLocation(args: SearchLocationArgs): Promise<LocationCandid
   return atlasStore.searchLocations(args.query);
 }
 
+/** Aliases people and the model use for a state that is not its official name. */
+const STATE_ALIASES: Record<string, string> = {
+  abuja: 'FC',
+  fct: 'FC',
+  'abuja fct': 'FC',
+  'federal capital': 'FC',
+};
+
+/** Trim a trailing "state"/"lga" qualifier so "Lagos State" and "Ikeja LGA" resolve. */
+function trimQualifier(value: string, qualifier: string): string {
+  return value.trim().replace(new RegExp(`\\s+${qualifier}$`, 'i'), '').trim();
+}
+
 /**
  * Resolve a state name or 2-letter code to its canonical snapshot record.
- * Reads the bundled catalogue, so it works offline once the store hydrates.
+ * Tolerates the "Lagos State" form and the common Abuja → FCT alias, so the
+ * model's natural phrasing still lands on a real record. Reads the bundled
+ * catalogue, so it works offline once the store hydrates.
  */
 async function resolveState(wanted: string): Promise<AtlasState> {
   const states = await atlasStore.getStates();
+  const cleaned = trimQualifier(wanted, 'state').toLowerCase();
+  const aliasCode = STATE_ALIASES[cleaned];
   const match = states.find(
     (state) =>
-      state.code.toUpperCase() === wanted.toUpperCase() ||
-      state.name.toLowerCase() === wanted.toLowerCase(),
+      (aliasCode !== undefined && state.code.toUpperCase() === aliasCode) ||
+      state.code.toUpperCase() === cleaned.toUpperCase() ||
+      state.name.toLowerCase() === cleaned,
   );
   if (!match) {
     throw new ToolFault('not_found', `No Nigerian state matches "${wanted}".`);
@@ -67,15 +85,48 @@ async function resolveState(wanted: string): Promise<AtlasState> {
 /** Resolve an LGA name or code within a resolved state to its canonical code. */
 async function resolveLgaCode(stateCode: string, wanted: string): Promise<string> {
   const lgas = await atlasStore.getLgas(stateCode);
+  const cleaned = trimQualifier(wanted, 'lga').toLowerCase();
   const match = lgas.find(
-    (lga) =>
-      lga.code.toUpperCase() === wanted.toUpperCase() ||
-      lga.name.toLowerCase() === wanted.toLowerCase(),
+    (lga) => lga.code.toUpperCase() === cleaned.toUpperCase() || lga.name.toLowerCase() === cleaned,
   );
   if (!match) {
     throw new ToolFault('not_found', `No LGA matches "${wanted}" in state ${stateCode}.`);
   }
   return match.code;
+}
+
+/**
+ * Find an LGA by the name a user (or the model) gave, across all states. Used
+ * when a request names an LGA but labels it a state ("show me Ikeja on the
+ * map", "what districts are in Ikeja?") so the request still resolves.
+ */
+async function findLgaByName(
+  wanted: string,
+): Promise<{ stateCode: string; stateName: string; code: string; name: string } | null> {
+  const candidates = await atlasStore.searchLocations(wanted.trim());
+  const hit = candidates.find((candidate) => candidate.type === 'lga' && candidate.state);
+  if (!hit || !hit.state) return null;
+  const state = await resolveState(hit.state);
+  return { stateCode: state.code, stateName: state.name, code: hit.code, name: hit.name ?? hit.code };
+}
+
+/**
+ * Resolve a `(state, LGA)` pair for a hierarchy query. The model sometimes
+ * treats the LGA as the state ("what districts are in Ikeja?"), so when the
+ * state does not resolve, look the name up as a place and use its parent.
+ */
+async function resolveStateAndLga(
+  stateArg: string,
+  lgaArg: string,
+): Promise<{ stateCode: string; lgaCode: string }> {
+  try {
+    const state = await resolveState(stateArg);
+    return { stateCode: state.code, lgaCode: await resolveLgaCode(state.code, lgaArg) };
+  } catch (error) {
+    const hit = (await findLgaByName(stateArg)) ?? (await findLgaByName(lgaArg));
+    if (hit) return { stateCode: hit.stateCode, lgaCode: hit.code };
+    throw error;
+  }
 }
 
 /** List every state in the catalogue. */
@@ -115,15 +166,13 @@ export async function getLgas(args: GetLgasArgs): Promise<AtlasLga[]> {
 }
 
 export async function getDistricts(args: GetDistrictsArgs): Promise<HierarchyPage<AtlasDistrict>> {
-  const state = await resolveState(args.state.trim());
-  const lga = await resolveLgaCode(state.code, args.lga.trim());
-  return toHierarchyPage(await atlasStore.getDistricts(state.code, lga));
+  const { stateCode, lgaCode } = await resolveStateAndLga(args.state, args.lga);
+  return toHierarchyPage(await atlasStore.getDistricts(stateCode, lgaCode));
 }
 
 export async function getAreas(args: GetAreasArgs): Promise<HierarchyPage<AtlasArea>> {
-  const state = await resolveState(args.state.trim());
-  const lga = await resolveLgaCode(state.code, args.lga.trim());
-  return toHierarchyPage(await atlasStore.getAreas(state.code, lga, args.district.trim()));
+  const { stateCode, lgaCode } = await resolveStateAndLga(args.state, args.lga);
+  return toHierarchyPage(await atlasStore.getAreas(stateCode, lgaCode, args.district.trim()));
 }
 
 export function getPostcode(args: GetPostcodeArgs): Promise<PostcodeLocation | null> {
@@ -200,7 +249,25 @@ export async function navigateMap(args: NavigateMapArgs): Promise<MapAction> {
     return { target: 'postcode', postcode: location.postcode, location };
   }
 
-  const state = await resolveState(args.state.trim());
+  let state: AtlasState;
+  try {
+    state = await resolveState(args.state.trim());
+  } catch (error) {
+    // The named "state" may really be an LGA ("show me Ikeja on the map"): look
+    // it up as a place and frame its LGA instead of failing.
+    const hit = await findLgaByName(args.state);
+    const lgaGeo = hit ? NIGERIA_STATES[hit.stateCode.toUpperCase()] : undefined;
+    if (hit && lgaGeo) {
+      return {
+        target: 'lga',
+        state: { code: hit.stateCode, name: hit.stateName },
+        lga: { code: hit.code, name: hit.name },
+        center: lgaGeo.center,
+        zoom: LGA_VIEW_ZOOM,
+      };
+    }
+    throw error;
+  }
   const geo = NIGERIA_STATES[state.code.toUpperCase()];
   if (!geo) {
     throw new ToolFault('not_found', `No map view is available for "${state.name}".`);

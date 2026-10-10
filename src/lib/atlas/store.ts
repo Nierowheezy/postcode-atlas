@@ -150,6 +150,40 @@ export async function searchLocations(query: string): Promise<LocationCandidate[
   const landmarks = [...discovery];
   landmarks.sort((a, b) => (a.name ?? a.postcode).localeCompare(b.name ?? b.postcode));
 
+  const lists = { states, lgas, districts, areas, landmarks };
+
+  let matches = collectMatches(q, lists);
+  // A comma-joined name like "Ikeja, Lagos" still resolves on its leading
+  // segment, which is the specific place the user actually named.
+  if (matches.length === 0 && q.includes(',')) {
+    const head = q.split(',')[0].trim();
+    if (head && head !== q) matches = collectMatches(head, lists);
+  }
+
+  if (matches.length === 0) {
+    const auto = await postcodeApi.autocomplete(q);
+    return auto.suggestions.slice(0, MAX_SEARCH_RESULTS).map((s) => ({
+      type: typeForSegment(auto.segment),
+      code: s.code,
+      name: s.label,
+    }));
+  }
+
+  return matches;
+}
+
+/** Prefix matches first, then a contains pass; capped at MAX_SEARCH_RESULTS. */
+function collectMatches(
+  q: string,
+  lists: {
+    states: AtlasState[];
+    lgas: AtlasLga[];
+    districts: AtlasDistrict[];
+    areas: AtlasArea[];
+    landmarks: PostcodeLocation[];
+  },
+): LocationCandidate[] {
+  const { states, lgas, districts, areas, landmarks } = lists;
   const matches: LocationCandidate[] = [];
   const push = (candidate: LocationCandidate) => {
     if (matches.length < MAX_SEARCH_RESULTS) matches.push(candidate);
@@ -199,15 +233,6 @@ export async function searchLocations(query: string): Promise<LocationCandidate[
         push({ type: 'area', code: area.code, state: area.state, lga: area.lga });
       }
     }
-  }
-
-  if (matches.length === 0) {
-    const auto = await postcodeApi.autocomplete(q);
-    return auto.suggestions.slice(0, MAX_SEARCH_RESULTS).map((s) => ({
-      type: typeForSegment(auto.segment),
-      code: s.code,
-      name: s.label,
-    }));
   }
 
   return matches;

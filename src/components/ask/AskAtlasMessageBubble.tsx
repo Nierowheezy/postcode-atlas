@@ -16,17 +16,21 @@ import type { AskAtlasViewLocation } from './AskAtlasPanel';
  * verified when it carries a payload the app itself derived from an executed
  * tool result; "a tool ran somewhere" is a weaker claim.
  */
-export function groundingBasis(message: AskAtlasMessage): 'payload' | 'tools' | 'none' {
+export function groundingBasis(message: AskAtlasMessage): 'payload' | 'map' | 'tools' | 'none' {
   // A payload is derived client-side from an executed tool result, so it
   // carries its own proof. The 3c `grounding` flag is only a fallback for a
   // reply that carries no payload: it can disagree with a payload (a cached
   // reply, or a provider that answered from memory after a tool ran).
-  if (message.lookup || message.results || message.decoded || message.nearby || message.mapAction) return 'payload';
+  if (message.lookup || message.results || message.decoded || message.nearby) return 'payload';
+  // A map move shows no postcode data, so it is labelled for what it is rather
+  // than claiming postcode verification.
+  if (message.mapAction) return 'map';
   return message.grounding === 'atlas' ? 'tools' : 'none';
 }
 
 const FOOTER_TEXT: Record<ReturnType<typeof groundingBasis>, string> = {
   payload: 'Verified against NIPOST postcode data',
+  map: 'Map moved using NIPOST location data',
   tools: 'Answered from NIPOST tool results',
   none: 'Not verified against NIPOST data',
 };

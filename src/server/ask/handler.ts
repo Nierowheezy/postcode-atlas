@@ -13,6 +13,10 @@ import type {
 } from '../../lib/ask/types';
 import type { ToolError, ToolErrorCode } from '../../lib/tools/types';
 import { ATLAS_PROVIDER_TOOLS } from '../../lib/tools/provider.js';
+import { isRefusalText } from '../../lib/ask/refusal.js';
+import { hasUnbackedPostcode, postcodesIn } from '../../lib/ask/postcode.js';
+import { isSmallTalk } from '../../lib/ask/smalltalk.js';
+import { isFollowUp } from '../../lib/ask/followup.js';
 import { buildSystemPrompt } from './prompt.js';
 import { resolveProviders, type AskChatMessage, type ProviderToolCall } from './providers.js';
 import { ChainExhaustedError, runChain } from './chain.js';
@@ -21,7 +25,6 @@ import { ChainExhaustedError, runChain } from './chain.js';
 const MAX_BODY_BYTES = 65_536;
 
 const MAX_TEXT_LENGTH = 500;
-const MAX_HISTORY_ENTRIES = 10;
 
 const LANGUAGES: readonly AskLanguage[] = ['en', 'yo', 'ha', 'ig'];
 
@@ -357,18 +360,6 @@ export async function handleAsk(request: Request, env: AskServerEnv): Promise<Re
   }
   const replyLanguage = language as AskLanguage | undefined;
 
-  // --- history: optional, capped, stripped to bare {role, content} -----------
-  const history: AskChatMessage[] = [];
-  if (Array.isArray(raw.history)) {
-    for (const entry of raw.history.slice(-MAX_HISTORY_ENTRIES)) {
-      const item = typeof entry === 'object' && entry !== null ? (entry as Record<string, unknown>) : null;
-      const role = item?.role === 'assistant' ? 'assistant' : item?.role === 'user' ? 'user' : null;
-      const content = typeof item?.content === 'string' ? item.content.trim() : '';
-      // Strip ids, timestamps, context, location; error-role entries drop out.
-      if (role && content.length > 0) history.push({ role, content });
-    }
-  }
-
   // --- context: optional, lenient ---------------------------------------------
   const context = sanitizeContext(raw.context);
 
@@ -404,16 +395,45 @@ export async function handleAsk(request: Request, env: AskServerEnv): Promise<Re
   }
 
   // --- build the prompt and run the failover chain --------------------------
-  const systemPrompt = buildSystemPrompt(context, replyLanguage);
+  const systemPrompt = buildSystemPrompt(context, replyLanguage, isFollowUp(text));
+  // Prior turns are intentionally NOT forwarded to the model. N-ATLAS (an 8B
+  // model) degrades sharply once earlier turns are in context: it echoes a
+  // previous assistant answer, invents postcodes, or refuses an in-scope
+  // question instead of calling a tool. Follow-up state travels as the
+  // structured `referent` in the system prompt instead, so a follow-up like
+  // "what are its LGAs?" still resolves without raw history. Within-request
+  // tool rounds are appended below and are unaffected.
   const messages: AskChatMessage[] = [
     { role: 'system', content: systemPrompt },
-    ...history,
     { role: 'user', content: text },
     ...toProviderMessages(toolTurns.turns),
   ];
 
+  // A bare greeting has no tool to call; N-ATLAS otherwise fires the only
+  // no-argument tool it has (navigateMap reset). Withhold the tools payload for
+  // small talk so the model can only chat.
+  const smallTalk = isSmallTalk(text);
+  // Once a tool result is in context, withhold the tools again: N-ATLAS
+  // otherwise keeps digging with fresh (often malformed) calls such as
+  // getPostcode {"code":"FC-11-001-LG-001"} instead of composing the answer,
+  // and a malformed call is what triggers llama.cpp's grammar 500. With no
+  // tools available the model can only write the final answer from the result.
+  const tools = smallTalk || toolTurns.turns.length > 0 ? undefined : ATLAS_PROVIDER_TOOLS;
+
   try {
-    const result = await runChain(env, messages, ATLAS_PROVIDER_TOOLS);
+    let result = await runChain(env, messages, tools);
+
+    // A stochastic refusal on an in-scope question is not an answer: sample
+    // once more before returning it. Retrying is cheap (the local N-ATLAS
+    // server is free) and, without it, one bad sample would look like a broken
+    // question. A failure on the retry keeps the first, honest reply.
+    if (!smallTalk && result.toolCalls.length === 0 && isRefusalText(result.text)) {
+      try {
+        result = await runChain(env, messages, tools);
+      } catch {
+        // Keep the first (unhelpful but honest) reply rather than a 503.
+      }
+    }
 
     // Safari and old browsers may absent-map; rebuild with explicit shape.
     const response: AskAtlasResponse = {
@@ -423,9 +443,17 @@ export async function handleAsk(request: Request, env: AskServerEnv): Promise<Re
       ...(result.toolCalls.length > 0 ? { toolCalls: result.toolCalls } : {}),
     };
 
-    // Only final text answers are cacheable; tool-call rounds depend on the
-    // executed results and must re-run the chain.
-    if (result.toolCalls.length === 0) {
+    // Cache only direct, non-refusal answers. A grounded answer must re-run its
+    // tool round (its payload is derived from the executed results), and a
+    // cached refusal would make a working question look broken for the whole
+    // TTL. A direct answer that quotes a postcode the user did not supply is an
+    // invented code, so it is not cached either.
+    if (
+      result.toolCalls.length === 0 &&
+      toolTurns.turns.length === 0 &&
+      !isRefusalText(result.text) &&
+      !hasUnbackedPostcode(result.text, postcodesIn(text))
+    ) {
       replyCache.set(cacheKey, { at: now, reply: response });
     }
     return new Response(JSON.stringify(response), {

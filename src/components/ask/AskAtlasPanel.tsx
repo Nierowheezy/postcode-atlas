@@ -157,14 +157,15 @@ export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({
 
     // Feature 10: carry the place the conversation is currently about, so a
     // follow-up like "what are its LGAs?" has something to resolve against.
+    // The referent, not raw history, is what the model resolves against:
+    // N-ATLAS degrades once prior turns are in context, so only the current
+    // question travels as `text`.
     const context = { ...getContext(), referent: latestReferent(messages) };
-    // History = turns before this one; the current question travels as `text`.
-    const history = messages;
     setMessages((prev) => [...prev, { ...makeMessage('user', text), context }]);
     setInput('');
 
     try {
-      const res = await send({ text, context, history, language });
+      const res = await send({ text, context, language });
       const reply: AskAtlasMessage = {
         ...makeMessage('assistant', res.text),
         grounding: res.grounding,
