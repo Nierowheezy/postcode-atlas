@@ -10,6 +10,7 @@ import {
   AskToolCall,
   AskToolResult,
   AskToolTurn,
+  AtlasReferent,
   AtlasResultItem,
   AtlasResultList,
   NearbyResultItem,
@@ -21,7 +22,7 @@ import { AskApiError } from './errors';
 import { runTool } from '../tools/registry';
 import { atlasStore } from '../atlas/store';
 import type { PostcodeLocation } from '../../types/postcode';
-import type { DecodedPostcode, MapAction, NearbyUnit } from '../tools/types';
+import type { DecodedPostcode, MapAction, NearbyUnit, StateSummary } from '../tools/types';
 import type { AtlasArea, AtlasDistrict, AtlasLga, AtlasState, LocationCandidate } from '../atlas/dataset';
 
 const RESPONSE_DELAY_MS = 400;
@@ -602,7 +603,90 @@ export function deriveMapAction(toolTurns: AskToolTurn[]): MapAction | undefined
   return action;
 }
 
-/** Attach the feature 4 lookup, feature 5 list, feature 6 decode, feature 7 nearby list, and feature 8 map action to a final reply. */
+/** Narrow executed `getState` data to a state summary with a code. */
+function asStateSummary(value: unknown): StateSummary | undefined {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const summary = value as Record<string, unknown>;
+  return typeof summary.code === 'string' ? (value as StateSummary) : undefined;
+}
+
+/**
+ * Derive the place this reply is about (feature 10), so a follow-up like "what
+ * are its LGAs?" resolves without the user naming it again. Deterministic: the
+ * most specific place wins, from a decoded postcode or navigated postcode, to a
+ * landmark, an LGA, and finally a state. Two equally specific results are
+ * ambiguous and yield nothing rather than an arbitrary pick.
+ */
+export function deriveReferent(toolTurns: AskToolTurn[]): AtlasReferent | undefined {
+  const candidates: { rank: number; referent: AtlasReferent }[] = [];
+
+  for (const turn of toolTurns) {
+    for (const result of turn.toolResults) {
+      if (!result.ok) continue;
+      const found = referentFromResult(result);
+      if (found) candidates.push(found);
+    }
+  }
+
+  if (candidates.length === 0) return undefined;
+  const best = Math.min(...candidates.map((c) => c.rank));
+  const winners = candidates.filter((c) => c.rank === best);
+  return winners.length === 1 ? winners[0].referent : undefined;
+}
+
+/** The referent one tool result identifies, or undefined when it names none. */
+function referentFromResult(result: AskToolResult): { rank: number; referent: AtlasReferent } | undefined {
+  if (result.name === 'decodePostcode') {
+    const decoded = asDecodedPostcode(result.data);
+    return decoded?.valid
+      ? { rank: 0, referent: { kind: 'postcode', code: decoded.postcode, state: decoded.segments.state } }
+      : undefined;
+  }
+
+  if (result.name === 'getPostcode') {
+    const location = asPostcodeLocation(result.data);
+    return location
+      ? { rank: 0, referent: { kind: 'postcode', code: location.postcode, name: location.name, state: location.state } }
+      : undefined;
+  }
+
+  if (result.name === 'navigateMap') {
+    const action = asMapAction(result.data);
+    if (!action) return undefined;
+    if (action.target === 'postcode') {
+      return { rank: 0, referent: { kind: 'postcode', code: action.postcode, state: action.location.state } };
+    }
+    if (action.target === 'lga') {
+      return { rank: 2, referent: { kind: 'lga', code: action.lga.code, name: action.lga.name, state: action.state.code } };
+    }
+    if (action.target === 'state') {
+      return { rank: 3, referent: { kind: 'state', code: action.state.code, name: action.state.name } };
+    }
+    return undefined;
+  }
+
+  if (result.name === 'searchLocation') {
+    const landmarks = asLocationCandidates(result.data).filter((c) => c.type === 'landmark');
+    return landmarks.length === 1
+      ? { rank: 1, referent: { kind: 'postcode', code: landmarks[0].code, name: landmarks[0].name } }
+      : undefined;
+  }
+
+  if (result.name === 'getLgas') {
+    const lgas = asCodeRecords<AtlasLga>(result.data);
+    const first = lgas[0];
+    return first ? { rank: 2, referent: { kind: 'lga', code: first.code, name: first.name, state: first.state } } : undefined;
+  }
+
+  if (result.name === 'getState') {
+    const state = asStateSummary(result.data);
+    return state ? { rank: 3, referent: { kind: 'state', code: state.code, name: state.name } } : undefined;
+  }
+
+  return undefined;
+}
+
+/** Attach the feature 4 lookup, feature 5 list, feature 6 decode, feature 7 nearby list, feature 8 map action, and feature 10 referent to a final reply. */
 async function attachDerived(response: AskAtlasResponse, toolTurns: AskToolTurn[]): Promise<AskAtlasResponse> {
   const withLookupResponse = withLookup(response, toolTurns);
   const results = await deriveResults(toolTurns);
@@ -628,6 +712,9 @@ async function attachDerived(response: AskAtlasResponse, toolTurns: AskToolTurn[
 
   const mapAction = deriveMapAction(toolTurns);
   if (mapAction) next = { ...next, mapAction };
+
+  const referent = deriveReferent(toolTurns);
+  if (referent) next = { ...next, referent };
 
   return next;
 }

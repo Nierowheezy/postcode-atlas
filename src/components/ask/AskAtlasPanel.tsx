@@ -5,7 +5,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { DraggableCard } from '../ui/DraggableCard';
-import { AskLanguage, AskAtlasMessage, AskAtlasResponder, AtlasContextSnapshot } from '../../lib/ask/types';
+import { AskLanguage, AskAtlasMessage, AskAtlasResponder, AtlasContextSnapshot, AtlasReferent } from '../../lib/ask/types';
 import type { MapAction } from '../../lib/tools/types';
 import { useAskAtlas } from '../../lib/ask/useAskAtlas';
 import { AskAtlasHeader } from './AskAtlasHeader';
@@ -37,6 +37,19 @@ let messageSeq = 0;
 function makeMessage(role: AskAtlasMessage['role'], content: string): AskAtlasMessage {
   messageSeq += 1;
   return { id: `msg-${messageSeq}`, role, content, timestamp: Date.now() };
+}
+
+/**
+ * The place the conversation is about now (feature 10): the most recent
+ * assistant reply that resolved one, else the map selection the user made
+ * outside the conversation. Never derived from reply prose.
+ */
+export function latestReferent(messages: AskAtlasMessage[]): AtlasReferent | undefined {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const message = messages[i];
+    if (message.role === 'assistant' && message.referent) return message.referent;
+  }
+  return undefined;
 }
 
 /** Fallback when an error arrives without a usable message. */
@@ -94,7 +107,9 @@ export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({
     const text = input.trim();
     if (!text || isReplying) return;
 
-    const context = getContext();
+    // Feature 10: carry the place the conversation is currently about, so a
+    // follow-up like "what are its LGAs?" has something to resolve against.
+    const context = { ...getContext(), referent: latestReferent(messages) };
     // History = turns before this one; the current question travels as `text`.
     const history = messages;
     setMessages((prev) => [...prev, { ...makeMessage('user', text), context }]);
@@ -113,6 +128,7 @@ export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({
         decoded: res.decoded,
         nearby: res.nearby,
         mapAction: res.mapAction,
+        referent: res.referent,
       };
       setMessages((prev) => [...prev, reply]);
       // Feature 8: the tool already validated this action, so the map moves
@@ -160,6 +176,10 @@ export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({
             or{' '}
             <span className="font-mono text-[#0F7B4D] dark:text-[#10B981]">
               &quot;List the LGAs in Lagos.&quot;
+            </span>
+            , then follow up with{' '}
+            <span className="font-mono text-[#0F7B4D] dark:text-[#10B981]">
+              &quot;What are its districts?&quot;
             </span>
           </p>
         )}

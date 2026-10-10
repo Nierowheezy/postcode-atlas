@@ -17,8 +17,25 @@ export interface AtlasContextSnapshot {
   selectedDistrict?: string;
   selectedArea?: string;
   selectedPostcode?: string;
+  /**
+   * The place the conversation is currently about (feature 10), so a follow-up
+   * like "what are its LGAs?" resolves without the user naming it again.
+   */
+  referent?: AtlasReferent;
   mapCenter: [number, number];
   mapZoom: number;
+}
+
+/**
+ * One place a follow-up question can refer to (feature 10). `state` carries the
+ * parent state code for every kind below state, so a follow-up tool call has
+ * the parent it needs without another lookup.
+ */
+export interface AtlasReferent {
+  kind: 'state' | 'lga' | 'district' | 'area' | 'postcode';
+  code: string;
+  name?: string;
+  state?: string;
 }
 
 export type ResponseGrounding = 'atlas' | 'unverified';
@@ -73,6 +90,11 @@ export interface AskAtlasResponse {
    */
   mapAction?: MapAction;
   /**
+   * The place this reply resolved (feature 10). Derived on the client from the
+   * executed tool results, and absent when they identified no single place.
+   */
+  referent?: AtlasReferent;
+  /**
    * Present when the model asked for tool calls instead of answering.
    * `text` is empty then; the client executes the calls and feeds the
    * results back via the next request's `toolTurns`.
@@ -102,6 +124,8 @@ export interface AskAtlasMessage {
   nearby?: NearbyResultList;
   /** Validated map action applied by the app (feature 8). */
   mapAction?: MapAction;
+  /** The place this reply resolved, used as the next turn's referent (feature 10). */
+  referent?: AtlasReferent;
   timestamp: number;
 }
 

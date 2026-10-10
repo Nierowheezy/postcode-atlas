@@ -122,7 +122,47 @@ export function buildSystemPrompt(
       'its own once the tool returns, so say the place briefly instead of',
       'describing the movement.',
     ].join(' '),
+    ...referentBlock(context),
   ].join('\n');
+}
+
+/**
+ * Follow-up guidance (feature 10). Only emitted when there is something to
+ * resolve against, so a first question carries no instructions about "it".
+ */
+function referentBlock(context: AtlasContextSnapshot): string[] {
+  const referent = context.referent;
+  const scope = referent ? referentPhrase(referent) : selectionPhrase(context);
+  if (!scope) return [];
+
+  return [
+    [
+      `The conversation is currently about ${scope}. When the user refers to a`,
+      'place without naming it ("it", "that place", "there", "its", "what about',
+      'it"), that is what they mean: resolve it to this place and answer from',
+      'real tool results, using its state and LGA codes as arguments where the',
+      'tool needs them. If the user names a different place, that new place wins',
+      'and the current one is forgotten. If there is no place to resolve against',
+      'and the question cannot be answered without one, ask which place they',
+      'mean instead of guessing. Never treat an earlier postcode, district, or',
+      'area as a place of its own.',
+    ].join(' '),
+  ];
+}
+
+/** Human phrase for the referent the previous turn resolved. */
+function referentPhrase(referent: NonNullable<AtlasContextSnapshot['referent']>): string {
+  const label = referent.name ?? referent.code;
+  const parent = referent.state && referent.kind !== 'state' ? ` in state ${referent.state}` : '';
+  return `the ${referent.kind} ${label}${parent}`;
+}
+
+/** Human phrase for the map selection, used when no reply resolved a place. */
+function selectionPhrase(context: AtlasContextSnapshot): string | undefined {
+  if (context.selectedPostcode) return `postcode ${context.selectedPostcode}`;
+  if (context.selectedLga) return `LGA ${context.selectedLga.name} in ${context.selectedState?.name ?? 'its state'}`;
+  if (context.selectedState) return `the state ${context.selectedState.name}`;
+  return undefined;
 }
 
 /** The map center as prompt text, so a "near me" question has a real origin. */

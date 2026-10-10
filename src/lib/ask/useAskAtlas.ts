@@ -40,7 +40,7 @@ function sendRetryDelay(attemptIndex: number): number {
  * follow-ups are different text, so they still miss the cache and get a
  * genuinely new answer.
  */
-function askReplyCacheKey(request: AskAtlasRequest): QueryKey {
+export function askReplyCacheKey(request: AskAtlasRequest): QueryKey {
   return [
     'ask-reply',
     request.language ?? 'en',
@@ -48,6 +48,9 @@ function askReplyCacheKey(request: AskAtlasRequest): QueryKey {
     request.context.selectedState?.code ?? '',
     request.context.selectedLga?.code ?? '',
     request.context.selectedPostcode ?? '',
+    // Feature 10: the same words under a different referent are different
+    // questions, so the key must be at least as specific as the context.
+    request.context.referent?.code ?? '',
   ];
 }
 

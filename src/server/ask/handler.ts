@@ -9,6 +9,7 @@ import type {
   AskToolTurn,
   AskAtlasResponse,
   AtlasContextSnapshot,
+  AtlasReferent,
 } from '../../lib/ask/types';
 import type { ToolError, ToolErrorCode } from '../../lib/tools/types';
 import { ATLAS_PROVIDER_TOOLS } from '../../lib/tools/provider';
@@ -64,6 +65,9 @@ function replyCacheKey(language: AskLanguage | undefined, text: string, context:
     context.selectedState?.code ?? '',
     context.selectedLga?.code ?? '',
     context.selectedPostcode ?? '',
+    // Feature 10: a follow-up resolves against the referent, so two turns with
+    // the same words but different referents are different answers.
+    context.referent?.code ?? '',
   ]);
 }
 
@@ -101,6 +105,26 @@ function sanitizeMapCenter(value: unknown): [number, number] {
   return [lat, lng];
 }
 
+/**
+ * Strip + validate a client-supplied referent (feature 10). It travels on the
+ * request path, so only a known `kind` and string fields survive; anything
+ * else drops the whole field rather than forwarding a partial place.
+ */
+function sanitizeReferent(value: unknown): AtlasReferent | undefined {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const raw = value as Record<string, unknown>;
+  const kinds = ['state', 'lga', 'district', 'area', 'postcode'];
+  if (typeof raw.kind !== 'string' || !kinds.includes(raw.kind)) return undefined;
+  if (typeof raw.code !== 'string' || raw.code.trim().length === 0) return undefined;
+
+  return {
+    kind: raw.kind as AtlasReferent['kind'],
+    code: raw.code.trim(),
+    ...(typeof raw.name === 'string' ? { name: raw.name } : {}),
+    ...(typeof raw.state === 'string' ? { state: raw.state } : {}),
+  };
+}
+
 /** Strip + validate the request body into a safe `AtlasContextSnapshot`. */
 export function sanitizeContext(context: unknown): AtlasContextSnapshot {
   if (typeof context !== 'object' || context === null) return { mapCenter: [0, 0], mapZoom: 4 };
@@ -115,6 +139,7 @@ export function sanitizeContext(context: unknown): AtlasContextSnapshot {
     selectedDistrict: str(raw.selectedDistrict),
     selectedArea: str(raw.selectedArea),
     selectedPostcode: str(raw.selectedPostcode),
+    referent: sanitizeReferent(raw.referent),
     mapCenter: sanitizeMapCenter(raw.mapCenter),
     mapZoom: 4,
   };

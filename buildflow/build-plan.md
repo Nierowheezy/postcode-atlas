@@ -70,7 +70,7 @@ and deployment readiness. Adapt it to the project as implementation progresses.
 
 - [x] 9. **Grounded responses** - ensure postcode and location facts come from NIPOST/Atlas data rather than model-generated guesses. Pass the model only the small retrieved match set from the local store, never the whole dataset; outside-topic questions are refused per the feature 2 prompt scope guard.
 
-- [ ] 10. **Conversation context** - support follow-up questions using the current location, selected map state, and previous conversation
+- [x] 10. **Conversation context** - support follow-up questions using the current location, selected map state, and previous conversation
 
 - [ ] 11. **Nigerian query handling** - support common Nigerian English phrasing and location terminology
 
