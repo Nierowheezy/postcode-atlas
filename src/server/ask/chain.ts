@@ -33,7 +33,11 @@ interface CooldownEntry {
 
 const COOLDOWN_RATE_LIMITED_MS = 10 * 60_000; // 429 default: 10 min
 const COOLDOWN_QUOTA_MS = 15 * 60_000; // 401/403 quota: 15 min
-const COOLDOWN_SERVER_MS = 30_000; // transient 5xx: 30 s, just to back off
+const COOLDOWN_SERVER_MS = 8_000; // transient 5xx: short back-off so the single
+// N-ATLAS provider is not locked out for the whole demo after one bad sample
+
+/** Total attempts for N-ATLAS when llama.cpp returns a transient server error. */
+const NATLAS_SERVER_ATTEMPTS = 3;
 const COOLDOWN_MIN_MS = 30_000; // never hot-loop a sub-30 s Retry-After
 
 /** Thrown when every provider in the order failed or is cooling down. */
@@ -144,16 +148,19 @@ export async function runChain(
       return { text: result.text, toolCalls: result.toolCalls, provider, attempt };
     } catch (cause) {
       // N-ATLAS (llama.cpp) 500s when the model's sampled tool-call output
-      // fails the strict grammar parse; the next sample usually succeeds, so
-      // retry once on transient server errors before giving up. Other
-      // providers and error kinds fall through unchanged.
+      // fails the strict grammar parse; a fresh sample usually succeeds, so
+      // retry a couple of times on transient server errors before giving up.
+      // Other providers and error kinds fall through unchanged.
       let error: unknown = cause;
       if (provider.id === 'natlas' && error instanceof ProviderError && error.kind === 'server') {
-        try {
-          const retried = await callProvider(provider, messages, tools);
-          return { text: retried.text, toolCalls: retried.toolCalls, provider, attempt };
-        } catch (retryCause) {
-          error = retryCause;
+        for (let tries = 1; tries < NATLAS_SERVER_ATTEMPTS; tries += 1) {
+          try {
+            const retried = await callProvider(provider, messages, tools);
+            return { text: retried.text, toolCalls: retried.toolCalls, provider, attempt };
+          } catch (retryCause) {
+            error = retryCause;
+            if (!(error instanceof ProviderError) || error.kind !== 'server') break;
+          }
         }
       }
       if (error instanceof ProviderError) {

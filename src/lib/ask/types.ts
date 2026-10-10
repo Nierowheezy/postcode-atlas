@@ -244,6 +244,25 @@ export interface NearbyResultList {
   radius_m?: number;
 }
 
+/**
+ * Coarse phase of an in-flight reply, shown by the typing indicator. Phases
+ * are advisory: a responder may skip them, and the UI must still work when it
+ * reports none. They describe real work (connecting to the model, running the
+ * client tool loop, composing the answer), not decoration.
+ */
+export type AskPhase = 'connecting' | 'thinking' | 'searching' | 'verifying' | 'composing';
+
+/** One progress ping from a responder while it works on a reply. */
+export interface AskProgress {
+  phase: AskPhase;
+  /** 1-based tool round the phase belongs to, when it is round-specific. */
+  round?: number;
+}
+
 export interface AskAtlasResponder {
-  respond(request: AskAtlasRequest): Promise<AskAtlasResponse>;
+  /**
+   * Answer one turn. `onProgress` is optional; when supplied the responder
+   * reports its coarse phase so the UI can show an honest status line.
+   */
+  respond(request: AskAtlasRequest, onProgress?: (progress: AskProgress) => void): Promise<AskAtlasResponse>;
 }

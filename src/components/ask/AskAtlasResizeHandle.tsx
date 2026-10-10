@@ -14,15 +14,16 @@ export interface AskAtlasResizeHandleProps {
 }
 
 /** Smallest list height the user can drag to (px). */
-const MIN_LIST_HEIGHT = 140;
+const MIN_LIST_HEIGHT = 180;
 
 /** Largest list height as a share of the viewport (px). */
 const MAX_LIST_HEIGHT_RATIO = 0.85;
 
 /**
- * A thin horizontal strip below the message list. Drag it to grow or shrink
- * the conversation area; the auto-grow default (70vh cap) still applies
- * until the user drags, after which their height is honored.
+ * A thin horizontal grip below the message list. Drag it upward to grow the
+ * conversation and downward to shrink it, matching the panel's bottom anchor:
+ * pulling the grip up reveals more of the conversation, which is what the
+ * gesture is expected to do.
  */
 export const AskAtlasResizeHandle: React.FC<AskAtlasResizeHandleProps> = ({ onResize, getCurrentHeight }) => {
   // Drag session: the pointer's start Y and the list height it maps to.
@@ -41,7 +42,9 @@ export const AskAtlasResizeHandle: React.FC<AskAtlasResizeHandleProps> = ({ onRe
     const drag = dragRef.current;
     if (!drag) return;
     const maxHeight = Math.round(window.innerHeight * MAX_LIST_HEIGHT_RATIO);
-    const next = Math.min(Math.max(drag.startHeight + (e.clientY - drag.startY), MIN_LIST_HEIGHT), maxHeight);
+    // Upward drag (negative delta) grows the list because the panel is anchored
+    // at the bottom; downward shrinks it.
+    const next = Math.min(Math.max(drag.startHeight - (e.clientY - drag.startY), MIN_LIST_HEIGHT), maxHeight);
     onResize(next);
   };
 
@@ -57,14 +60,14 @@ export const AskAtlasResizeHandle: React.FC<AskAtlasResizeHandleProps> = ({ onRe
       role="separator"
       aria-orientation="horizontal"
       aria-label="Resize the conversation"
-      title="Drag to resize the conversation"
-      className="h-2.5 flex items-center justify-center cursor-ns-resize touch-none select-none group"
+      title="Drag up to enlarge, down to shrink"
+      className="group flex h-3 cursor-ns-resize touch-none select-none items-center justify-center border-t border-[#F3F4F6] dark:border-[#1F2937]"
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={stopDrag}
       onPointerCancel={stopDrag}
     >
-      <div className="w-8 h-1 rounded-full bg-[#9CA3AF]/40 group-hover:bg-[#008751]/60 transition-colors" />
+      <div className="h-1 w-9 rounded-full bg-[#9CA3AF]/40 transition-colors group-hover:bg-[#0F7B4D]/60 dark:group-hover:bg-[#10B981]/60" />
     </div>
   );
 };

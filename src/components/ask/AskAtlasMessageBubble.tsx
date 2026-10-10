@@ -4,6 +4,7 @@
  */
 
 import React from 'react';
+import { MessageSquare } from 'lucide-react';
 import type { AskAtlasMessage } from '../../lib/ask/types';
 import { AskAtlasResultsList } from './AskAtlasResultsList';
 import { AskAtlasDecodedCard } from './AskAtlasDecodedCard';
@@ -30,98 +31,119 @@ const FOOTER_TEXT: Record<ReturnType<typeof groundingBasis>, string> = {
   none: 'Not verified against NIPOST data',
 };
 
-/** Props for a single conversation bubble. */
+/** Props for a single conversation turn. */
 export interface AskAtlasMessageBubbleProps {
   message: AskAtlasMessage;
   /** Moves the map to this reply's location (feature 8). */
   onViewLocation?: (location: AskAtlasViewLocation) => void;
 }
 
-/**
- * One conversation entry: user, assistant, or error bubble, plus the
- * grounding footer on assistant replies and the `[View on map]` control when
- * a reply carries a location.
- */
-export const AskAtlasMessageBubble: React.FC<AskAtlasMessageBubbleProps> = ({
-  message,
-  onViewLocation,
-}) => (
-  <div
-    className={`text-xs rounded-lg px-2.5 py-2 max-w-[90%] ${
-      message.role === 'user'
-        ? 'bg-[#ECFDF5] dark:bg-[#064E3B]/60 text-[#111827] dark:text-[#D1FAE5] ml-auto'
-        : message.role === 'error'
-          ? 'bg-[#FEF2F2] dark:bg-[#450A0A]/60 text-[#991B1B] dark:text-[#FECACA] border border-[#FECACA] dark:border-[#7F1D1D]'
-          : 'bg-[#F3F4F6] dark:bg-[#1F2937] text-[#111827] dark:text-[#E5E7EB]'
-    }`}
-  >
-    <span className="whitespace-pre-wrap break-words block">{message.content}</span>
-    {message.role === 'assistant' && message.lookup && (
-      <span className="block mt-1.5 pt-1.5 border-t border-[#E5E7EB] dark:border-[#374151]">
-        <span className="block font-mono text-sm font-semibold text-[#0F7B4D] dark:text-[#10B981]">
-          {message.lookup.postcode}
-        </span>
-        {message.lookup.label && (
-          <span className="block mt-0.5 text-[11px] text-[#111827] dark:text-[#E5E7EB]">
-            {message.lookup.label}
-          </span>
-        )}
-        {(message.lookup.stateName || message.lookup.lgaName) && (
-          <span className="block text-[10px] text-[#6B7280] dark:text-[#9CA3AF]">
-            {[message.lookup.stateName, message.lookup.lgaName].filter(Boolean).join(' / ')}
-          </span>
-        )}
-        <span className="inline-block mt-1 text-[9px] font-mono uppercase tracking-wide text-[#0F7B4D] dark:text-[#10B981]">
-          Verified postcode
-        </span>
-      </span>
-    )}
-    {message.role === 'assistant' && message.results && (
-      <AskAtlasResultsList list={message.results} />
-    )}
-    {message.role === 'assistant' && message.decoded && (
-      <AskAtlasDecodedCard decoded={message.decoded} />
-    )}
-    {message.role === 'assistant' && message.nearby && (
-      <AskAtlasNearbyList list={message.nearby} />
-    )}
-    {message.role === 'assistant' && (
-      <span className="block mt-1.5 pt-1.5 border-t border-[#E5E7EB] dark:border-[#374151] text-[10px] font-mono text-[#6B7280] dark:text-[#9CA3AF]">
-        {FOOTER_TEXT[groundingBasis(message)]}
-      </span>
-    )}
-    {message.role === 'assistant' && message.engine && (
-      <span className="block text-[10px] font-mono text-[#6B7280] dark:text-[#9CA3AF]">
-        via {message.engine.model} - attempt {message.engine.attempt}
-      </span>
-    )}
-    {message.role === 'assistant' && message.engine?.provider === 'natlas' && (
-      <span className="block mt-1 text-[10px] text-[#6B7280] dark:text-[#9CA3AF]">
-        Served by N-ATLAS, Nigeria&apos;s open multilingual model by Awarri &amp; NCAIR.{' '}
-        <a
-          href="https://huggingface.co/NCAIR1/N-ATLaS"
-          target="_blank"
-          rel="noreferrer"
-          className="underline text-[#0F7B4D] dark:text-[#10B981]"
-        >
-          Model card
-        </a>
-      </span>
-    )}
-    {message.role === 'assistant' && message.location && (
-      <button
-        type="button"
-        onClick={() => onViewLocation?.(message.location as AskAtlasViewLocation)}
-        disabled={!onViewLocation}
-        title={
-          onViewLocation
-            ? `Show ${message.location.label} on the map`
-            : 'Map control is not connected in this view'
-        }
-        className="mt-1.5 text-[11px] font-medium text-[#0F7B4D] dark:text-[#10B981] enabled:hover:underline disabled:opacity-60 disabled:cursor-not-allowed"
-      >
-        [View on map]
-      </button>
-    )}
-  </div>
+/** Small round mark that heads every assistant turn. */
+const AssistantAvatar: React.FC = () => (
+  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#008751] to-[#0F7B4D] text-white shadow-sm">
+    <MessageSquare className="h-3 w-3" />
+  </span>
 );
+
+/**
+ * One conversation turn. User questions sit in a right-aligned bubble; the
+ * assistant answers as plain, full-width prose under its avatar, Grok-style.
+ * Structured payloads (lookup, list, decode, nearby) render as cards beneath.
+ */
+export const AskAtlasMessageBubble: React.FC<AskAtlasMessageBubbleProps> = ({ message, onViewLocation }) => {
+  if (message.role === 'user') {
+    return (
+      <div className="flex justify-end">
+        <div className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-md bg-[#0F7B4D] px-3.5 py-2 text-[13px] leading-relaxed text-white shadow-sm">
+          {message.content}
+        </div>
+      </div>
+    );
+  }
+
+  if (message.role === 'error') {
+    return (
+      <div className="flex gap-2.5">
+        <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-red-100 text-[13px] font-semibold text-red-600 dark:bg-red-500/15 dark:text-red-400">
+          !
+        </span>
+        <div className="min-w-0 flex-1 whitespace-pre-wrap break-words rounded-2xl rounded-tl-md border border-red-200 bg-red-50 px-3.5 py-2 text-[13px] leading-relaxed text-red-700 dark:border-red-500/25 dark:bg-red-500/10 dark:text-red-300">
+          {message.content}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex gap-2.5">
+      <AssistantAvatar />
+      <div className="min-w-0 flex-1 pt-0.5 text-[13px] leading-relaxed text-[#111827] dark:text-[#E5E7EB]">
+        <span className="block whitespace-pre-wrap break-words">{message.content}</span>
+
+        {message.lookup && (
+          <span className="mt-2 block rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] px-3 py-2 dark:border-[#374151] dark:bg-[#1F2937]">
+            <span className="block font-mono text-sm font-semibold text-[#0F7B4D] dark:text-[#10B981]">
+              {message.lookup.postcode}
+            </span>
+            {message.lookup.label && (
+              <span className="mt-0.5 block text-[11px] text-[#111827] dark:text-[#E5E7EB]">
+                {message.lookup.label}
+              </span>
+            )}
+            {(message.lookup.stateName || message.lookup.lgaName) && (
+              <span className="block text-[10px] text-[#6B7280] dark:text-[#9CA3AF]">
+                {[message.lookup.stateName, message.lookup.lgaName].filter(Boolean).join(' · ')}
+              </span>
+            )}
+          </span>
+        )}
+
+        {message.results && <AskAtlasResultsList list={message.results} />}
+        {message.decoded && <AskAtlasDecodedCard decoded={message.decoded} />}
+        {message.nearby && <AskAtlasNearbyList list={message.nearby} />}
+
+        {message.location && (
+          <button
+            type="button"
+            onClick={() => onViewLocation?.(message.location as AskAtlasViewLocation)}
+            disabled={!onViewLocation}
+            title={
+              onViewLocation
+                ? `Show ${message.location.label} on the map`
+                : 'Map control is not connected in this view'
+            }
+            className="mt-2 block text-[11px] font-medium text-[#0F7B4D] enabled:hover:underline disabled:cursor-not-allowed disabled:opacity-60 dark:text-[#10B981]"
+          >
+            [View on map]
+          </button>
+        )}
+
+        <span className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] text-[#9CA3AF] dark:text-[#6B7280]">
+          <span>{FOOTER_TEXT[groundingBasis(message)]}</span>
+          {message.engine && (
+            <>
+              <span aria-hidden="true">·</span>
+              <span className="font-mono">
+                {message.engine.provider} · try {message.engine.attempt}
+              </span>
+            </>
+          )}
+        </span>
+
+        {message.engine?.provider === 'natlas' && (
+          <span className="mt-0.5 block text-[10px] text-[#9CA3AF] dark:text-[#6B7280]">
+            Served by N-ATLAS, Nigeria&apos;s open multilingual model by Awarri &amp; NCAIR.{' '}
+            <a
+              href="https://huggingface.co/NCAIR1/N-ATLaS"
+              target="_blank"
+              rel="noreferrer"
+              className="text-[#0F7B4D] underline dark:text-[#10B981]"
+            >
+              Model card
+            </a>
+          </span>
+        )}
+      </div>
+    </div>
+  );
+};

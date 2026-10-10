@@ -123,6 +123,13 @@ export function buildSystemPrompt(
       'describing the movement.',
     ].join(' '),
     ...referentBlock(context),
+    [
+      'Small talk is welcome. If the user only greets you or chats briefly',
+      '("hi", "hello", "good morning", "how are you", "thank you"), reply',
+      'with one friendly sentence and invite them to ask about a Nigerian',
+      'postcode or place. A greeting is NOT an out-of-scope request: never',
+      'answer a greeting with "I cannot help with that".',
+    ].join(' '),
   ].join('\n');
 }
 

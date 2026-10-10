@@ -3,9 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { useState } from 'react';
 import { useMutation, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { AskApiError } from './errors';
-import type { AskAtlasRequest, AskAtlasResponse, AskAtlasResponder } from './types';
+import type { AskAtlasRequest, AskAtlasResponse, AskAtlasResponder, AskPhase } from './types';
 
 /**
  * Hook contract returned by `useAskAtlas`.
@@ -19,6 +20,11 @@ export interface UseAskAtlasResult {
   send: (request: AskAtlasRequest) => Promise<AskAtlasResponse>;
   /** True while a send is in flight (including its retries). */
   isReplying: boolean;
+  /**
+   * The coarse phase the current reply is in, or null when idle. Drives the
+   * typing indicator; a responder that reports no phases leaves it null.
+   */
+  phase: AskPhase | null;
 }
 
 /** Max transport-level retries for one chat send. */
@@ -72,6 +78,7 @@ export function askReplyCacheKey(request: AskAtlasRequest): QueryKey {
  */
 export function useAskAtlas(responder: AskAtlasResponder): UseAskAtlasResult {
   const queryClient = useQueryClient();
+  const [phase, setPhase] = useState<AskPhase | null>(null);
 
   const mutation = useMutation<AskAtlasResponse, Error, AskAtlasRequest>({
     mutationFn: async (request) => {
@@ -80,10 +87,14 @@ export function useAskAtlas(responder: AskAtlasResponder): UseAskAtlasResult {
       const cached = queryClient.getQueryData<AskAtlasResponse>(cacheKey);
       if (cached) return cached;
 
-      const response = await responder.respond(request);
+      const response = await responder.respond(request, (progress) => setPhase(progress.phase));
       queryClient.setQueryData(cacheKey, response);
       return response;
     },
+    // Start the indicator immediately, before the first phase ping arrives,
+    // and clear it whenever the send settles (success or final failure).
+    onMutate: () => setPhase('connecting'),
+    onSettled: () => setPhase(null),
     // Retry only when the error says a retry can help, and never more
     // than MAX_SEND_RETRIES times.
     retry: (failureCount, error) =>
@@ -94,5 +105,6 @@ export function useAskAtlas(responder: AskAtlasResponder): UseAskAtlasResult {
   return {
     send: mutation.mutateAsync,
     isReplying: mutation.isPending,
+    phase,
   };
 }

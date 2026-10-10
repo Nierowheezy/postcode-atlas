@@ -22,14 +22,17 @@ export interface AskAtlasHeaderProps {
   /** Desired reply language, driven by the chip. */
   language: AskLanguage;
   onLanguageChange: (language: AskLanguage) => void;
+  /** Opens the typed confirmation for deleting the conversation. */
   onClear: () => void;
   onClose: () => void;
+  /** Starts dragging the panel; the header doubles as the drag handle. */
+  onDragStart?: (event: React.PointerEvent) => void;
 }
 
 /**
- * Panel title bar: identity on the left, reply-language chip and clear/close
- * actions on the right. The chip sends its value along with every request so
- * replies come back in the chosen language (N-ATLAS's differentiator).
+ * Panel title bar: identity on the left, reply-language chip and controls on
+ * the right. It is also the drag handle for the floating card, so the panel
+ * has a single, clean header instead of a separate "hold & drag" bar.
  */
 export const AskAtlasHeader: React.FC<AskAtlasHeaderProps> = ({
   hasMessages,
@@ -37,21 +40,38 @@ export const AskAtlasHeader: React.FC<AskAtlasHeaderProps> = ({
   onLanguageChange,
   onClear,
   onClose,
+  onDragStart,
 }) => (
-  <div className="flex items-center justify-between px-3 pt-2 pb-1">
-    <div className="flex items-center gap-1.5 text-[#0F7B4D] dark:text-[#10B981]">
-      <MessageSquare className="w-4 h-4" />
-      <span className="text-xs font-semibold">Ask Atlas</span>
+  <div
+    onPointerDown={onDragStart}
+    className={`flex items-center justify-between gap-2 px-3.5 py-2.5 border-b border-[#E5E7EB] dark:border-[#1F2937] bg-white/95 dark:bg-[#111827]/95 backdrop-blur ${
+      onDragStart ? 'cursor-grab active:cursor-grabbing touch-none' : ''
+    }`}
+  >
+    <div className="flex min-w-0 items-center gap-2">
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#008751] to-[#0F7B4D] text-white shadow-sm">
+        <MessageSquare className="h-3.5 w-3.5" />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-[13px] font-semibold leading-tight text-[#111827] dark:text-white">
+          Ask Atlas
+        </span>
+        <span className="block truncate text-[10px] leading-tight text-[#6B7280] dark:text-[#9CA3AF]">
+          N-ATLAS · Nigerian postcodes
+        </span>
+      </span>
     </div>
-    <div className="flex items-center gap-1">
+
+    {/* Controls must not start a panel drag when clicked. */}
+    <div className="flex items-center gap-1" onPointerDown={(event) => event.stopPropagation()}>
       {/* appearance-none + fixed chevron keeps the arrow clear of the value */}
       <div className="relative inline-flex">
         <select
           value={language}
-          onChange={(e) => onLanguageChange(e.target.value as AskLanguage)}
+          onChange={(event) => onLanguageChange(event.target.value as AskLanguage)}
           aria-label="Reply language"
           title="Reply language"
-          className="appearance-none cursor-pointer text-[10px] font-semibold rounded border border-[#E5E7EB] dark:border-[#374151] bg-transparent text-[#6B7280] dark:text-[#9CA3AF] pl-1.5 pr-5 py-0.5 outline-none focus:border-[#0F7B4D] dark:focus:border-[#10B981]"
+          className="appearance-none cursor-pointer rounded-full border border-[#E5E7EB] dark:border-[#374151] bg-transparent py-0.5 pl-2 pr-5 text-[10px] font-semibold text-[#6B7280] dark:text-[#9CA3AF] outline-none focus:border-[#0F7B4D] dark:focus:border-[#10B981]"
         >
           {LANGUAGES.map((lang) => (
             <option key={lang.value} value={lang.value} title={lang.title}>
@@ -61,26 +81,26 @@ export const AskAtlasHeader: React.FC<AskAtlasHeaderProps> = ({
         </select>
         <ChevronDown
           aria-hidden="true"
-          className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 w-3 h-3 text-[#6B7280] dark:text-[#9CA3AF]"
+          className="pointer-events-none absolute right-1 top-1/2 h-3 w-3 -translate-y-1/2 text-[#6B7280] dark:text-[#9CA3AF]"
         />
       </div>
       {hasMessages && (
         <button
           onClick={onClear}
-          className="p-1 text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white rounded transition-colors"
+          className="rounded-full p-1.5 text-[#6B7280] transition-colors hover:bg-red-50 hover:text-red-600 dark:text-[#9CA3AF] dark:hover:bg-red-500/10 dark:hover:text-red-400"
           aria-label="Clear conversation"
           title="Clear conversation"
         >
-          <Trash2 className="w-3.5 h-3.5" />
+          <Trash2 className="h-3.5 w-3.5" />
         </button>
       )}
       <button
         onClick={onClose}
-        className="p-1 text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white rounded transition-colors"
+        className="rounded-full p-1.5 text-[#6B7280] transition-colors hover:bg-[#F3F4F6] hover:text-[#111827] dark:text-[#9CA3AF] dark:hover:bg-[#1F2937] dark:hover:text-white"
         aria-label="Close Ask Atlas"
         title="Close"
       >
-        <X className="w-3.5 h-3.5" />
+        <X className="h-3.5 w-3.5" />
       </button>
     </div>
   </div>

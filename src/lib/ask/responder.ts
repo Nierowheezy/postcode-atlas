@@ -7,6 +7,7 @@ import {
   AskAtlasRequest,
   AskAtlasResponder,
   AskAtlasResponse,
+  AskProgress,
   AskToolCall,
   AskToolResult,
   AskToolTurn,
@@ -793,17 +794,25 @@ async function postAsk(request: AskAtlasRequest): Promise<AskAtlasResponse> {
  */
 export function createApiResponder(): AskAtlasResponder {
   return {
-    async respond(request: AskAtlasRequest): Promise<AskAtlasResponse> {
+    async respond(
+      request: AskAtlasRequest,
+      onProgress?: (progress: AskProgress) => void,
+    ): Promise<AskAtlasResponse> {
       let toolTurns: AskToolTurn[] = [];
       let grounded = false;
 
       // Round 0 posts without tool turns; each later round appends one more.
       for (let round = 0; round <= MAX_TOOL_ROUNDS; round += 1) {
+        // A later round means the model already asked for tools and we are
+        // feeding the results back, so it is verifying against real data.
+        onProgress?.({ phase: round === 0 ? 'connecting' : 'verifying', round });
+
         const response = await postAsk({ ...request, toolTurns });
 
         if (!response.toolCalls || response.toolCalls.length === 0) {
           // Final answer. Upgrade its grounding only when tools really ran,
           // then attach the derived lookup (feature 4) and list (feature 5).
+          onProgress?.({ phase: 'composing' });
           return attachDerived(grounded ? { ...response, grounding: 'atlas' } : response, toolTurns);
         }
 
@@ -819,6 +828,8 @@ export function createApiResponder(): AskAtlasResponder {
           );
         }
 
+        // The model asked for tools: this round is spent running them locally.
+        onProgress?.({ phase: 'searching', round });
         const toolResults = await executeToolCalls(response.toolCalls);
         grounded = grounded || toolResults.some((result) => result.ok);
         toolTurns = [...toolTurns, { assistantToolCalls: response.toolCalls, toolResults }];

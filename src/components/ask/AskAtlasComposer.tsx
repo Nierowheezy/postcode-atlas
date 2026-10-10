@@ -30,7 +30,7 @@ export const AskAtlasComposer: React.FC<AskAtlasComposerProps> = ({
   inputRef,
 }) => (
   <form
-    className="flex items-center gap-2 px-3 py-2 border-t border-[#E5E7EB] dark:border-[#374151]"
+    className="flex items-center gap-2 border-t border-[#E5E7EB] bg-white px-3 py-2.5 dark:border-[#1F2937] dark:bg-[#111827]"
     onSubmit={(e) => {
       e.preventDefault();
       onSubmit();
@@ -43,15 +43,15 @@ export const AskAtlasComposer: React.FC<AskAtlasComposerProps> = ({
       onChange={(e) => onChange(e.target.value)}
       placeholder="Ask about a place or postcode..."
       aria-label="Ask Atlas message"
-      className="flex-1 min-w-0 text-xs px-2.5 py-2 rounded-md border border-[#E5E7EB] dark:border-[#374151] bg-white dark:bg-[#1F2937] text-[#111827] dark:text-white placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#10B981]/50"
+      className="min-w-0 flex-1 rounded-full border border-[#E5E7EB] bg-[#F9FAFB] px-3.5 py-2 text-[13px] text-[#111827] placeholder:text-[#9CA3AF] outline-none transition-shadow focus:border-[#0F7B4D]/50 focus:ring-2 focus:ring-[#0F7B4D]/15 dark:border-[#374151] dark:bg-[#1F2937] dark:text-white dark:focus:border-[#10B981]/50 dark:focus:ring-[#10B981]/20"
     />
     <button
       type="submit"
       disabled={!canSend}
       aria-label="Send message"
-      className="p-2 rounded-md bg-[#008751] text-white enabled:hover:bg-[#0F7B4D] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#008751] text-white transition-colors enabled:hover:bg-[#0F7B4D] disabled:cursor-not-allowed disabled:opacity-40"
     >
-      <SendHorizonal className="w-4 h-4" />
+      <SendHorizonal className="h-4 w-4" />
     </button>
   </form>
 );
