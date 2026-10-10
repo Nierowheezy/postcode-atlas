@@ -23,8 +23,8 @@ import {
   getStatesSchema,
   navigateMapSchema,
   searchLocationSchema,
-} from './schemas';
-import { TOOL_NAMES, type ToolName } from './types';
+} from './schemas.js';
+import { TOOL_NAMES, type ToolName } from './types.js';
 
 export interface ProviderToolFunction {
   name: ToolName;

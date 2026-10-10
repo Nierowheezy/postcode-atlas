@@ -12,7 +12,7 @@ import {
   type AskChatMessage,
   type AskProvider,
   type AskProviderId,
-} from './providers';
+} from './providers.js';
 
 /** One successful chain run. */
 export interface ChainResult {

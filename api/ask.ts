@@ -10,7 +10,7 @@
  * reach the browser.
  */
 
-import { handleAsk } from '../src/server/ask/handler';
+import { handleAsk } from '../src/server/ask/handler.js';
 
 /** Give LLM providers up to 60 s (they can be slow at peak times). */
 export const maxDuration = 60;

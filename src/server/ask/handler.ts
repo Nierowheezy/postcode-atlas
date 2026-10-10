@@ -12,10 +12,10 @@ import type {
   AtlasReferent,
 } from '../../lib/ask/types';
 import type { ToolError, ToolErrorCode } from '../../lib/tools/types';
-import { ATLAS_PROVIDER_TOOLS } from '../../lib/tools/provider';
-import { buildSystemPrompt } from './prompt';
-import { resolveProviders, type AskChatMessage, type ProviderToolCall } from './providers';
-import { ChainExhaustedError, runChain } from './chain';
+import { ATLAS_PROVIDER_TOOLS } from '../../lib/tools/provider.js';
+import { buildSystemPrompt } from './prompt.js';
+import { resolveProviders, type AskChatMessage, type ProviderToolCall } from './providers.js';
+import { ChainExhaustedError, runChain } from './chain.js';
 
 /** Max body size we accept, roughly 64 kB: multi-round tool payloads ride here. */
 const MAX_BODY_BYTES = 65_536;
