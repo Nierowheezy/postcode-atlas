@@ -3,8 +3,7 @@
 A read-only, judge-day walkthrough for Ask Atlas. Run it once end to end before
 submitting, then keep it open during the demo. Nothing here changes the app.
 
-- Primary: https://nigerian-postalcode-atlas.vercel.app
-- Mirror: https://postcode-atlas.vercel.app
+- Live: https://nigerian-postalcode-atlas.vercel.app
 - Local (optional): http://localhost:3001
 
 Everything the demo shows runs on this Mac: `llama-server` (port 8081) ->

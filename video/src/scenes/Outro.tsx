@@ -49,7 +49,7 @@ export const Outro: React.FC = () => {
 
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, marginTop: 8 }}>
           <span style={{ fontFamily: FONT_MONO, fontSize: 34, fontWeight: 600, color: COLORS.greenBright, letterSpacing: 1 }}>
-            postcode-atlas.vercel.app
+            nigerian-postalcode-atlas.vercel.app
           </span>
           <span style={{ fontSize: 22, color: COLORS.faint, letterSpacing: 0.4 }}>
             Free &amp; open source · grounded in NIPOST data · built for the N-ATLAS Challenge

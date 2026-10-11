@@ -40,7 +40,7 @@ message with the existing `toWebRequest`. Keep `maxDuration` and
    `NODE-MESSAGE path -> status: 200` via the real provider chain (openrouter
    401 on quota, next provider answered).
 2. **Live proof** - after merge and redeploy, `POST
-   https://postcode-atlas.vercel.app/api/ask` returns a real answer (not a
+   https://nigerian-postalcode-atlas.vercel.app/api/ask` returns a real answer (not a
    hang, 500, or 503). Requires the user's deploy approval in this chat.
 
 ## Verify

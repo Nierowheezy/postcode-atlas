@@ -47,7 +47,7 @@ want. Placeholders in `[square brackets]` need your input.
 >
 > It's free and open source (Apache-2.0).
 >
-> 🔗 Live: https://postcode-atlas.vercel.app
+> 🔗 Live: https://nigerian-postalcode-atlas.vercel.app
 > 💻 Code: https://github.com/Nierowheezy/postcode-atlas
 >
 > 45-second demo attached. 👇
@@ -390,7 +390,7 @@ ready.
 
 ### Links
 
-- Live: https://postcode-atlas.vercel.app
+- Live: https://nigerian-postalcode-atlas.vercel.app
 - Source (Apache-2.0): https://github.com/Nierowheezy/postcode-atlas
 - Model: N-ATLAS by Awarri & NCAIR
 - Data: NIPOST NDAPS
@@ -452,7 +452,7 @@ ready.
 | Stack | React 19, TypeScript, Vite 8, Tailwind 4, Leaflet, Zod 4, Vitest, Playwright, Remotion |
 | License | Apache-2.0 |
 | Source | github.com/Nierowheezy/postcode-atlas |
-| Live | postcode-atlas.vercel.app |
+| Live | nigerian-postalcode-atlas.vercel.app |
 | Video | 45 s, 1920×1080, 30 fps, soundtrack: "Inspired" by Kevin MacLeod (CC BY 4.0) |
 | Model | N-ATLAS by Awarri & NCAIR |
 | Data | NIPOST NDAPS |

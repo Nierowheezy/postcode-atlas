@@ -42,7 +42,7 @@ truth.
    export returned a real 200 scope-guard answer (provider chain ran:
    openrouter 401 quota, next provider answered) - no TypeError.
 - [ ] **Live proof** - after merge and redeploy, `POST
-   https://postcode-atlas.vercel.app/api/ask` returns a real answer (a Gemini
+   https://nigerian-postalcode-atlas.vercel.app/api/ask` returns a real answer (a Gemini
    tool-calling turn), not 500 or 503. Requires the user's explicit deploy
    approval; local dev already proves the handler path works end to end
    (observed 2026-10-10).

@@ -16,7 +16,7 @@ import { mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-const BASE = process.env.ATLAS_URL || 'https://postcode-atlas.vercel.app/';
+const BASE = process.env.ATLAS_URL || 'https://nigerian-postalcode-atlas.vercel.app/';
 const OUT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../public/captures');
 const KEY = 'ask-atlas:conversation:v1';
 const ENGINE = { provider: 'natlas', model: 'natlas', attempt: 1 };

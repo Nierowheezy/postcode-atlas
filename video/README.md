@@ -57,7 +57,7 @@ Rendering downloads a headless browser shell on first run, so the first
 | 3 | 390–690 | Answer | Ask Atlas: ask in plain language, get grounded answers with a "Verified against NIPOST postcode data" footer. |
 | 4 | 690–900 | Grounded | It never invents a postcode — facts come from NIPOST's NDAPS data, and unverifiable replies are labelled honestly. |
 | 5 | 900–1140 | More than answers | It moves the map and decodes any code into its five NDAPS segments. |
-| 6 | 1140–1350 | Outro | Powered end-to-end by N-ATLAS (EN/YO/HA/IG). Free & open source. postcode-atlas.vercel.app |
+| 6 | 1140–1350 | Outro | Powered end-to-end by N-ATLAS (EN/YO/HA/IG). Free & open source. nigerian-postalcode-atlas.vercel.app |
 
 ## Where the visuals come from
 

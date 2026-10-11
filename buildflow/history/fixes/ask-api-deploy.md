@@ -6,7 +6,7 @@ work and verification progress.
 
 ## The problem
 
-`POST /api/ask` returns 500 in production (`https://postcode-atlas.vercel.app`).
+`POST /api/ask` returns 500 in production (`https://nigerian-postalcode-atlas.vercel.app`).
 Vercel logs:
 
 ```
@@ -69,7 +69,7 @@ verify live.
 
 ## Verify
 
-After merge, the live proof is: `POST https://postcode-atlas.vercel.app/api/ask`
+After merge, the live proof is: `POST https://nigerian-postalcode-atlas.vercel.app/api/ask`
 returns a real answer (not 500/503). That requires setting the provider key in
 Vercel production and redeploying - both remote actions, done only with the
 user's explicit yes. Local proof in this spec: `npm run dev` then

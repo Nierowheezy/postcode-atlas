@@ -49,7 +49,7 @@ Nothing yet.
 
 ## [1.0.0] — 2026-10-07
 
-Initial public release. Deployed to `https://postcode-atlas.vercel.app`.
+Initial public release. Deployed to `https://nigerian-postalcode-atlas.vercel.app`.
 
 ### Added
 

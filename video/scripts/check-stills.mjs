@@ -4,7 +4,7 @@
  */
 import { chromium } from 'playwright';
 
-const BASE = process.env.ATLAS_URL || 'https://postcode-atlas.vercel.app/';
+const BASE = process.env.ATLAS_URL || 'https://nigerian-postalcode-atlas.vercel.app/';
 const KEY = 'ask-atlas:conversation:v1';
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
 

@@ -15,7 +15,6 @@ powered **only** by **N-ATLAS** (NCAIR / Awarri's Llama-3-8B multilingual,
 tool-calling model). Every other provider is switched off.
 
 - Live: https://nigerian-postalcode-atlas.vercel.app
-- Mirror: https://postcode-atlas.vercel.app
 
 ## The setup
 
