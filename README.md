@@ -25,7 +25,7 @@ Instead of a postcode as an opaque string, NDAPS encodes a full administrative h
 
 ## What the app does
 
-Postcode Atlas is a single-page React application backed by the official NIPOST NDAPS API at `api.postcode.gov.ng`. It has four jobs:
+Postcode Atlas is a single-page React application backed by the official NIPOST NDAPS API at `api.postcode.gov.ng`. It has five jobs:
 
 **Explore.** An interactive Leaflet map of Nigeria with all 37 states and the Federal Capital Territory. Selecting a state flies the camera to its centroid and reports its LGA count and geopolitical zone. From there you can drill into Local Government Areas.
 
@@ -34,6 +34,8 @@ Postcode Atlas is a single-page React application backed by the official NIPOST 
 **Locate.** Grant geolocation permission and the app reverse-geocodes your coordinates to the nearest NDAPS unit, reporting the distance to it. There is also manual "search nearby" for any coordinate you tap on the map.
 
 **Play.** A "Postcode Hunt" mode gives you a target postcode and a vague geographic hint; you have to navigate the map and find the exact location. It is a small gamification layer over the dataset.
+
+**Ask.** An in-app assistant, Ask Atlas, answers questions about states, LGAs, districts, areas, landmarks and postcodes — "List the LGAs in Kano", "What is the postcode for The Infrastructure Bank PLC?", "Decode FC-02-D43-LG-01" — and can move the map to wherever you ask about. It runs through a server-side provider chain and is honest by construction: answers backed by real NIPOST data carry a "Verified against NIPOST postcode data" footer, invented postcodes are stripped, and out-of-scope questions get a graceful refusal instead of a guess.
 
 There is also a **Data mode** that overlays a telemetry HUD showing live viewport statistics, and a **"Surprise me"** action that jumps the map to one of six landmark postcodes verified against the real API.
 
@@ -68,6 +70,10 @@ A full example: **`LA-11-A12-AK-08`** resolves to Ikeja LGA in Lagos State — s
 - **Light and dark themes**, persisted via `localStorage`.
 - **Client-side response caching** with per-endpoint TTLs (3 minutes to 1 hour) to stay fast and respect gateway rate limits.
 - **Lazy geolocation** — your coordinates are only sent to the NDAPS gateway when you explicitly press the locate button.
+- **Ask Atlas chat assistant** — grounded answers about states, LGAs, districts, areas and postcodes, with a "Verified against NIPOST postcode data" footer on every reply backed by a tool result.
+- **Honest AI guard rails** — a postcode-invention guard strips any code a tool never returned, out-of-scope questions are refused rather than guessed, and map moves produce deterministic replies.
+- **Tool-calling loop with failover** — the browser drives a multi-round tool loop against the server-side `/api/ask` chain, which retries and falls over to the next provider on rate limits and quota errors.
+- **Follow-up awareness** — "what are its LGAs?" resolves against the place you just asked about, without leaking stale context into a new question.
 
 ---
 
@@ -82,9 +88,9 @@ A full example: **`LA-11-A12-AK-08`** resolves to Ikeja LGA in Lagos State — s
 | Map | Leaflet + react-leaflet |
 | Animation | Motion (Framer Motion successor) |
 | Icons | lucide-react |
-| AI SDK | `@google/genai` (present, no feature wired yet) |
+| Assistant | Ask Atlas: OpenAI-compatible provider chain behind a server-side `/api/ask` function |
 
-The AI SDK is installed but currently unused. `GEMINI_API_KEY` is documented in `.env.example` for when an AI feature is added; nothing in the codebase calls it today.
+Ask Atlas is the only server logic in the app. A Vercel Function (`/api/ask`) speaks an OpenAI-compatible chat protocol to a provider chain — an optional N-ATLAS slot (prepended when `NATLAS_BASE_URL` is set), then Gemini, OpenRouter and NVIDIA free tiers — falling over to the next provider on rate limits and quota errors. Provider keys are read from `process.env` server-side only and never reach the browser; the client drives the tool-calling loop over plain HTTP.
 
 ---
 
@@ -94,8 +100,13 @@ The AI SDK is installed but currently unused. `GEMINI_API_KEY` is documented in 
 postcode-atlas/
 ├── index.html                  # Entry HTML, fonts, favicons, meta/OG tags
 ├── vercel.json                 # Vercel build + SPA rewrite config
-├── vite.config.ts              # React + Tailwind plugins, version injection, @ alias
+├── vite.config.ts              # React + Tailwind plugins, version injection, /api/ask dev middleware
+├── api/
+│   └── ask.ts                  # Vercel Function: POST /api/ask (Ask Atlas)
 ├── CHANGELOG.md                # Release history (Keep a Changelog)
+├── scripts/                    # Dataset snapshot + evaluation benchmark
+│   ├── build-atlas-dataset.mjs # Regenerates public/atlas-data.json
+│   └── eval-atlas.mjs          # 16-case Ask Atlas browser benchmark
 ├── public/                     # Static assets, copied verbatim to dist/
 │   ├── favicon.svg / .ico      # Browser tab icons
 │   ├── apple-touch-icon.png    # Home-screen icon (180px)
@@ -103,15 +114,18 @@ postcode-atlas/
 │   ├── logo.svg                # Full brand lockup
 │   ├── logo-header.svg         # Compact lockup (top bar, light)
 │   ├── logo-header-dark.svg    # Compact lockup (top bar, dark)
+│   ├── atlas-data.json         # Bundled offline NDAPS snapshot
 │   └── og-image.png            # 1200x1200 social card
 ├── src/
 │   ├── App.tsx                 # Root component, all app state and orchestration
 │   ├── types/postcode.ts       # NDAPS domain types
 │   ├── lib/
 │   │   ├── api/postcodeClient.ts   # All NIPOST gateway access + caching
+│   │   ├── ask/                    # Ask Atlas client: responder, guards, follow-up, small-talk
 │   │   └── geo/
 │   │       ├── nigeriaData.ts      # All 37 states: centroid, capital, zone, LGA count
 │   │       └── discoveryPoints.ts  # Verified landmark postcodes
+│   ├── server/ask/             # Ask Atlas server: handler, provider chain, tools
 │   ├── components/
 │   │   ├── map/                # AtlasMap, CustomZoomControl, ScaleCenterControl
 │   │   ├── search/             # MapSearch — autocomplete + locate
@@ -121,6 +135,7 @@ postcode-atlas/
 │   │   ├── explorer/           # StateExplorerDrawer — state → LGA drill-down
 │   │   ├── data/               # DataModeOverlay — telemetry HUD
 │   │   ├── hunt/               # PostcodeHuntModal — challenge mode
+│   │   ├── ask/                # AskAtlasPanel and friends — the assistant UI
 │   │   ├── story/              # DatasetStoryModal — NDAPS explainer
 │   │   └── ui/                 # Toast, ThemeToggle, DraggableCard, SearchableSelect
 │   └── hooks/                  # useTheme, useToast
@@ -165,25 +180,32 @@ postcode-atlas/
 | --- | --- | --- | --- |
 | `VITE_NIPOST_PUBLISHABLE_KEY` | Yes | Yes | Publishable NDAPS key sent as the `X-API-Key` header |
 | `VITE_NIPOST_API_BASE_URL` | No | Yes | Gateway base URL, defaults to `https://api.postcode.gov.ng` |
-| `GEMINI_API_KEY` | No | No | Reserved for a future AI feature. Unused today. |
+| `GEMINI_API_KEY` | No¹ | No | Server-side Gemini key for the Ask Atlas chain |
+| `OPENROUTER_API_KEY` | No¹ | No | Server-side OpenRouter key (failover) |
+| `NVIDIA_API_KEY` | No¹ | No | Server-side NVIDIA key (failover) |
+| `NATLAS_BASE_URL` | No | No | When set, prepends the N-ATLAS provider slot to the chain |
+| `NATLAS_API_KEY` / `NATLAS_MODEL` | No | No | Optional N-ATLAS key and model (default `NCAIR1/N-ATLaS`) |
+| `ASK_AI_ORDER` | No | No | Provider failover order (default `gemini,openrouter,nvidia`; N-ATLAS first when configured) |
 
-Variables prefixed `VITE_` are inlined into the client bundle at build time and are therefore readable by anyone who opens the deployed site. Only publishable values belong in them.
+¹ At least one provider key must be set for Ask Atlas to answer; with the default order that is `GEMINI_API_KEY`.
+
+Variables prefixed `VITE_` are inlined into the client bundle at build time and are therefore readable by anyone who opens the deployed site. Only publishable values belong in them. The Ask Atlas keys above are server-only: they are read from `process.env` inside the `/api/ask` function and never shipped to the browser.
 
 ---
 
 ## Deployment to Vercel
 
-The app builds to a fully static bundle and talks to the NIPOST gateway directly from the browser, so there is no server to deploy.
+The app builds to a fully static bundle and talks to the NIPOST gateway directly from the browser; the only server logic is the Ask Atlas `/api/ask` Vercel Function, which Vercel deploys alongside the static output.
 
 1. **Push to a Git repository** and import it into Vercel, or run `npx vercel` from the project root.
 
-2. **Add the environment variable.** In Vercel, go to **Project Settings → Environment Variables** and add:
+2. **Add the environment variables.** In Vercel, go to **Project Settings → Environment Variables** and add:
 
    ```
    VITE_NIPOST_PUBLISHABLE_KEY = nipost_pk_...
    ```
 
-   Apply it to Production, Preview, and Development. Optionally add `GEMINI_API_KEY` if you later wire up an AI feature.
+   Apply to Production, Preview, and Development. For Ask Atlas, also add at least one server-side provider key (`GEMINI_API_KEY`, plus `OPENROUTER_API_KEY` / `NVIDIA_API_KEY` for failover) and, optionally, `NATLAS_BASE_URL` to route through N-ATLAS. These are read by the `/api/ask` function only and never reach the browser.
 
 3. **Deploy.** `vercel.json` already sets `buildCommand: npm run build` and `outputDirectory: dist`, plus a catch-all rewrite so client-side routes resolve on refresh. Vercel should detect the framework as Vite; if not, set the preset manually.
 
@@ -193,7 +215,7 @@ The app builds to a fully static bundle and talks to the NIPOST gateway directly
 
 ## Architecture notes
 
-**No backend, by design.** This is a static bundle. All gateway traffic goes browser → `api.postcode.gov.ng`, authorised by the publishable key. The NIPOST NDAPS gateway permits direct browser calls with a publishable key, which is what makes this deployment shape possible.
+**No backend, by design — with one exception.** This is a static bundle. All gateway traffic goes browser → `api.postcode.gov.ng`, authorised by the publishable key. The NIPOST NDAPS gateway permits direct browser calls with a publishable key, which is what makes this deployment shape possible. The exception is Ask Atlas: `/api/ask` is a small Vercel Function — the same handler runs as a Vite dev middleware under `npm run dev` — that forwards chat traffic to LLM providers, because provider keys must not live in the bundle.
 
 **Caching is in-memory and per-session.** `postcodeClient.ts` keeps a `Map` of responses with per-endpoint TTLs — reference data (states, LGAs, districts, areas) is cached for an hour since it changes rarely, lookups for ten minutes, and nearby searches for three minutes. A page reload clears the cache.
 
@@ -202,6 +224,10 @@ The app builds to a fully static bundle and talks to the NIPOST gateway directly
 **State lives at the root.** `App.tsx` owns selection, camera, breadcrumbs, and modal state, and passes handlers down. Components are presentational, which keeps the drill-down flows readable.
 
 **Geolocation is opt-in.** Coordinates are only transmitted when the user presses locate. Nothing is collected passively.
+
+**Ask Atlas is a server-side provider chain.** `POST /api/ask` validates and caches requests, then calls an OpenAI-compatible chain — optional N-ATLAS first (when `NATLAS_BASE_URL` is set), then Gemini, OpenRouter and NVIDIA — retrying and falling over on rate limits and quota errors. Keys come from `process.env`; none are `VITE_`-prefixed.
+
+**Ask Atlas is honest by construction.** The client drives a multi-round tool-calling loop against read-only Atlas tools (states, LGAs, districts, areas, postcodes, decode, landmarks, nearby, map navigation). Replies that cite a tool result carry a "Verified against NIPOST postcode data" footer; a postcode-invention guard strips any code the tools never returned and the user never typed; out-of-scope questions are refused rather than guessed; and pure map moves produce deterministic replies.
 
 ---
 
@@ -212,7 +238,7 @@ This deployment shape is only safe because the NIPOST key in use is the **publis
 - Anything in a `VITE_` variable is public. Never put a secret `sk_` key in `VITE_NIPOST_PUBLISHABLE_KEY`.
 - If you later need secret-tier access, reintroduce a server or serverless function to hold that key. Do not inline it.
 - `.env` is git-ignored; only `.env.example` is committed.
-- If you add an AI feature using `GEMINI_API_KEY`, it must run server-side. A `VITE_`-prefixed Gemini key would be exposed. Note that bundling Gemini into a static-only app is the main reason you may want a server later.
+- Ask Atlas provider keys (`GEMINI_API_KEY`, `OPENROUTER_API_KEY`, `NVIDIA_API_KEY`, `NATLAS_*`) are server-only: the `/api/ask` function reads them from `process.env` and they are never shipped in the bundle. If a key is missing or exhausted, the chain falls over to the next provider rather than exposing it.
 
 ---
 
@@ -220,10 +246,14 @@ This deployment shape is only safe because the NIPOST key in use is the **publis
 
 | Script | Description |
 | --- | --- |
-| `npm run dev` | Start the Vite dev server on port 3001 |
+| `npm run dev` | Start the Vite dev server on port 3001 (also mounts the `/api/ask` dev middleware) |
 | `npm run build` | Build the production bundle into `dist/` |
 | `npm run preview` | Serve the built bundle locally |
 | `npm run lint` | Type-check with `tsc --noEmit` |
+| `npm run test` | Run the Vitest unit suite (30 tests) |
+| `npm run test:watch` | Run Vitest in watch mode |
+| `npm run dataset` | Regenerate `public/atlas-data.json` from NDAPS |
+| `npm run eval` | Drive the real chat UI through the 16-case Ask Atlas benchmark, writing `scripts/eval-report.md` |
 | `npm run clean` | Remove the `dist/` directory |
 
 ---

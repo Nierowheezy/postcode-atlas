@@ -25,7 +25,7 @@ tool-calling model). Every other provider is switched off.
   deployed site can reach it.
 - **Uptime:** macOS `launchd` jobs keep the model server, the tunnel and
   `caffeinate` running so the Mac stays awake.
-- **App:** React + TypeScript + Vite, MapLibre map, deployed on Vercel with a
+- **App:** React + TypeScript + Vite, Leaflet map, deployed on Vercel with a
   serverless function for `/api/ask`. Provider keys never reach the browser.
 - **Data:** NIPOST postcode data, bundled offline with a read-through gateway.
 
@@ -137,7 +137,7 @@ N-ATLAS path.
   refusal.
 - **Production depends on the Mac.** If the Mac sleeps or loses internet, Ask
   Atlas returns 503. It is a free-tier, laptop-hosted demo by design.
-- **Unit tests cover logic only.** 26 Vitest tests cover the postcode guards,
+- **Unit tests cover logic only.** 30 Vitest tests cover the postcode guards,
   follow-up and small-talk detection, and the referent and map derivations.
   Component and end-to-end behavior is still verified by the `npm run eval`
   browser benchmark and manual browser evidence.
