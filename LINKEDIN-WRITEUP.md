@@ -43,7 +43,7 @@ want. Placeholders in `[square brackets]` need your input.
 > → **Out-of-scope questions** (like "what's the weather?") get a graceful refusal, not a guess.
 > → **A bare "hi" gets no data footer at all** — because it made no data claim.
 >
-> Under the hood: React 19 + TypeScript + Vite, a Leaflet map, and all NIPOST data over a publishable-key gateway. Ask Atlas is a single server function with a provider chain (N-ATLAS first, free tiers as failover) and a browser-driven tool loop over 10 read-only tools. **38 unit tests** and a **16-case browser benchmark** that drives the real UI — 16/16 passing.
+> Under the hood: React 19 + TypeScript + Vite, a Leaflet map, and all NIPOST data over a publishable-key gateway. Ask Atlas is a single server function with a provider chain (N-ATLAS first, free tiers as failover) and a browser-driven tool loop over 10 read-only tools. I also run N-ATLAS myself — the ~6 GB Q5_K_M GGUF, served with llama.cpp on my Mac and exposed through a fixed tunnel — so the whole demo runs on zero paid infrastructure. **38 unit tests** and a **16-case browser benchmark** that drives the real UI — 16/16 passing.
 >
 > It's free and open source (Apache-2.0).
 >
@@ -355,24 +355,79 @@ Current result: **16/16 passing**, with the report committed to the repo.
 
 ### Deployment and runtime
 
-The app is a static Vite build on Vercel; `/api/ask` is the only function.
-Because N-ATLAS is a local model, the demo runtime is a Mac running
-`llama.cpp`'s server, exposed through a stable ngrok tunnel, with `launchd`
-keeping the model, tunnel, and `caffeinate` alive. That's a competition
-constraint, not the app's architecture — swapping in any OpenAI-compatible
-endpoint is one environment variable.
+The app is a fully static Vite build on Vercel. `/api/ask` is the only server
+code, and it exists for exactly one reason: provider keys must never reach the
+browser. The build also ships a service worker, so the map and the bundled
+dataset work offline once loaded.
+
+### Running an 8B model on my own machine
+
+The competition requires **N-ATLAS** to be the answer engine, so instead of
+calling a hosted API the assistant talks to a model running on the Mac on my
+desk. Getting that to work reliably, for free, from a serverless function turned
+out to be the most interesting engineering problem in the project.
+
+**The model is gated, and it's big.** N-ATLAS is published on Hugging Face by
+Awarri and NCAIR at `NCAIR1/N-ATLaS`. It's a *gated* repo: you accept the licence
+before you can download anything. Inside is the full-precision model as
+`safetensors` in four shards, about 16 GB — far too heavy to serve from a laptop,
+and the repo itself ships no GGUF.
+
+**Quantization is what makes it a laptop model.** Running it means reaching for a
+GGUF build, and the community has already done the work: I use the **Q5_K_M**
+quantization from
+[`QuantFactory/N-ATLaS-GGUF`](https://huggingface.co/QuantFactory/N-ATLaS-GGUF),
+which takes those ~16 GB down to roughly 6 GB — small enough to sit in memory and
+answer at conversational speed on Apple silicon, with no meaningful loss on the
+tasks it has to do. Most of the "senior" work in local inference is knowing which
+artifact to trust and how to serve it, not hand-reimplementing a quantizer.
+
+**Serving it as an API.** `llama.cpp`'s `llama-server` hosts the GGUF behind an
+OpenAI-compatible endpoint on `127.0.0.1:8081` (8k context, tool-calling on).
+That one choice is why the app is portable: the code posts to the local model
+exactly the way it would post to OpenAI, so the engine is a single environment
+variable (`NATLAS_BASE_URL`) and nothing else changes.
+
+**Bridging a datacentre to a desk.** The Vercel function runs in a datacentre;
+the model is behind my router. A free **ngrok** tunnel with a fixed domain
+(`ngrok http 8081 --url=…`) gives the function a stable public URL to POST to, so
+the serverless code never knows the model isn't remote.
+
+**Keeping it up without me.** Three macOS `launchd` agents start on login and
+restart on failure: one for `llama-server`, one for the tunnel, and one running
+`caffeinate -s` so the machine never sleeps mid-demo. "It's running on my laptop"
+is a fine demo story; "it went to sleep and returned 503" is not — and the gap
+between them is entirely ops.
+
+**The honest trade-off.** A laptop is not a datacentre. If the Mac is asleep or
+offline, the assistant returns a clean `503` instead of pretending to work. I
+documented that rather than hid it, and because the engine sits behind one env
+var, the same app runs against any hosted OpenAI-compatible model the day the
+demo stops needing to fit on my desk.
+
+**What local tool-calling taught me.** `llama-server` validates tool calls
+against a grammar, so a malformed call from a small model surfaces as a *server*
+error rather than a bad answer. That pushed two fixes into the app: withhold the
+tools once a tool result is already in context (so the model composes instead of
+digging with bogus calls), and treat every tool call as untrusted input through a
+single validation boundary.
 
 ### The demo video
 
-The 45-second promo is built with **Remotion** (React → video), 1920×1080 at
-30 fps, in six scenes: hook → the problem → the assistant → "grounded by
-design" → map + decode → sovereign/multilingual outro.
+The 45-second promo is built with **Remotion** — React components rendered to
+video, no timeline editor. One codebase exports two cuts: 16:9 (1920×1080) for
+the LinkedIn feed and YouTube, and 9:16 (1080×1920) reframed for Reels and
+Shorts. Both run 30 fps across six scenes: hook → the problem → the assistant →
+"grounded by design" → map + decode → sovereign/multilingual outro.
 
 Every product shot is a **real screenshot of the deployed app** — not a mockup.
-`scripts/capture-stills.mjs` drives the live site with Playwright and injects
-faithful conversations into `localStorage`, so the captures are deterministic
-(no model call, no waiting). It renders silent, with a music slot wired and
-ready.
+`scripts/capture-stills.mjs` drives the live site with Playwright, injects
+faithful conversations into `localStorage`, and screenshots the result, so the
+video shows the actual UI with zero model calls and renders deterministically.
+
+It's scored with "Inspired" by Kevin MacLeod (CC BY 4.0, credited on screen), and
+the same Remotion project renders the 1200×630 link-preview card the app serves
+as `og.jpg`.
 
 ### What I learned
 
@@ -385,6 +440,10 @@ ready.
 - **Label the strength of your claims.** "Verified", "from tool results", and
   "not verified" are three different truths. Saying which one applies is more
   trustworthy than a single confident badge.
+- **Model serving is an ops problem.** A good answer is the easy half. Choosing
+  a quantization that fits, standing up an OpenAI-compatible server, tunnelling
+  it out, and keeping three `launchd` agents alive is what makes "it runs on my
+  laptop" survive a live demo.
 - **Test the behaviour, not the function.** The 16-case browser benchmark
   catches the failures that unit tests never see.
 
@@ -392,12 +451,13 @@ ready.
 
 - Live: https://nigerian-postalcode-atlas.vercel.app
 - Source (Apache-2.0): https://github.com/Nierowheezy/postcode-atlas
-- Model: N-ATLAS by Awarri & NCAIR
+- Model: N-ATLAS by Awarri & NCAIR — https://huggingface.co/NCAIR1/N-ATLaS (gated)
+- Quantization used: https://huggingface.co/QuantFactory/N-ATLaS-GGUF
 - Data: NIPOST NDAPS
 
 ---
 
-## Part 4 — Carousel script (6 slides)
+## Part 4 — Carousel script (7 slides)
 
 1. **Title** — Ask Atlas: an AI assistant that says "I don't know."
    *(subtitle: grounded answers over Nigeria's national postcode system)*
@@ -405,12 +465,15 @@ ready.
    One address. Five levels. Hard to navigate.
 3. **The build** — React 19 + TypeScript + Vite + Leaflet. Ask Atlas = one server
    function, 10 read-only tools, N-ATLAS first with free-tier failover.
-4. **The twist** — Honest by construction. Unbacked postcodes are stripped.
-   Every reply is labelled by what backs it.
-4. **The proof** — 38 unit tests. A 16-case browser benchmark over the real UI.
-   16/16.
-5. **The stack** — Apache-2.0. Free. English + Yorùbá + Hausa + Igbo.
-6. **CTA** — Live demo + source in the comments. Video below. 🔗
+4. **Honest by construction** — Unbacked postcodes are stripped. Every reply is
+   labelled by what actually backs it.
+5. **The proof** — 38 unit tests. A 16-case browser benchmark that drives the
+   real UI. 16/16.
+6. **Under the hood** — N-ATLAS (8B) quantized to ~6 GB, served with `llama.cpp`
+   on a laptop behind a fixed tunnel, spoken to over an OpenAI-compatible API.
+7. **Stack + CTA** — Apache-2.0. Free. English + Yorùbá + Hausa + Igbo. React,
+   TypeScript, Leaflet, Vitest, Playwright, Remotion. Live demo and source in the
+   comments. Video below. 🔗
 
 ---
 
@@ -424,6 +487,9 @@ ready.
 ```
 
 **People/orgs to tag** (use the real handles): Awarri, NCAIR, NIPOST.
+
+**Which cut to post here:** the 16:9 cut for the feed and the article; keep the
+9:16 cut for Reels / Shorts / Stories.
 
 **Video caption:**
 
@@ -443,7 +509,7 @@ ready.
 | Districts/areas | live gateway fallback (not snapshotted) |
 | Assistant tools | 10, all read-only |
 | Reply languages | English, Yorùbá, Hausa, Igbo |
-| Providers | N-ATLAS + Gemini/OpenRouter/NVIDIA failover |
+| Providers | N-ATLAS (local, first) + Gemini/OpenRouter/NVIDIA failover |
 | Unit tests | 38 passing |
 | Browser benchmark | 16 cases, 16/16 passing |
 | Client tool rounds | max 3 (server accepts 4) |
@@ -453,20 +519,30 @@ ready.
 | License | Apache-2.0 |
 | Source | github.com/Nierowheezy/postcode-atlas |
 | Live | nigerian-postalcode-atlas.vercel.app |
-| Video | 45 s, 1920×1080, 30 fps, soundtrack: "Inspired" by Kevin MacLeod (CC BY 4.0) |
-| Model | N-ATLAS by Awarri & NCAIR |
+| Video | 45 s, two cuts — 16:9 (1920×1080) and 9:16 (1080×1920) — 30 fps, 6 scenes, built with Remotion; soundtrack "Inspired" by Kevin MacLeod (CC BY 4.0) |
+| Share card | `og.jpg`, 1200×630, ~70 KB (under WhatsApp's limit), rendered by Remotion |
+| Model | N-ATLAS by Awarri & NCAIR (Hugging Face `NCAIR1/N-ATLaS`, gated) |
+| Model weights | full-precision `safetensors`, ~16 GB → community Q5_K_M GGUF (`QuantFactory/N-ATLaS-GGUF`), ~6 GB |
+| Local engine | `llama.cpp` `llama-server`, OpenAI-compatible API on `127.0.0.1:8081`, 8k context |
+| Hardware | Apple M1 Max, 32 GB (arm64) |
+| Public path | free fixed-domain ngrok tunnel → Vercel `/api/ask` function |
+| Uptime | 3 macOS `launchd` agents (`llama-server`, `ngrok`, `caffeinate -s`) |
 | Data | NIPOST NDAPS |
 
 ### Before you post — checklist
 
-- [ ] Confirm the live URL (Vercel project name may differ).
+- [x] Live URL is fixed and used everywhere: `nigerian-postalcode-atlas.vercel.app`.
 - [ ] Replace `[@Awarri]`, `[@NCAIR]`, `[@NIPOST]` and `[the competition/hackathon]`.
-- [ ] One inconsistency to check: the **video** hook says "six levels"; the app and
-      README say **five segments**. If the video is final, either say "six levels"
-      consistently or re-render that one line. The correct count is five segments
-      (state, LGA, district, area, unit).
-- [ ] Attach `video/out/postcode-atlas-demo.mp4` (LinkedIn native video beats a link).
+- [x] Video narration now says **five levels** (was "six"), matching the app, the
+      decode card and the five rendered chips. Both cuts were re-rendered.
+- [ ] Attach `video/out/postcode-atlas-demo.mp4` (the 16:9 cut — LinkedIn native
+      video beats a link). Keep the 9:16 cut for Reels / Shorts.
+- [ ] **Refresh the link preview after deploying.** LinkedIn caches aggressively:
+      paste the URL into the LinkedIn Post Inspector and re-scrape so the new
+      `og.jpg` card shows. (Facebook's Sharing Debugger refreshes WhatsApp too.)
 - [ ] **Credit the music** (the CC BY license requires it — it is also on screen in
       the outro): add this line to the post description —
       `Music: "Inspired" by Kevin MacLeod (incompetech.com), CC BY 4.0`.
 - [ ] Rotate the ngrok authtoken and keep the Mac awake before the demo window.
+- [x] Model facts confirmed: base weights from `NCAIR1/N-ATLaS` (gated), served from
+      the community `QuantFactory/N-ATLaS-GGUF` **Q5_K_M** quantization.

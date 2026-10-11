@@ -18,8 +18,11 @@ tool-calling model). Every other provider is switched off.
 
 ## The setup
 
-- **Model:** N-ATLAS Q5_K_M (8B), served locally with `llama.cpp`'s
-  `llama-server` on an Apple M1 Max (32 GB, arm64).
+- **Model:** N-ATLAS (8B), served locally with `llama.cpp`'s `llama-server` on an
+  Apple M1 Max (32 GB, arm64). Base weights are the gated
+  [NCAIR1/N-ATLaS](https://huggingface.co/NCAIR1/N-ATLaS) repo; the artifact that
+  actually runs is the community **Q5_K_M** GGUF from
+  [QuantFactory/N-ATLaS-GGUF](https://huggingface.co/QuantFactory/N-ATLaS-GGUF).
 - **Public path:** a fixed free ngrok tunnel exposes the local model, so the
   deployed site can reach it.
 - **Uptime:** macOS `launchd` jobs keep the model server, the tunnel and

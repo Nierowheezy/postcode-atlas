@@ -108,14 +108,15 @@ postcode-atlas/
 │   ├── build-atlas-dataset.mjs # Regenerates public/atlas-data.json
 │   └── eval-atlas.mjs          # 16-case Ask Atlas browser benchmark
 ├── public/                     # Static assets, copied verbatim to dist/
-│   ├── favicon.svg / .ico      # Browser tab icons
+│   ├── favicon.ico, -16, -32   # Browser tab icons
 │   ├── apple-touch-icon.png    # Home-screen icon (180px)
-│   ├── icon-512.png            # PWA / high-DPI icon
+│   ├── android-chrome-*.png    # PWA / high-DPI icons (192, 512)
 │   ├── logo.svg                # Full brand lockup
 │   ├── logo-header.svg         # Compact lockup (top bar, light)
 │   ├── logo-header-dark.svg    # Compact lockup (top bar, dark)
 │   ├── atlas-data.json         # Bundled offline NDAPS snapshot
-│   └── og-image.png            # 1200x1200 social card
+│   ├── manifest.webmanifest    # PWA manifest
+│   └── og.jpg                  # 1200x630 social share card (link previews)
 ├── src/
 │   ├── App.tsx                 # Root component, all app state and orchestration
 │   ├── types/postcode.ts       # NDAPS domain types
@@ -307,9 +308,14 @@ five short bars under the wordmark echo the five segments of an NDAPS postcode
 (`AA-99-H77-BB-55`) — one code for each level of the address hierarchy.
 
 All artwork is hand-authored SVG with no design-tool dependency. Raster fallbacks
-(`favicon.ico`, `apple-touch-icon.png`, `icon-512.png`, `og-image.png`) are
-committed alongside the SVGs so older browsers and platform icon pickers still
-have something to serve.
+(`favicon.ico`, `favicon-16x16.png`, `favicon-32x32.png`, `apple-touch-icon.png`,
+`android-chrome-192x192.png`, `android-chrome-512x512.png`) are committed
+alongside the SVGs so older browsers and platform icon pickers still have
+something to serve.
+
+The social share card (`public/og.jpg`, 1200x630) is generated from the Remotion
+project in `video/` (`npm run og`); `index.html` references it with absolute
+`og:image` / `twitter:image` URLs for link previews.
 
 Primary green is `#008751`, with `#0F7B4D` for text accents and `#10B981` for
 dark-mode equivalents.
@@ -328,10 +334,12 @@ The app includes a Web App Manifest (`manifest.webmanifest`) and a Workbox servi
 | `/sw.js` | `/sw.js` |
 | `/workbox-:hash.js` | `/workbox-:hash.js` |
 | `/favicon.ico` | `/favicon.ico` |
-| `/favicon.svg` | `/favicon.svg` |
+| `/favicon-16x16.png` | `/favicon-16x16.png` |
+| `/favicon-32x32.png` | `/favicon-32x32.png` |
 | `/apple-touch-icon.png` | `/apple-touch-icon.png` |
-| `/icon-512.png` | `/icon-512.png` |
-| `/og-image.png` | `/og-image.png` |
+| `/android-chrome-192x192.png` | `/android-chrome-192x192.png` |
+| `/android-chrome-512x512.png` | `/android-chrome-512x512.png` |
+| `/og.jpg` | `/og.jpg` |
 | `/logo.svg` | `/logo.svg` |
 | `/logo-header.svg` | `/logo-header.svg` |
 | `/logo-header-dark.svg` | `/logo-header-dark.svg` |
