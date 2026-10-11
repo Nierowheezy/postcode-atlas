@@ -82,11 +82,12 @@ N-ATLAS), each in a fresh session, with the model provider reporting `natlas`:
 - **Landmark lookup** ("The Infrastructure Bank PLC") - correct postcode.
 - **Map navigation** - states, Abuja (FCT) and Ikeja all frame correctly.
 - **Follow-up context** - "what are its LGAs?" resolves against the last place.
-- **Greetings** - warm reply, no map reset.
+- **Greetings** - warm reply, no map reset, and no data-grounding footer (chat
+  turns never claim NIPOST data).
 - **Out-of-scope** ("weather in Lagos") - graceful refusal, no invented data.
 - **UI** - persisted chat, type-"delete" confirm, resizable panel, light/dark map.
 
-Gates: `npm run test` (30 unit tests), `tsc --noEmit` clean, production
+Gates: `npm run test` (37 unit tests), `tsc --noEmit` clean, production
 `vite build` clean. Both domains return HTTP 200 and answer with
 `provider: natlas`.
 
@@ -137,8 +138,9 @@ N-ATLAS path.
   refusal.
 - **Production depends on the Mac.** If the Mac sleeps or loses internet, Ask
   Atlas returns 503. It is a free-tier, laptop-hosted demo by design.
-- **Unit tests cover logic only.** 30 Vitest tests cover the postcode guards,
-  follow-up and small-talk detection, and the referent and map derivations.
+- **Unit tests cover logic only.** 37 Vitest tests cover the postcode guards,
+  follow-up and small-talk detection, the grounding footer labels, and the
+  referent and map derivations.
   Component and end-to-end behavior is still verified by the `npm run eval`
   browser benchmark and manual browser evidence.
 - **Security follow-up:** the ngrok authtoken was echoed in an earlier log and

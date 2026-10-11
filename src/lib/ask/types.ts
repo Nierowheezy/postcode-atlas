@@ -108,6 +108,12 @@ export interface AskAtlasMessage {
   id: string;
   role: AskAtlasMessageRole;
   content: string;
+  /**
+   * The exact user text that produced this reply. Present on assistant and
+   * error messages; lets the bubble classify the turn (small talk versus a
+   * factual claim) without re-sending anything. Survives persistence.
+   */
+  question?: string;
   grounding?: ResponseGrounding;
   /** Which provider/model answered (present on real API replies). */
   engine?: AskEngineInfo;

@@ -168,6 +168,7 @@ export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({
       const res = await send({ text, context, language });
       const reply: AskAtlasMessage = {
         ...makeMessage('assistant', res.text),
+        question: text,
         grounding: res.grounding,
         engine: res.engine,
         context,

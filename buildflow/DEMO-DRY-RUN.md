@@ -71,7 +71,7 @@ Also exercise the UI:
 | 3 | Show Kano on the map | The top-bar breadcrumb becomes **Nigeria > Kano**, the map zoom changes, footer reads "Map moved using NIPOST location data". |
 | 4 | Decode FC-02-D43-LG-01 | A five-part breakdown: state, LGA, district (`D43`), area (`LG`), unit. |
 | 5 | Landmark | The real landmark postcode, footer "Verified against NIPOST postcode data". |
-| 6 | hello | A short friendly reply. No tool footer, and the map does **not** reset. |
+| 6 | hello | A short friendly reply. **No data-grounding footer at all** (chat turns never claim NIPOST data), just the `natlas · try 1` meter and the N-ATLAS attribution line. The map does **not** reset. |
 | 7 | weather | A graceful "I can only help with Nigerian postcodes" style refusal. No invented data. |
 | 8 | follow-up | The second answer stays on Kano and mentions districts. |
 | 9 | postcode for Lagos state | States plainly that a state has no single postcode. No code. |
