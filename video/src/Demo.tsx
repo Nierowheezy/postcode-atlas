@@ -26,9 +26,11 @@ const FADE_OUT_FRAMES = 50; // ~1.7s
  * to the composition length at capture time in `public/music.mp3`. To swap it,
  * drop another MP3 in as `public/music.mp3` — no code change needed.
  *
- * A short fade in and a longer fade out keep the cut from feeling abrupt.
+ * A short fade in and a longer fade out keep the cut from feeling abrupt. This
+ * is a separate component from the visuals so the 9:16 reframe can compose the
+ * same frames twice (sharp + blurred backdrop) while playing the sound once.
  */
-const Music: React.FC = () => {
+export const Music: React.FC = () => {
   const frame = useCurrentFrame();
   const { durationInFrames } = useVideoConfig();
 
@@ -43,13 +45,12 @@ const Music: React.FC = () => {
 };
 
 /**
- * The 45-second demo. Scenes are laid out on one shared dark stage so cuts read
- * as content changes rather than a background flash.
+ * The six scenes on one shared dark stage so cuts read as content changes
+ * rather than a background flash. Visual only — no audio — so the same frames
+ * can be placed on any canvas.
  */
-export const Demo: React.FC = () => (
+export const DemoVisual: React.FC = () => (
   <AbsoluteFill style={{ backgroundColor: COLORS.bg }}>
-    <Music />
-
     <Sequence from={SCENES.hook.from} durationInFrames={SCENES.hook.duration}>
       <Hook />
     </Sequence>
@@ -69,4 +70,12 @@ export const Demo: React.FC = () => (
       <Outro />
     </Sequence>
   </AbsoluteFill>
+);
+
+/** The 45-second 16:9 demo: visuals plus the soundtrack. */
+export const Demo: React.FC = () => (
+  <>
+    <DemoVisual />
+    <Music />
+  </>
 );

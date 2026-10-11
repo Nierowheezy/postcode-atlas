@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "remotion studio",
     "render": "remotion render PostcodeAtlasDemo out/postcode-atlas-demo.mp4",
+    "render:vertical": "remotion render PostcodeAtlasDemoVertical out/postcode-atlas-demo-vertical.mp4",
     "poster": "remotion still PostcodeAtlasDemo out/poster.png --frame=430",
     "captures": "node scripts/capture-stills.mjs",
     "upgrade": "remotion upgrade"

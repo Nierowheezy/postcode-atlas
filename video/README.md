@@ -3,8 +3,9 @@
 A ~45 second, 16:9 promo/demo video for **Nigerian Postcode Atlas** and its
 Ask Atlas (N-ATLAS) feature, built with [Remotion](https://remotion.dev).
 
-- Composition: `PostcodeAtlasDemo`
-- 1920 x 1080, 30 fps, 1350 frames (45s)
+- Compositions: `PostcodeAtlasDemo` (16:9, 1920 x 1080) and
+  `PostcodeAtlasDemoVertical` (9:16, 1080 x 1920)
+- 30 fps, 1350 frames (45s) on both
 - Soundtrack: "Inspired" by Kevin MacLeod (CC BY 4.0), with a fade in/out
 - Uses **real screenshots of the deployed app** as its product shots
 
@@ -17,12 +18,32 @@ npm install
 # Preview / tweak in the Remotion Studio
 npm run dev
 
-# Render the MP4
+# Render the MP4 (16:9)
 npm run render          # -> out/postcode-atlas-demo.mp4
+
+# Render the vertical cut (9:16)
+npm run render:vertical # -> out/postcode-atlas-demo-vertical.mp4
 
 # Render a single poster frame
 npm run poster          # -> out/poster.png (frame 430)
 ```
+
+Rendering downloads a headless browser shell on first run, so the first
+`npm run render` takes a little longer.
+
+## The two cuts
+
+| Composition | Size | For |
+| --- | --- | --- |
+| `PostcodeAtlasDemo` | 1920 x 1080 (16:9) | LinkedIn feed, YouTube, the website |
+| `PostcodeAtlasDemoVertical` | 1080 x 1920 (9:16) | Reels, Shorts, TikTok, Stories |
+
+Both are 45s at 30 fps and share the same six scenes, soundtrack and credits. The
+vertical cut (`src/Vertical.tsx`) shows the whole 16:9 frame, scaled to the
+canvas width and centred, over a blurred, dimmed fill of the same frames so the
+extra height reads as an intentional backdrop rather than empty space. The
+visuals live in `DemoVisual`; `Music` is composed once per cut so the 9:16
+reframe does not double the soundtrack.
 
 Rendering downloads a headless browser shell on first run, so the first
 `npm run render` takes a little longer.
