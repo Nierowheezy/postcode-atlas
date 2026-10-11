@@ -5,7 +5,7 @@ Ask Atlas (N-ATLAS) feature, built with [Remotion](https://remotion.dev).
 
 - Composition: `PostcodeAtlasDemo`
 - 1920 x 1080, 30 fps, 1350 frames (45s)
-- Silent by default, with a ready music slot (see below)
+- Soundtrack: "Inspired" by Kevin MacLeod (CC BY 4.0), with a fade in/out
 - Uses **real screenshots of the deployed app** as its product shots
 
 ## Quick start
@@ -58,16 +58,33 @@ ATLAS_URL=http://localhost:3001/ node video/scripts/capture-stills.mjs
 `scripts/check-stills.mjs` re-verifies that map tiles and the injected panel
 content actually rendered, so the video never ships blank frames.
 
-## Music slot
+## Music
 
-The video renders silent. To add a track:
+The video ships with a soundtrack already wired in:
 
-1. Drop an MP3 at `public/music.mp3`.
-2. In `src/Demo.tsx`, import `Audio`/`staticFile` from `remotion` and uncomment:
+- **Track:** "Inspired" by **Kevin MacLeod** ([incompetech.com](https://incompetech.com))
+- **License:** [Creative Commons Attribution 4.0 (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/)
+- **File:** `public/music.mp3` — the full track trimmed to the 47-second composition length
 
-   ```tsx
-   <Audio src={staticFile('music.mp3')} volume={0.6} />
-   ```
+Attribution appears on screen in the outro and must stay with the video wherever
+it is published. Keep this credit in the post description too.
+
+### Swapping the track
+
+No code change is needed — just replace the file:
+
+1. Drop any MP3 at `public/music.mp3`.
+2. Optional: adjust `MUSIC_VOLUME` and the fade lengths at the top of
+   `src/Demo.tsx`. The `<Audio>` element and fades are already there.
+3. If the new track is not CC BY, update the outro credit in
+   `src/scenes/Outro.tsx` and this section.
+
+The bundled track is a lossless trim of the original, produced with the ffmpeg
+that ships with Remotion:
+
+```bash
+npx remotion ffmpeg -i original.mp3 -t 47 -c copy public/music.mp3
+```
 
 ## Structure
 

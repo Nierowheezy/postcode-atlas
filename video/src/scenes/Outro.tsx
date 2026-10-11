@@ -54,6 +54,9 @@ export const Outro: React.FC = () => {
           <span style={{ fontSize: 22, color: COLORS.faint, letterSpacing: 0.4 }}>
             Free &amp; open source · grounded in NIPOST data · built for the N-ATLAS Challenge
           </span>
+          <span style={{ ...enter(frame, fps, 116, { dist: 14 }), fontSize: 16, color: COLORS.faint, letterSpacing: 0.4 }}>
+            Music: "Inspired" by Kevin MacLeod (incompetech.com) · CC BY 4.0
+          </span>
         </div>
       </AbsoluteFill>
     </Stage>
