@@ -3,9 +3,10 @@
 A ~45 second, 16:9 promo/demo video for **Nigerian Postcode Atlas** and its
 Ask Atlas (N-ATLAS) feature, built with [Remotion](https://remotion.dev).
 
-- Compositions: `PostcodeAtlasDemo` (16:9, 1920 x 1080) and
-  `PostcodeAtlasDemoVertical` (9:16, 1080 x 1920)
-- 30 fps, 1350 frames (45s) on both
+- Compositions: `PostcodeAtlasDemo` (16:9, 1920 x 1080),
+  `PostcodeAtlasDemoVertical` (9:16, 1080 x 1920) and `PostcodeAtlasOG`
+  (1200 x 630 social share card)
+- 30 fps, 1350 frames (45s) on the two videos
 - Soundtrack: "Inspired" by Kevin MacLeod (CC BY 4.0), with a fade in/out
 - Uses **real screenshots of the deployed app** as its product shots
 
@@ -26,34 +27,41 @@ npm run render:vertical # -> out/postcode-atlas-demo-vertical.mp4
 
 # Render a single poster frame
 npm run poster          # -> out/poster.png (frame 430)
+
+# Render the social share card into the app's public/ folder
+npm run og               # -> ../public/og.png (1200 x 630)
 ```
 
 Rendering downloads a headless browser shell on first run, so the first
 `npm run render` takes a little longer.
 
-## The two cuts
+## The cuts and the share card
 
 | Composition | Size | For |
 | --- | --- | --- |
 | `PostcodeAtlasDemo` | 1920 x 1080 (16:9) | LinkedIn feed, YouTube, the website |
 | `PostcodeAtlasDemoVertical` | 1080 x 1920 (9:16) | Reels, Shorts, TikTok, Stories |
+| `PostcodeAtlasOG` | 1200 x 630 (1.91:1) | Link previews: LinkedIn, X, WhatsApp, Slack, Discord |
 
-Both are 45s at 30 fps and share the same six scenes, soundtrack and credits. The
+The two videos are 45s at 30 fps and share the same six scenes, soundtrack and credits. The
 vertical cut (`src/Vertical.tsx`) shows the whole 16:9 frame, scaled to the
 canvas width and centred, over a blurred, dimmed fill of the same frames so the
 extra height reads as an intentional backdrop rather than empty space. The
 visuals live in `DemoVisual`; `Music` is composed once per cut so the 9:16
 reframe does not double the soundtrack.
 
-Rendering downloads a headless browser shell on first run, so the first
-`npm run render` takes a little longer.
+`PostcodeAtlasOG` (`src/OpenGraph.tsx`) is a static card: a real Lagos map
+capture behind the brand, the "Ask Atlas" headline, the four language chips and
+the live URL. It is centre-weighted so it still reads if a client crops it to a
+square. `npm run og` writes it to the app's `public/og.png`, which the app's
+`index.html` references with absolute `og:image` / `twitter:image` URLs.
 
 ## Storyline (6 scenes)
 
 | # | Frames | Scene | Message |
 |---|--------|-------|---------|
 | 1 | 0–195 | Hook | Every Nigerian address has a postcode — finding yours shouldn't need a manual. |
-| 2 | 195–390 | Problem | One address, six levels, eleven characters. Structured data, hard to navigate. |
+| 2 | 195–390 | Problem | One address, five levels, eleven characters. Structured data, hard to navigate. |
 | 3 | 390–690 | Answer | Ask Atlas: ask in plain language, get grounded answers with a "Verified against NIPOST postcode data" footer. |
 | 4 | 690–900 | Grounded | It never invents a postcode — facts come from NIPOST's NDAPS data, and unverifiable replies are labelled honestly. |
 | 5 | 900–1140 | More than answers | It moves the map and decodes any code into its five NDAPS segments. |

@@ -21,7 +21,7 @@ export const Problem: React.FC = () => {
       <AbsoluteFill style={{ opacity: env, padding: '150px 140px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 54 }}>
         <Kicker>the problem</Kicker>
         <Heading size={92} style={{ ...head, maxWidth: 1300 }}>
-          One address. Six levels.
+          One address. Five levels.
           <br />
           Eleven characters.
         </Heading>
@@ -46,7 +46,7 @@ export const Problem: React.FC = () => {
         </div>
 
         <Body size={34} style={{ ...body, maxWidth: 1180 }}>
-          The data is structured — but navigating six levels to reach one code takes expertise.
+          The data is structured — but navigating five levels to reach one code takes expertise.
         </Body>
       </AbsoluteFill>
     </Stage>
