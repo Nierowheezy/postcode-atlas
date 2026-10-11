@@ -54,6 +54,7 @@ export function buildSystemPrompt(
     '- A districts or areas result is partial when truncated is true: say how many you received.',
     '- If a tool returns nothing or an error, say so plainly and ask to narrow.',
     '- Only answer questions about Nigerian postcodes, places, and the Atlas platform; for anything else, say you cannot help with that and offer a Nigerian place or postcode instead.',
+    '- Move the map only when the user asks to see, show, go to, or zoom into a Nigerian place. Use the reset target only when the user explicitly asks to reset, clear, or show all of Nigeria; never reset the map to answer a question about a place.',
     ...(followUp ? referentBlock(context) : []),
     '',
     'A greeting or chat ("hi", "hello", "good morning", "thank you", "how are you") is NOT a request: reply with one friendly sentence inviting a Nigerian postcode or place question. Never call a tool for a greeting.',

@@ -72,17 +72,17 @@ and deployment readiness. Adapt it to the project as implementation progresses.
 
 - [x] 10. **Conversation context** - support follow-up questions using the current location, selected map state, and previous conversation
 
-- [ ] 11. **Nigerian query handling** - support common Nigerian English phrasing and location terminology
+- [x] 11. **Nigerian query handling** - support common Nigerian English phrasing and location terminology
 
-- [ ] 12. **Ambiguity handling** - ask for clarification when a location or postcode request cannot be resolved confidently
+- [x] 12. **Ambiguity handling** - ask for clarification when a location or postcode request cannot be resolved confidently
 
-- [ ] 13. **AI evaluation benchmark** - test N-ATLAS against representative Nigerian postcode and location queries
+- [x] 13. **AI evaluation benchmark** - test N-ATLAS against representative Nigerian postcode and location queries
 
-- [ ] 14. **Production hardening** - handle API failures, invalid tool calls, loading states, rate limits, and security
+- [x] 14. **Production hardening** - handle API failures, invalid tool calls, loading states, rate limits, and security
 
-- [ ] 15. **Challenge-ready demo** - polish the end-to-end conversational Atlas experience for the N-ATLAS Innovation Challenge
+- [x] 15. **Challenge-ready demo** - polish the end-to-end conversational Atlas experience for the N-ATLAS Innovation Challenge
 
-- [ ] 16. **Deployment readiness** - deploy and verify the production application and N-ATLAS integration
+- [x] 16. **Deployment readiness** - deploy and verify the production application and N-ATLAS integration
 
 ## Post-MVP
 

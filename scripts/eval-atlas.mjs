@@ -294,6 +294,13 @@ for (const c of cases) {
   let state;
   for (const t of turns) {
     state = await sendTurn(page, t);
+    // An empty reply (no text and no grounding meter) is an infrastructure
+    // hiccup - a cold model, a dropped stream - not a wrong answer. Retry the
+    // same turn once so the benchmark scores capability, not flakiness.
+    if (!state.reply && !state.meter) {
+      await page.waitForTimeout(600);
+      state = await sendTurn(page, t);
+    }
     await page.waitForTimeout(400);
   }
   const after = await readState(page);

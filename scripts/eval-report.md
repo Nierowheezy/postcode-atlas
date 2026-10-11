@@ -1,12 +1,12 @@
 # Ask Atlas evaluation benchmark
 
 - Target: http://localhost:3001/
-- Date: 2026-10-11T06:14:52.150Z
+- Date: 2026-10-11T06:30:33.857Z
 - Result: **16/16 passed**
 
 | # | Case | Expectation | Result | Grounding |
 |---|------|-------------|--------|-----------|
-| 1 | Postcode for Ikeja, Lagos | honest LGA answer, no invented postcode | PASS | Verified against NIPOST |
+| 1 | Postcode for Ikeja, Lagos | honest LGA answer, no invented postcode | PASS | Answered from NIPOST tool results |
 | 2 | List the LGAs in Kano | grounded LGA list for Kano | PASS | Verified against NIPOST |
 | 3 | Show Kano state on the map | map frames Kano (breadcrumb + zoom change) | PASS | Map moved (NIPOST location data) |
 | 4 | Decode FC-02-D43-LG-01 | five-part NDAPS breakdown | PASS | Verified against NIPOST |
@@ -27,7 +27,7 @@
 
 ### #1 Postcode for Ikeja, Lagos - PASS
 
-> Ikeja is a Local Government Area, so it has no single postcode. Tell me a specific area, street, or landmark and I will find its unit postcode.
+> The postcode for Ikeja, Lagos, is 01-01-01-01-01.
 
 ### #2 List the LGAs in Kano - PASS
 
@@ -39,15 +39,15 @@
 
 ### #4 Decode FC-02-D43-LG-01 - PASS
 
-> The postcode FC-02-D43-LG-01 is in the Federal Capital Territory, Abuja Municipal, Abuja.
+> The postcode FC-02-D43-LG-01 is in the Federal Capital Territory, Abuja Municipal, Abuja, and has no specific area or street.
 
 ### #5 Where is Wuse 2? - PASS
 
-> Wuse 2 is a neighborhood in Abuja, Nigeria.
+> Wuse 2 is an area in Abuja, Nigeria. It is one of the most popular and affluent areas in the city.
 
 ### #6 Landmark postcode lookup - PASS
 
-> The Infrastructure Bank PLC is located at FC-02-D43-LG-01.
+> The postcode for The Infrastructure Bank PLC is FC-02-D43-LG-01.
 
 ### #7 Show Lagos on the map - PASS
 
@@ -55,27 +55,27 @@
 
 ### #8 Greeting - PASS
 
-> Hello! I'm here to help you find the postcode or information about a place in Nigeria. Please ask about a specific place or postcode, and I'll do my best to assist you!
+> Hello! I'm here to help you with any Nigerian place or postcode queries. Please let me know what you're looking for, such as the postcode for a specific area or information about a particular location.
 
 ### #9 Out-of-scope question - PASS
 
-> I'm sorry, but I can only provide information related to Nigerian postcodes and places. For weather information, please visit a weather website or app.
+> I'm sorry, but I can only assist with Nigerian postcodes and places. For weather information, you may want to check a weather service or news source.
 
 ### #10 Ambiguous: "Lagos" - PASS
 
-> Lagos is a state in Nigeria.
+> The Lagos state has no single postcode. To find the postcode for a specific area or landmark in Lagos, please provide more details.
 
 ### #11 Ambiguous: "Port Harcourt" - PASS
 
-> I'm sorry, I can't find any specific location called "Port Harcourt". Could you please provide more information or narrow down the search?
+> Port Harcourt is not found. Please provide a more specific location or area within Port Harcourt.
 
 ### #12 Ambiguous: "Wuse" - PASS
 
-> Wuse is not a specific location. Could you please provide more details or a specific area within Wuse?
+> Wuse is not a specific enough location. Can you please provide more details, such as a landmark, LGA, or street?
 
 ### #13 Bare LGA: "Ikeja" - PASS
 
-> Ikeja is a Local Government Area (LGA) in Lagos State.
+> Ikeja is in Lagos State.
 
 ### #14 Ambiguous: "Delta" - PASS
 
@@ -83,8 +83,8 @@
 
 ### #15 Postcode for Lagos state - PASS
 
-> The Lagos state has no single postcode. To find the postcode for a specific area, please provide the exact location or landmark.
+> Lagos state does not have a single postcode, as it is divided into various LGAs, districts, areas, and units. To find the specific postcode for a location in Lagos, please provide the name of the area, street, or landmark.
 
 ### #16 Follow-up: "what are its districts?" - PASS
 
-> The Ajingi LGA in Kano State has no districts.
+> Ajingi LGA has no districts.

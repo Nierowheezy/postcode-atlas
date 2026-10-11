@@ -1,6 +1,6 @@
 # Postcode Atlas - Work Summary
 
-_Last updated: 2026-10-10_
+_Last updated: 2026-10-11_
 
 A running summary of the Ask Atlas work: what was built, what is verified
 working, and what is still limited. Written so it can double as source material
@@ -89,6 +89,27 @@ N-ATLAS), each in a fresh session, with the model provider reporting `natlas`:
 Gates: `tsc --noEmit` clean, production `vite build` clean. Both domains return
 HTTP 200 and answer with `provider: natlas`.
 
+## Evaluation benchmark (feature 13)
+
+`npm run eval` (`scripts/eval-atlas.mjs`) drives the real chat UI in a headless
+browser through **16 representative queries** and asserts the invariants that
+matter for the challenge:
+
+- **Only N-ATLAS answers** - every reply reports `provider: natlas`.
+- **No postcode is ever invented** - a dashed postcode must be backed by a
+  "Verified against NIPOST postcode data" footer.
+- **The right family of answer** - lookup, LGA list, decode, map move, refusal,
+  or small-talk.
+- **Ambiguity is handled** - "Lagos", "Port Harcourt", "Wuse", "Delta", and bare
+  "Ikeja" never fabricate a code; they resolve or ask.
+- **Follow-ups resolve** - "what are its districts?" stays on the previous place.
+
+It reads the grounding meter, the verified-postcode guard, the top-bar
+breadcrumb, and the map zoom, then writes a pass/fail matrix to
+`scripts/eval-report.md` (and `.json`).
+
+Result: **16/16 passed** against the local N-ATLAS server.
+
 ## What is NOT working (honest limitations)
 
 - **Districts and areas lists are empty.** The bundled dataset ships 0 districts
@@ -106,7 +127,8 @@ HTTP 200 and answer with `provider: natlas`.
 - **Production depends on the Mac.** If the Mac sleeps or loses internet, Ask
   Atlas returns 503. It is a free-tier, laptop-hosted demo by design.
 - **No unit tests yet.** The test gate is off; verification is `tsc` +
-  production build + browser evidence.
+  production build, the `npm run eval` browser benchmark, and manual browser
+  evidence.
 - **Security follow-up:** the ngrok authtoken was echoed in an earlier log and
   should be rotated.
 
@@ -138,6 +160,8 @@ HTTP 200 and answer with `provider: natlas`.
 >   postcode questions
 > - no conversation history leaking stale places into a new question
 > - verified footers, so you can see when an answer is backed by real data
+> - a 16-case browser benchmark that fails loudly if the model ever invents a
+>   postcode or drops the wrong tool
 >
 > What works today: postcode lookups, decoding, LGA lists, landmark postcodes,
 > map navigation, follow-ups, greetings and graceful "out of scope" replies.
