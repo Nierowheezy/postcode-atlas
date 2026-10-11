@@ -11,6 +11,8 @@
     "clean": "rm -rf dist",
     "dataset": "node scripts/build-atlas-dataset.mjs",
     "eval": "node scripts/eval-atlas.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
@@ -35,6 +37,7 @@
     "autoprefixer": "^10.4.21",
     "playwright": "^1.63.0",
     "tailwindcss": "^4.3.3",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
   }
 }

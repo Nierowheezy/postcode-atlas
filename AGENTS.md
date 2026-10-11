@@ -204,19 +204,16 @@ checks do not make the BuildFlow unusable.
 
 ## Commands
 
-<!-- buildflow:onboarding-required -->
-For a standard Next.js project. Change or remove if you're using something else.
-
-- Dev server: `npm run dev` (http://localhost:3000)
+- Dev server: `npm run dev` (http://localhost:3001; serves the `/api/ask` middleware)
 - Build: `npm run build`
-- Production server: `npm run start`
-- Lint: `npm run lint`
+- Production preview: `npm run start` (http://localhost:4173)
+- Typecheck: `npm run lint` (`tsc --noEmit`)
+- Unit tests: `npm run test` (`vitest run`); watch with `npm run test:watch`
+- Dataset snapshot: `npm run dataset` (regenerates `public/atlas-data.json` from NDAPS)
+- Browser benchmark: `npm run eval` (drives the real chat UI in system Chrome; writes `scripts/eval-report.md`)
 
-Testing is opt-in. If this project does not already have a unit test runner, run
-`/tests` or `$tests` to add one and update this section with the real test
-commands.
+Verify before merging: `npm run test && npm run lint && npm run build`.
 
-Browser testing is also opt-in. Run `/browser-tests` or `$browser-tests` to add
-or normalize a browser harness and document its exact command as `Browser
-tests`. Check and Continuous Mode can then reuse it without installing tooling
-mid-feature.
+Browser testing is opt-in. This project ships a browser benchmark (`npm run eval`),
+not a browser test suite. Run `/browser-tests` or `$browser-tests` to add or
+normalize a repeatable harness if you need one.
