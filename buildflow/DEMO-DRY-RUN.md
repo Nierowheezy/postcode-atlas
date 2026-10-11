@@ -88,10 +88,12 @@ model by Awarri & NCAIR." and a meter like `natlas / try 1`.
   the one thing that must never happen. Stop and report it.
 - **A listed question refuses or picks the wrong tool** - rare stochastic 8B
   behavior. Ask it once more; the eval retries once on a blank reply.
-- **Districts / areas** - "there are no districts in X" is a known limitation,
-  not a failure. NDAPS stores districts and areas code-only and the publishable
-  key is refused from browser origins; they cannot be bundled (about 290 MB, no
-  names). See `buildflow/WORK-SUMMARY.md`.
+- **Districts / areas** - asking for them now returns the honest line "I can't
+  list districts or areas: the offline dataset carries states and LGAs, and
+  NIPOST's district and area records are codes without names." That is correct
+  behavior, not a failure. NDAPS stores districts and areas code-only and the
+  publishable key is refused from browser origins; they cannot be bundled (about
+  290 MB, no names). See `buildflow/WORK-SUMMARY.md`.
 - **"Near me"** - returns no units (upstream gateway is empty). Known limitation.
 - **Local dev only** - after any server-side change, restart `npm run dev`; Vite
   HMR does not reload the `/api/ask` middleware.

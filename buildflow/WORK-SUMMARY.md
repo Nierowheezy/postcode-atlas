@@ -86,7 +86,7 @@ N-ATLAS), each in a fresh session, with the model provider reporting `natlas`:
 - **Out-of-scope** ("weather in Lagos") - graceful refusal, no invented data.
 - **UI** - persisted chat, type-"delete" confirm, resizable panel, light/dark map.
 
-Gates: `npm run test` (26 unit tests), `tsc --noEmit` clean, production
+Gates: `npm run test` (30 unit tests), `tsc --noEmit` clean, production
 `vite build` clean. Both domains return HTTP 200 and answer with
 `provider: natlas`.
 
@@ -123,7 +123,9 @@ N-ATLAS path.
   read-through never returns. Bundling them is not a fix either: NDAPS has about
   222,277 districts and about 5M areas, a roughly 290 MB snapshot that would add
   no names. The postcode structure still decodes district and area segments
-  locally (for example `D43`, `LG`).
+  locally (for example `D43`, `LG`). Ask Atlas now answers this honestly: an
+  empty district or area scope returns "I can't list districts or areas..." with
+  the reason, instead of claiming none exist.
 - **"Near me" is effectively empty.** The NIPOST nearby gateway returns no units
   and the browser origin is blocked, so the honest answer is "no postcodes
   within 300 m".
@@ -144,10 +146,9 @@ N-ATLAS path.
 
 ## Next steps
 
-- Districts/areas: bundling is infeasible (code-only, about 290 MB, and the
-  browser origin is key-blocked). The realistic options are a same-origin server
-  proxy that reads NDAPS with a server-side key and returns the code-only lists,
-  or an explicit "not available offline" reply instead of a bare "none".
+- Districts/areas: the honest "not available offline" reply is shipped. The
+  remaining option is a same-origin server proxy that reads NDAPS with a
+  server-side key and returns the code-only lists.
 - Explore a hosted model fallback so the demo is not laptop-bound.
 
 ## LinkedIn draft (edit before posting)
