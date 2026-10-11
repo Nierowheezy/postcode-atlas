@@ -16,6 +16,7 @@ Instead of a postcode as an opaque string, NDAPS encodes a full administrative h
 - [Getting started](#getting-started)
 - [Environment variables](#environment-variables)
 - [Deployment to Vercel](#deployment-to-vercel)
+- [Local inference (N-ATLAS)](docs/local-inference.md)
 - [Architecture notes](#architecture-notes)
 - [Security notes](#security-notes)
 - [Scripts](#scripts)
@@ -104,6 +105,8 @@ postcode-atlas/
 ├── api/
 │   └── ask.ts                  # Vercel Function: POST /api/ask (Ask Atlas)
 ├── CHANGELOG.md                # Release history (Keep a Changelog)
+├── docs/
+│   └── local-inference.md      # Serving N-ATLAS from a Mac (reference deployment)
 ├── scripts/                    # Dataset snapshot + evaluation benchmark
 │   ├── build-atlas-dataset.mjs # Regenerates public/atlas-data.json
 │   └── eval-atlas.mjs          # 16-case Ask Atlas browser benchmark
@@ -206,7 +209,7 @@ The app builds to a fully static bundle and talks to the NIPOST gateway directly
    VITE_NIPOST_PUBLISHABLE_KEY = nipost_pk_...
    ```
 
-   Apply to Production, Preview, and Development. For Ask Atlas, also add at least one server-side provider key (`GEMINI_API_KEY`, plus `OPENROUTER_API_KEY` / `NVIDIA_API_KEY` for failover) and, optionally, `NATLAS_BASE_URL` to route through N-ATLAS. These are read by the `/api/ask` function only and never reach the browser.
+   Apply to Production, Preview, and Development. For Ask Atlas, also add at least one server-side provider key (`GEMINI_API_KEY`, plus `OPENROUTER_API_KEY` / `NVIDIA_API_KEY` for failover) and, optionally, `NATLAS_BASE_URL` to route through N-ATLAS. These are read by the `/api/ask` function only and never reach the browser. See [`docs/local-inference.md`](docs/local-inference.md) for how the local N-ATLAS endpoint is stood up and pinned.
 
 3. **Deploy.** `vercel.json` already sets `buildCommand: npm run build` and `outputDirectory: dist`, plus a catch-all rewrite so client-side routes resolve on refresh. Vercel should detect the framework as Vite; if not, set the preset manually.
 
@@ -226,7 +229,7 @@ The app builds to a fully static bundle and talks to the NIPOST gateway directly
 
 **Geolocation is opt-in.** Coordinates are only transmitted when the user presses locate. Nothing is collected passively.
 
-**Ask Atlas is a server-side provider chain.** `POST /api/ask` validates and caches requests, then calls an OpenAI-compatible chain — optional N-ATLAS first (when `NATLAS_BASE_URL` is set), then Gemini, OpenRouter and NVIDIA — retrying and falling over on rate limits and quota errors. Keys come from `process.env`; none are `VITE_`-prefixed.
+**Ask Atlas is a server-side provider chain.** `POST /api/ask` validates and caches requests, then calls an OpenAI-compatible chain — optional N-ATLAS first (when `NATLAS_BASE_URL` is set), then Gemini, OpenRouter and NVIDIA — retrying and falling over on rate limits and quota errors. Keys come from `process.env`; none are `VITE_`-prefixed. The N-ATLAS reference deployment is documented in [`docs/local-inference.md`](docs/local-inference.md).
 
 **Ask Atlas is honest by construction.** The client drives a multi-round tool-calling loop against read-only Atlas tools (states, LGAs, districts, areas, postcodes, decode, landmarks, nearby, map navigation). Replies that cite a tool result carry a "Verified against NIPOST postcode data" footer; a postcode-invention guard strips any code the tools never returned and the user never typed; out-of-scope questions are refused rather than guessed; and pure map moves produce deterministic replies.
 
