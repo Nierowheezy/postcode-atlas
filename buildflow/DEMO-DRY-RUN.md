@@ -80,6 +80,47 @@ Also exercise the UI:
 Every reply ends with a footer: "Served by N-ATLAS, Nigeria's open multilingual
 model by Awarri & NCAIR." and a meter like `natlas / try 1`.
 
+## Judge cheat sheet (the 16 tested questions)
+
+These are the exact cases in `scripts/eval-atlas.mjs`; the committed report at
+`scripts/eval-report.md` scores **16/16**. Ask them one at a time and match the
+grounding footer, which is the real proof the answer came from NIPOST data and
+not from the model's memory.
+
+| # | Ask | Expected result | Grounding footer |
+| --- | --- | --- | --- |
+| 1 | `What is the postcode for Ikeja, Lagos?` | Says Ikeja is an LGA, so it has no single postcode; asks for a specific area | Verified against NIPOST |
+| 2 | `List the LGAs in Kano` | Grounded list of the 44 Kano LGAs | Verified against NIPOST |
+| 3 | `Show me Kano state on the map` | Map frames Kano (breadcrumb + zoom change) | Map moved (NIPOST location data) |
+| 4 | `Decode FC-02-D43-LG-01` | Five-part breakdown (state, LGA, district, area, unit) | Verified against NIPOST |
+| 5 | `Where is Wuse 2?` | Locates Wuse 2 in Abuja/FCT | Answered from NIPOST tool results |
+| 6 | `What is the postcode of The Infrastructure Bank PLC?` | Honest: no single postcode; asks for a street | Answered from NIPOST tool results |
+| 7 | `Show me Lagos on the map` | Map frames Lagos | Map moved (NIPOST location data) |
+| 8 | `hello` | Friendly chat, **no data footer at all** | No data footer |
+| 9 | `What's the weather in Lagos today?` | Graceful refusal; no invented data | Not verified |
+| 9b | `Lagos` (bare) | Explains a state has no single postcode; asks to narrow | Verified against NIPOST |
+| 11 | `Port Harcourt` | Honest city answer (not in the LGA snapshot) | Answered from NIPOST tool results |
+| 12 | `Wuse` | Says Wuse is an area in Abuja with no single postcode | Answered from NIPOST tool results |
+| 13 | `Ikeja` | Places Ikeja in Lagos State; no invented code | Verified against NIPOST |
+| 14 | `Delta` | Treats it as a state and resets the national view | Map moved (NIPOST location data) |
+| 15 | `What is the postcode for Lagos state?` | States plainly that a state has no single postcode | Answered from NIPOST tool results |
+| 16 | `List the LGAs in Kano` then `what are its districts?` | Follow-up stays on Kano and answers honestly | Answered from NIPOST tool results |
+
+### Footer legend (what each label claims)
+
+| Footer | Means |
+| --- | --- |
+| `Verified against NIPOST postcode data` | The app holds a payload it derived from an executed tool result |
+| `Answered from NIPOST tool results` | A tool ran, but no postcode payload is shown (e.g. an empty nearby search) |
+| `Map moved using NIPOST location data` | A map move - no postcode data was shown |
+| `Not verified against NIPOST data` | No tool result backs this reply |
+| *(no data footer)* | Pure chat, e.g. `hello` - the reply never claimed to be data |
+
+### Reply-language chips
+
+Switch the panel's reply-language chip to **English / Yorùbá / Hausa / Igbo** and
+ask #1 again: the answer changes language, the grounding and the tool call do not.
+
 ## 5. Watch For
 
 - **503 or "all providers unavailable"** - the Mac is asleep, or the tunnel or
@@ -132,7 +173,7 @@ results" footer.
 - `npm run eval` (local) or
   `ATLAS_URL=https://nigerian-postalcode-atlas.vercel.app/ npm run eval` (prod)
   -> expect **16/16**, report at `scripts/eval-report.md`.
-- `npm run test` (26 unit tests), `npm run lint`, `npm run build`.
+- `npm run test` (38 unit tests), `npm run lint`, `npm run build`.
 - Chrome DevTools > Network: `POST /api/ask` returns 200 with
   `engine.provider: "natlas"`, `attempt: 1`.
 
