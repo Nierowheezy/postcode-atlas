@@ -1,0 +1,167 @@
+{
+  "target": "http://localhost:3001/",
+  "passed": 16,
+  "total": 16,
+  "results": [
+    {
+      "n": 1,
+      "name": "Postcode for Ikeja, Lagos",
+      "expect": "honest LGA answer, no invented postcode",
+      "pass": true,
+      "failures": [],
+      "grounding": "Verified against NIPOST",
+      "meter": "natlas · try 1",
+      "reply": "Ikeja is a Local Government Area, so it has no single postcode. Tell me a specific area, street, or landmark and I will find its unit postcode."
+    },
+    {
+      "n": 2,
+      "name": "List the LGAs in Kano",
+      "expect": "grounded LGA list for Kano",
+      "pass": true,
+      "failures": [],
+      "grounding": "Verified against NIPOST",
+      "meter": "natlas · try 1",
+      "reply": "The LGAs in Kano are Ajingi, Albasu, Bagwai, Bebeji, Bichi, Bunkure, Dala, Dambatta, Dawakin Kudu, Dawakin Tofa, Doguwa, Fagge, Gabasawa, Garko, Garum Mallam, Gaya, Gezawa, Gwale, Gwarzo, Kabo, Kano Municipal, Karaye, Kibiya, Kiru, Kumbotso, Kunchi, Kura, Madobi, Makoda, Minjibir, Nasarawa, Rano, Rimin Gado, Rogo, Shanono, Sumaila, Takai, Tarauni, Tofa, Tsanyawa, Tudun Wada, Ungogo, Warawa, and Wudil."
+    },
+    {
+      "n": 3,
+      "name": "Show Kano state on the map",
+      "expect": "map frames Kano (breadcrumb + zoom change)",
+      "pass": true,
+      "failures": [],
+      "grounding": "Map moved (NIPOST location data)",
+      "meter": "natlas · try 1",
+      "reply": "Showing Kano on the map."
+    },
+    {
+      "n": 4,
+      "name": "Decode FC-02-D43-LG-01",
+      "expect": "five-part NDAPS breakdown",
+      "pass": true,
+      "failures": [],
+      "grounding": "Verified against NIPOST",
+      "meter": "natlas · try 1",
+      "reply": "The postcode FC-02-D43-LG-01 is in the Federal Capital Territory, Abuja Municipal, Abuja."
+    },
+    {
+      "n": 5,
+      "name": "Where is Wuse 2?",
+      "expect": "Abuja/FCT location, grounded or honest",
+      "pass": true,
+      "failures": [],
+      "grounding": "Answered from NIPOST tool results",
+      "meter": "natlas · try 1",
+      "reply": "Wuse 2 is a neighborhood in Abuja, Nigeria."
+    },
+    {
+      "n": 6,
+      "name": "Landmark postcode lookup",
+      "expect": "verified landmark postcode or honest",
+      "pass": true,
+      "failures": [],
+      "grounding": "Verified against NIPOST",
+      "meter": "natlas · try 1",
+      "reply": "The Infrastructure Bank PLC is located at FC-02-D43-LG-01."
+    },
+    {
+      "n": 7,
+      "name": "Show Lagos on the map",
+      "expect": "map frames Lagos (breadcrumb + zoom change)",
+      "pass": true,
+      "failures": [],
+      "grounding": "Map moved (NIPOST location data)",
+      "meter": "natlas · try 1",
+      "reply": "Showing Lagos on the map."
+    },
+    {
+      "n": 8,
+      "name": "Greeting",
+      "expect": "friendly, no tool call, no data",
+      "pass": true,
+      "failures": [],
+      "grounding": "Not verified",
+      "meter": "natlas · try 1",
+      "reply": "Hello! I'm here to help you find the postcode or information about a place in Nigeria. Please ask about a specific place or postcode, and I'll do my best to assist you!"
+    },
+    {
+      "n": 9,
+      "name": "Out-of-scope question",
+      "expect": "graceful refusal, no invented data",
+      "pass": true,
+      "failures": [],
+      "grounding": "Not verified",
+      "meter": "natlas · try 1",
+      "reply": "I'm sorry, but I can only provide information related to Nigerian postcodes and places. For weather information, please visit a weather website or app."
+    },
+    {
+      "n": 10,
+      "name": "Ambiguous: \"Lagos\"",
+      "expect": "resolves or asks; never a fake postcode",
+      "pass": true,
+      "failures": [],
+      "grounding": "Verified against NIPOST",
+      "meter": "natlas · try 1",
+      "reply": "Lagos is a state in Nigeria."
+    },
+    {
+      "n": 11,
+      "name": "Ambiguous: \"Port Harcourt\"",
+      "expect": "honest city/LGA answer",
+      "pass": true,
+      "failures": [],
+      "grounding": "Answered from NIPOST tool results",
+      "meter": "natlas · try 1",
+      "reply": "I'm sorry, I can't find any specific location called \"Port Harcourt\". Could you please provide more information or narrow down the search?"
+    },
+    {
+      "n": 12,
+      "name": "Ambiguous: \"Wuse\"",
+      "expect": "narrows or resolves; no invented postcode",
+      "pass": true,
+      "failures": [],
+      "grounding": "Answered from NIPOST tool results",
+      "meter": "natlas · try 1",
+      "reply": "Wuse is not a specific location. Could you please provide more details or a specific area within Wuse?"
+    },
+    {
+      "n": 13,
+      "name": "Bare LGA: \"Ikeja\"",
+      "expect": "asks for a specific area, no invented postcode",
+      "pass": true,
+      "failures": [],
+      "grounding": "Verified against NIPOST",
+      "meter": "natlas · try 1",
+      "reply": "Ikeja is a Local Government Area (LGA) in Lagos State."
+    },
+    {
+      "n": 14,
+      "name": "Ambiguous: \"Delta\"",
+      "expect": "state, not a postcode",
+      "pass": true,
+      "failures": [],
+      "grounding": "Map moved (NIPOST location data)",
+      "meter": "natlas · try 1",
+      "reply": "Showing the whole of Nigeria again."
+    },
+    {
+      "n": 15,
+      "name": "Postcode for Lagos state",
+      "expect": "says a state has no single postcode",
+      "pass": true,
+      "failures": [],
+      "grounding": "Answered from NIPOST tool results",
+      "meter": "natlas · try 1",
+      "reply": "The Lagos state has no single postcode. To find the postcode for a specific area, please provide the exact location or landmark."
+    },
+    {
+      "n": 16,
+      "name": "Follow-up: \"what are its districts?\"",
+      "expect": "resolves \"its\" to Kano",
+      "pass": true,
+      "failures": [],
+      "grounding": "Answered from NIPOST tool results",
+      "meter": "natlas · try 1",
+      "reply": "The Ajingi LGA in Kano State has no districts."
+    }
+  ]
+}
