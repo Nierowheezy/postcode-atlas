@@ -34,7 +34,20 @@ describe('groundingBasis', () => {
         }),
       ),
     ).toBe('payload');
-    expect(groundingBasis(assistant({ nearby: { items: [], total: 0 } }))).toBe('payload');
+    expect(
+      groundingBasis(
+        assistant({
+          nearby: { items: [{ postcode: 'FC-02-D43-LG-01', distance_m: 280 }], total: 1 },
+        }),
+      ),
+    ).toBe('payload');
+  });
+
+  it('does not label an empty nearby search as a verified payload', () => {
+    // The tool ran but returned zero units: it verified nothing. A grounded
+    // reply is "answered from tool results"; an ungrounded one is unverified.
+    expect(groundingBasis(assistant({ nearby: { items: [], total: 0 }, grounding: 'atlas' }))).toBe('tools');
+    expect(groundingBasis(assistant({ nearby: { items: [], total: 0 }, grounding: 'unverified' }))).toBe('none');
   });
 
   it('labels a map move as a map move, even with a question attached', () => {

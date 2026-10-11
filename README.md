@@ -250,7 +250,7 @@ This deployment shape is only safe because the NIPOST key in use is the **publis
 | `npm run build` | Build the production bundle into `dist/` |
 | `npm run preview` | Serve the built bundle locally |
 | `npm run lint` | Type-check with `tsc --noEmit` |
-| `npm run test` | Run the Vitest unit suite (37 tests) |
+| `npm run test` | Run the Vitest unit suite (38 tests) |
 | `npm run test:watch` | Run Vitest in watch mode |
 | `npm run dataset` | Regenerate `public/atlas-data.json` from NDAPS |
 | `npm run eval` | Drive the real chat UI through the 16-case Ask Atlas benchmark, writing `scripts/eval-report.md` |

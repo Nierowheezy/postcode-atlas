@@ -87,7 +87,7 @@ N-ATLAS), each in a fresh session, with the model provider reporting `natlas`:
 - **Out-of-scope** ("weather in Lagos") - graceful refusal, no invented data.
 - **UI** - persisted chat, type-"delete" confirm, resizable panel, light/dark map.
 
-Gates: `npm run test` (37 unit tests), `tsc --noEmit` clean, production
+Gates: `npm run test` (38 unit tests), `tsc --noEmit` clean, production
 `vite build` clean. Both domains return HTTP 200 and answer with
 `provider: natlas`.
 
@@ -129,7 +129,9 @@ N-ATLAS path.
   the reason, instead of claiming none exist.
 - **"Near me" is effectively empty.** The NIPOST nearby gateway returns no units
   and the browser origin is blocked, so the honest answer is "no postcodes
-  within 300 m".
+  within 300 m". The reply is labelled "Answered from NIPOST tool results" (a
+  tool ran and found nothing) rather than "Verified against NIPOST postcode
+  data", since an empty search verifies no postcode.
 - **Map precision is ~4/5.** Occasionally a request for an LGA frames its parent
   state instead. It is grounded and honest, just less precise.
 - **Stochastic 8B mistakes remain.** Rarely the model still picks the wrong tool
@@ -138,7 +140,7 @@ N-ATLAS path.
   refusal.
 - **Production depends on the Mac.** If the Mac sleeps or loses internet, Ask
   Atlas returns 503. It is a free-tier, laptop-hosted demo by design.
-- **Unit tests cover logic only.** 37 Vitest tests cover the postcode guards,
+- **Unit tests cover logic only.** 38 Vitest tests cover the postcode guards,
   follow-up and small-talk detection, the grounding footer labels, and the
   referent and map derivations.
   Component and end-to-end behavior is still verified by the `npm run eval`

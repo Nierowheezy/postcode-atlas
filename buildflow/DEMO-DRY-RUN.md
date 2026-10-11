@@ -94,7 +94,9 @@ model by Awarri & NCAIR." and a meter like `natlas / try 1`.
   behavior, not a failure. NDAPS stores districts and areas code-only and the
   publishable key is refused from browser origins; they cannot be bundled (about
   290 MB, no names). See `buildflow/WORK-SUMMARY.md`.
-- **"Near me"** - returns no units (upstream gateway is empty). Known limitation.
+- **"Near me"** - returns no units (upstream gateway is empty) and the reply
+  shows "Answered from NIPOST tool results" - the tool ran and found nothing,
+  so it does not claim a verified payload. Known limitation.
 - **Local dev only** - after any server-side change, restart `npm run dev`; Vite
   HMR does not reload the `/api/ask` middleware.
 

@@ -34,8 +34,16 @@ export type GroundingBasis = 'payload' | 'map' | 'tools' | 'chat' | 'none';
  */
 export function groundingBasis(message: AskAtlasMessage): GroundingBasis {
   // A payload is derived client-side from an executed tool result, so it
-  // carries its own proof.
-  if (message.lookup || message.results || message.decoded || message.nearby) return 'payload';
+  // carries its own proof. An empty nearby search verifies nothing: the tool
+  // ran and found zero units, so it falls through to the tool-results label
+  // (or the unverified line) instead of claiming a verified payload.
+  if (
+    message.lookup ||
+    message.results ||
+    message.decoded ||
+    (message.nearby && message.nearby.items.length > 0)
+  )
+    return 'payload';
   // A map move shows no postcode data, so it is labelled for what it is rather
   // than claiming postcode verification.
   if (message.mapAction) return 'map';
