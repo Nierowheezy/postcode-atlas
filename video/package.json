@@ -1,0 +1,26 @@
+{
+  "name": "postcode-atlas-demo-video",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Remotion demo video for Nigerian Postcode Atlas (Ask Atlas, N-ATLAS integration).",
+  "type": "module",
+  "scripts": {
+    "dev": "remotion studio",
+    "render": "remotion render PostcodeAtlasDemo out/postcode-atlas-demo.mp4",
+    "poster": "remotion still PostcodeAtlasDemo out/poster.png --frame=430",
+    "captures": "node scripts/capture-stills.mjs",
+    "upgrade": "remotion upgrade"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.534",
+    "@remotion/google-fonts": "4.0.534",
+    "react": "19.0.1",
+    "react-dom": "19.0.1",
+    "remotion": "4.0.534"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "typescript": "5.9.3"
+  }
+}
