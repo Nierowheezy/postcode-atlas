@@ -25,7 +25,7 @@ export const RemotionRoot: React.FC = () => (
       width={VERTICAL_WIDTH}
       height={VERTICAL_HEIGHT}
     />
-    {/* 1.91:1 — the social share card, rendered to the app's public/og.png. */}
+    {/* 1.91:1 — the social share card, rendered to the app's public/og.jpg. */}
     <Composition
       id="PostcodeAtlasOG"
       component={OpenGraphCard}

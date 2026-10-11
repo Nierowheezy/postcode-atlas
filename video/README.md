@@ -29,7 +29,7 @@ npm run render:vertical # -> out/postcode-atlas-demo-vertical.mp4
 npm run poster          # -> out/poster.png (frame 430)
 
 # Render the social share card into the app's public/ folder
-npm run og               # -> ../public/og.png (1200 x 630)
+npm run og               # -> ../public/og.jpg (1200 x 630, JPEG, ~70 KB)
 ```
 
 Rendering downloads a headless browser shell on first run, so the first
@@ -53,7 +53,8 @@ reframe does not double the soundtrack.
 `PostcodeAtlasOG` (`src/OpenGraph.tsx`) is a static card: a real Lagos map
 capture behind the brand, the "Ask Atlas" headline, the four language chips and
 the live URL. It is centre-weighted so it still reads if a client crops it to a
-square. `npm run og` writes it to the app's `public/og.png`, which the app's
+square. `npm run og` writes it to the app's `public/og.jpg` (JPEG at quality 90,
+~70 KB — WhatsApp drops the thumbnail above ~300 KB), which the app's
 `index.html` references with absolute `og:image` / `twitter:image` URLs.
 
 ## Storyline (6 scenes)

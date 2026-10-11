@@ -2,7 +2,7 @@
  * The social share card (Open Graph / Twitter Card image).
  *
  * Static by design: no frame hooks, so `remotion still` renders the finished
- * card at frame 0. The app's `public/og.png` is generated from this via
+ * card at frame 0. The app's `public/og.jpg` is generated from this via
  * `npm run og`, so the link preview always matches the product brand.
  *
  * Layout is centre-weighted with the brand on top, the headline in the middle

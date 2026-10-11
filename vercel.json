@@ -17,7 +17,7 @@
     { "source": "/manifest.webmanifest", "destination": "/manifest.webmanifest" },
     { "source": "/version.json", "destination": "/version.json" },
     { "source": "/atlas-data.json", "destination": "/atlas-data.json" },
-    { "source": "/og.png", "destination": "/og.png" },
+    { "source": "/og.jpg", "destination": "/og.jpg" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
