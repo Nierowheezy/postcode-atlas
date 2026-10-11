@@ -22,12 +22,16 @@
  *   ATLAS_URL   base URL of the Atlas app (default http://localhost:3001/)
  *   HEADFUL=1   run with a visible browser window
  *   CASE=10,12  run only the listed case numbers
+ *   EVAL_REPORT report path base, default scripts/eval-report (.md/.json
+ *               appended); set to /tmp/... to benchmark production without
+ *               overwriting the committed local report
  */
 
 import { writeFileSync } from 'node:fs';
 import { chromium } from 'playwright';
 
 const BASE = process.env.ATLAS_URL || 'http://localhost:3001/';
+const REPORT_BASE = process.env.EVAL_REPORT || 'scripts/eval-report';
 const HEADFUL = process.env.HEADFUL === '1';
 const ONLY = (process.env.CASE || '')
   .split(',')
@@ -358,9 +362,9 @@ for (const r of results) {
 }
 lines.push('');
 
-const mdPath = 'scripts/eval-report.md';
+const mdPath = `${REPORT_BASE}.md`;
 writeFileSync(mdPath, lines.join('\n'));
-writeFileSync('scripts/eval-report.json', JSON.stringify({ target: BASE, passed, total: results.length, results }, null, 2));
+writeFileSync(`${REPORT_BASE}.json`, JSON.stringify({ target: BASE, passed, total: results.length, results }, null, 2));
 
 console.log(`\n${passed}/${results.length} passed -> ${mdPath}`);
 process.exit(passed === results.length ? 0 : 1);

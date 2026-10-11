@@ -108,7 +108,10 @@ It reads the grounding meter, the verified-postcode guard, the top-bar
 breadcrumb, and the map zoom, then writes a pass/fail matrix to
 `scripts/eval-report.md` (and `.json`).
 
-Result: **16/16 passed** against the local N-ATLAS server.
+Result: **16/16 passed** against the local N-ATLAS server, and **16/16 against
+production** (`ATLAS_URL=https://nigerian-postalcode-atlas.vercel.app/ npm run
+eval`), so the same battery passes over the live Vercel -> tunnel -> local
+N-ATLAS path.
 
 ## What is NOT working (honest limitations)
 
