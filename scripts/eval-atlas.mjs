@@ -59,7 +59,9 @@ const groundingLabel = (r) =>
       ? 'Map moved (NIPOST location data)'
       : FROM_TOOLS.test(r.full)
         ? 'Answered from NIPOST tool results'
-        : 'Not verified';
+        : UNVERIFIED.test(r.full)
+          ? 'Not verified'
+          : 'No data footer';
 const noInvented = (r) => postcodes(r.reply).length === 0 || hasVerified(r);
 const isNatlas = (r) => /natlas\s*·\s*try\s*\d+/i.test(r.meter);
 
