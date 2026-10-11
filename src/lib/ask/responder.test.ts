@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deriveMapAction, deriveReferent } from './responder';
+import { deriveMapAction, deriveReferent, hasEmptyScopeList } from './responder';
 import type { AskToolResult, AskToolTurn } from './types';
 
 function turn(...toolResults: AskToolResult[]): AskToolTurn {
@@ -101,5 +101,24 @@ describe('deriveMapAction', () => {
   it('ignores failed and non-map results', () => {
     expect(deriveMapAction([turn({ tool_call_id: 'c1', name: 'navigateMap', ok: false })])).toBeUndefined();
     expect(deriveMapAction([turn(ok('getState', { code: 'KN', name: 'Kano' }))])).toBeUndefined();
+  });
+});
+
+describe('hasEmptyScopeList', () => {
+  it('is true for an empty district page', () => {
+    expect(hasEmptyScopeList([turn(ok('getDistricts', { items: [], total: 0, truncated: false }))])).toBe(true);
+  });
+
+  it('is true for an empty area page', () => {
+    expect(hasEmptyScopeList([turn(ok('getAreas', { items: [], total: 0 }))])).toBe(true);
+  });
+
+  it('is false when the page has rows', () => {
+    expect(hasEmptyScopeList([turn(ok('getDistricts', { items: [{ code: 'A01' }], total: 1 }))])).toBe(false);
+  });
+
+  it('is false for a failed or unrelated result', () => {
+    expect(hasEmptyScopeList([turn({ tool_call_id: 'c1', name: 'getDistricts', ok: false })])).toBe(false);
+    expect(hasEmptyScopeList([turn(ok('getLgas', []))])).toBe(false);
   });
 });

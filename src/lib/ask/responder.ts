@@ -731,6 +731,13 @@ async function attachDerived(
     return { ...next, text: mapActionCopy(mapAction) };
   }
 
+  // A successful but empty getDistricts/getAreas means the offline dataset has no
+  // such rows (NDAPS stores them code-only), not that none exist. Never let a
+  // "there are no districts" style reply stand.
+  if (!next.lookup && !next.decoded && !next.results && hasEmptyScopeList(toolTurns)) {
+    return { ...next, text: SCOPE_UNAVAILABLE_COPY };
+  }
+
   const guarded = withVerifiedPostcodes(next, toolTurns, userText);
 
   // The user asked for a postcode but the tools only resolved a state or LGA,
@@ -766,6 +773,28 @@ function mapActionCopy(action: MapAction): string {
   if (action.target === 'lga') return `Showing ${action.lga.name} LGA, ${action.state.name}, on the map.`;
   return `Showing ${action.state.name} on the map.`;
 }
+
+/**
+ * True when a successful `getDistricts` or `getAreas` call came back with no
+ * rows. NDAPS stores both levels code-only, so an empty page means the offline
+ * snapshot has no such rows, not that none exist.
+ */
+export function hasEmptyScopeList(toolTurns: AskToolTurn[]): boolean {
+  for (const turn of toolTurns) {
+    for (const result of turn.toolResults) {
+      if (!result.ok || (result.name !== 'getDistricts' && result.name !== 'getAreas')) continue;
+      const page = result.data as { items?: unknown; total?: unknown } | null;
+      const rows = Array.isArray(page?.items) ? page.items.length : 0;
+      const total = typeof page?.total === 'number' && Number.isFinite(page.total) ? page.total : rows;
+      if (rows === 0 && total === 0) return true;
+    }
+  }
+  return false;
+}
+
+/** Honest reply for an empty district or area list, which is a data gap, not a "none". */
+const SCOPE_UNAVAILABLE_COPY =
+  "I can't list districts or areas: the offline dataset carries states and LGAs, and NIPOST's district and area records are codes without names. Ask about an LGA, a postcode, or the map instead.";
 
 /** Every postcode a tool actually returned, plus anything the user typed themselves. */
 function groundedPostcodes(toolTurns: AskToolTurn[], userText: string): Set<string> {
