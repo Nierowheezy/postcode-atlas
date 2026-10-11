@@ -86,8 +86,9 @@ N-ATLAS), each in a fresh session, with the model provider reporting `natlas`:
 - **Out-of-scope** ("weather in Lagos") - graceful refusal, no invented data.
 - **UI** - persisted chat, type-"delete" confirm, resizable panel, light/dark map.
 
-Gates: `tsc --noEmit` clean, production `vite build` clean. Both domains return
-HTTP 200 and answer with `provider: natlas`.
+Gates: `npm run test` (26 unit tests), `tsc --noEmit` clean, production
+`vite build` clean. Both domains return HTTP 200 and answer with
+`provider: natlas`.
 
 ## Evaluation benchmark (feature 13)
 
@@ -115,9 +116,14 @@ N-ATLAS path.
 
 ## What is NOT working (honest limitations)
 
-- **Districts and areas lists are empty.** The bundled dataset ships 0 districts
-  and 0 areas, so "what districts/areas are in X" returns "none". This is a data
-  gap, not a model bug; the postcode structure still decodes districts (D43).
+- **District and area lists are empty and cannot be bundled.** NDAPS does expose
+  districts and areas, but two things block a client-side list. They are
+  **code-only** (`{"code":"A01"}`, no names), and the publishable key is refused
+  from browser origins (`403 origin_not_allowed`), so the client's gateway
+  read-through never returns. Bundling them is not a fix either: NDAPS has about
+  222,277 districts and about 5M areas, a roughly 290 MB snapshot that would add
+  no names. The postcode structure still decodes district and area segments
+  locally (for example `D43`, `LG`).
 - **"Near me" is effectively empty.** The NIPOST nearby gateway returns no units
   and the browser origin is blocked, so the honest answer is "no postcodes
   within 300 m".
@@ -129,16 +135,19 @@ N-ATLAS path.
   refusal.
 - **Production depends on the Mac.** If the Mac sleeps or loses internet, Ask
   Atlas returns 503. It is a free-tier, laptop-hosted demo by design.
-- **No unit tests yet.** The test gate is off; verification is `tsc` +
-  production build, the `npm run eval` browser benchmark, and manual browser
-  evidence.
+- **Unit tests cover logic only.** 26 Vitest tests cover the postcode guards,
+  follow-up and small-talk detection, and the referent and map derivations.
+  Component and end-to-end behavior is still verified by the `npm run eval`
+  browser benchmark and manual browser evidence.
 - **Security follow-up:** the ngrok authtoken was echoed in an earlier log and
   should be rotated.
 
 ## Next steps
 
-- Add unit tests for `deriveReferent` and the postcode guard.
-- Bundle districts and areas into the offline dataset.
+- Districts/areas: bundling is infeasible (code-only, about 290 MB, and the
+  browser origin is key-blocked). The realistic options are a same-origin server
+  proxy that reads NDAPS with a server-side key and returns the code-only lists,
+  or an explicit "not available offline" reply instead of a bare "none".
 - Explore a hosted model fallback so the demo is not laptop-bound.
 
 ## LinkedIn draft (edit before posting)
