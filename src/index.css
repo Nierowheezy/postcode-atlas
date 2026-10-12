@@ -41,8 +41,22 @@
 /* Leaflet Container & Canvas */
 .leaflet-container {
   font-family: var(--font-geist-sans) !important;
-  background-color: #f6f6f5 !important;
+  /* Where no tile has arrived, or a basemap has none, this surface shows: a
+     faint survey grid reads as a deliberate backdrop instead of a blank white
+     page. Tiles and the pale OSM ground cover it wherever there is imagery. */
+  background-color: #f1f1ef !important;
+  background-image:
+    linear-gradient(rgba(17, 24, 39, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(17, 24, 39, 0.07) 1px, transparent 1px);
+  background-size: 44px 44px;
   outline: none;
+}
+
+.dark .leaflet-container {
+  background-color: #0b1220 !important;
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.09) 1px, transparent 1px);
 }
 
 /* Minimalist Mapbox-style popup */
@@ -214,19 +228,15 @@
 
 /* Mobile-first touch optimizations */
 @media (pointer: coarse) {
-  .leaflet-container {
-    touch-action: pan-x pan-y pinch-zoom;
-  }
+  /* Leaflet owns the map's touch-action through its own
+     `.leaflet-touch-drag.leaflet-touch-zoom` rule, which outranks anything set
+     here, so the container is left alone. Only the controls are pinned. */
   .leaflet-control-zoom,
   .leaflet-control-scale {
     touch-action: none;
   }
-  /* Larger hit targets for map markers */
-  .custom-state-marker,
-  .custom-building-marker {
-    min-width: 44px;
-    min-height: 44px;
-  }
+  /* Marker hit boxes come from the icon itself, sized there so the visible
+     circle stays centred. Sizing the element here shifted every marker. */
 }
 
 /* Prevent zoom on input focus on iOS */
