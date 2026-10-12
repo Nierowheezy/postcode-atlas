@@ -63,6 +63,13 @@ const groundingLabel = (r) =>
           ? 'Not verified'
           : 'No data footer';
 const noInvented = (r) => postcodes(r.reply).length === 0 || hasVerified(r);
+// The guard replies for a state or LGA postcode question name no postcode at
+// all. The observed failure was the model presenting the LGA short code
+// (Ikeja is 11) as a postcode, so a bare number in the reply fails the case.
+const noShortCode = (r) => {
+  const hit = r.reply.match(/\b\d{1,3}\b/);
+  return hit ? `reply presents a short code: ${hit[0]}` : true;
+};
 const isNatlas = (r) => /natlas\s*·\s*try\s*\d+/i.test(r.meter);
 
 // --- case definitions -------------------------------------------------------
@@ -215,27 +222,30 @@ const cases = [
     name: 'Yoruba: postcode for Ikeja',
     text: 'Kí ni kòòdù Ikeja?',
     language: 'Yoruba',
-    expect: 'auto-detects Yoruba, no invented code, natlas',
+    expect: 'auto-detects Yoruba, guarded no-postcode reply, natlas',
     check: (r) => isNatlas(r) || `provider not natlas (${r.meter})`,
     check2: (r) => noInvented(r) || `invented postcode: ${postcodes(r.reply).join(', ')}`,
+    check3: (r) => noShortCode(r),
   },
   {
     n: 18,
     name: 'Hausa: postcode for Ikeja',
     text: 'Menene lambar gidan waya na Ikeja?',
     language: 'Hausa',
-    expect: 'auto-detects Hausa, no invented code, natlas',
+    expect: 'auto-detects Hausa, guarded no-postcode reply, natlas',
     check: (r) => isNatlas(r) || `provider not natlas (${r.meter})`,
     check2: (r) => noInvented(r) || `invented postcode: ${postcodes(r.reply).join(', ')}`,
+    check3: (r) => noShortCode(r),
   },
   {
     n: 19,
     name: 'Igbo: postcode for Ikeja',
     text: 'Gịnị bụ koodu ozi nke Ikeja?',
     language: 'Igbo',
-    expect: 'auto-detects Igbo, no invented code, natlas',
+    expect: 'auto-detects Igbo, guarded no-postcode reply, natlas',
     check: (r) => isNatlas(r) || `provider not natlas (${r.meter})`,
     check2: (r) => noInvented(r) || `invented postcode: ${postcodes(r.reply).join(', ')}`,
+    check3: (r) => noShortCode(r),
   },
   {
     n: 20,

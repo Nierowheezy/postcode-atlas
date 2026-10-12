@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { deriveMapAction, deriveReferent, hasEmptyScopeList } from './responder';
-import type { AskToolResult, AskToolTurn } from './types';
+import { deriveMapAction, deriveReferent, hasEmptyScopeList, asksForPostcode, postcodeScopeCopy } from './responder';
+import type { AskToolResult, AskToolTurn, AtlasResultList } from './types';
 
 function turn(...toolResults: AskToolResult[]): AskToolTurn {
   return { assistantToolCalls: [], toolResults };
@@ -120,5 +120,64 @@ describe('hasEmptyScopeList', () => {
   it('is false for a failed or unrelated result', () => {
     expect(hasEmptyScopeList([turn({ tool_call_id: 'c1', name: 'getDistricts', ok: false })])).toBe(false);
     expect(hasEmptyScopeList([turn(ok('getLgas', []))])).toBe(false);
+  });
+});
+
+describe('asksForPostcode', () => {
+  it('matches the English forms', () => {
+    expect(asksForPostcode('Postcode for Ikeja')).toBe(true);
+    expect(asksForPostcode('what is the postal code of Ikeja?')).toBe(true);
+    expect(asksForPostcode('Ikeja zip')).toBe(true);
+    expect(asksForPostcode('POSTCODE')).toBe(true);
+  });
+
+  it('matches Yoruba with and without tone marks', () => {
+    expect(asksForPostcode('Kí ni kòòdù Ikeja?')).toBe(true);
+    expect(asksForPostcode('Kí ni koodu Ikeja?')).toBe(true);
+  });
+
+  it('matches the Hausa forms', () => {
+    expect(asksForPostcode('Menene lambar gidan waya na Ikeja?')).toBe(true);
+    expect(asksForPostcode('lamba na Ikeja')).toBe(true);
+  });
+
+  it('matches the Igbo forms', () => {
+    expect(asksForPostcode('gịnị bụ koodu ozi Ikeja?')).toBe(true);
+  });
+
+  it('does not fire on a place with no postcode wording', () => {
+    expect(asksForPostcode('Ikeja')).toBe(false);
+    expect(asksForPostcode('Where is Wuse 2?')).toBe(false);
+    expect(asksForPostcode('gidan waya')).toBe(false);
+  });
+});
+
+describe('postcodeScopeCopy', () => {
+  const lgaList: AtlasResultList = {
+    level: 'lga',
+    scope: 'Lagos',
+    items: [{ type: 'lga', code: '11', name: 'Ikeja' }],
+    total: 1,
+  };
+
+  it('keeps the English guarded reply unchanged', () => {
+    expect(postcodeScopeCopy(lgaList, 'en')).toBe(
+      'Ikeja is a Local Government Area in Lagos, so it has no single postcode. Tell me a specific area, street, or landmark and I will find its unit postcode.',
+    );
+  });
+
+  it('answers a Yoruba question in Yoruba and names no postcode', () => {
+    const copy = postcodeScopeCopy(lgaList, 'yo');
+    expect(copy).toContain('Ikeja jẹ Agbegbe Ijoba Ibile ni Lagos');
+    expect(copy).toContain('ko ni koodu kan soso');
+  });
+
+  it('answers Hausa and Igbo in their own language', () => {
+    expect(postcodeScopeCopy(lgaList, 'ha')).toContain('Ikeja Karamar Hukuma ce a Lagos');
+    expect(postcodeScopeCopy(lgaList, 'ig')).toContain('Ikeja bụ Ọchịchị Ime Obodo na Lagos');
+  });
+
+  it('returns nothing when the list is not a state or LGA', () => {
+    expect(postcodeScopeCopy({ ...lgaList, level: 'unit' }, 'en')).toBeUndefined();
   });
 });

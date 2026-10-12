@@ -7,6 +7,7 @@ import {
   AskAtlasRequest,
   AskAtlasResponder,
   AskAtlasResponse,
+  AskLanguage,
   AskProgress,
   AskToolCall,
   AskToolResult,
@@ -693,6 +694,7 @@ async function attachDerived(
   response: AskAtlasResponse,
   toolTurns: AskToolTurn[],
   userText: string,
+  language: AskLanguage,
 ): Promise<AskAtlasResponse> {
   const withLookupResponse = withLookup(response, toolTurns);
   const results = await deriveResults(toolTurns);
@@ -738,32 +740,103 @@ async function attachDerived(
     return { ...next, text: SCOPE_UNAVAILABLE_COPY };
   }
 
-  const guarded = withVerifiedPostcodes(next, toolTurns, userText);
+  const guarded = withVerifiedPostcodes(next, toolTurns, userText, language);
 
   // The user asked for a postcode but the tools only resolved a state or LGA,
   // which has no single postcode. Answer deterministically so the flagship
   // starter question never drifts into "the postcode is 11".
   if (asksForPostcode(userText) && !next.lookup && !next.decoded && next.results) {
-    const copy = postcodeScopeCopy(next.results);
+    const copy = postcodeScopeCopy(next.results, language);
     if (copy) return { ...guarded, text: copy };
   }
 
   return guarded;
 }
 
-/** True when the user explicitly asked for a postcode. */
-function asksForPostcode(userText: string): boolean {
-  return /\b(postcode|postal code|zip)\b/i.test(userText);
+/**
+ * True when the user explicitly asked for a postcode. Recognizes the wording in
+ * every reply language: English `postcode`, `postal code`, `zip`; Yoruba `kòòdù`;
+ * Hausa `lambar` and `lambar gidan waya`; Igbo `koodu` and `koodu ozi`. Tone
+ * marks and underdots are folded first, so `kòòdù` and `koodu` both match. The
+ * English-only test was the bug: a Yoruba or Hausa postcode question skipped the
+ * deterministic scope reply and let the model pass off an LGA short code.
+ */
+export function asksForPostcode(userText: string): boolean {
+  const folded = userText.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  return /\b(postcode|postal code|zip|koodu|lambar|lamba)\b/.test(folded);
 }
 
+/**
+ * Reply-language copy for the deterministic postcode guard. The guard must
+ * speak the same language as the reply, or a Yoruba or Hausa postcode question
+ * gets a correct but English sentence. Only this guard copy is localized; the
+ * rest of the app's own strings stay English for now.
+ *
+ * The three non-English drafts need a native-speaker read before this ships.
+ */
+type ScopeLevel = 'state' | 'lga';
+type ResultLevel = 'state' | 'lga' | 'district' | 'area';
+
+const SCOPE_NOUN: Record<AskLanguage, Record<ScopeLevel, string>> = {
+  en: { state: 'a state', lga: 'a Local Government Area' },
+  yo: { state: 'ipinlẹ', lga: 'Agbegbe Ijoba Ibile' },
+  ha: { state: 'jiha', lga: 'Karamar Hukuma' },
+  ig: { state: 'steeti', lga: 'Ọchịchị Ime Obodo' },
+};
+
+const SCOPE_SUBJECT: Record<
+  AskLanguage,
+  (name: string | undefined, noun: string, scope: string | undefined) => string
+> = {
+  en: (name, noun, scope) => `${name ? `${name} is ${noun}` : `That is ${noun}`}${scope ? ` in ${scope}` : ''}`,
+  yo: (name, noun, scope) => `${name ? `${name} jẹ ${noun}` : `Iyẹn jẹ ${noun}`}${scope ? ` ni ${scope}` : ''}`,
+  ha: (name, noun, scope) => `${name ? `${name} ${noun}` : `Wannan ${noun}`} ce${scope ? ` a ${scope}` : ''}`,
+  ig: (name, noun, scope) => `${name ? `${name} bụ ${noun}` : `Nke ahụ bụ ${noun}`}${scope ? ` na ${scope}` : ''}`,
+};
+
+const SCOPE_COPY: Record<AskLanguage, (subject: string) => string> = {
+  en: (subject) =>
+    `${subject}, so it has no single postcode. Tell me a specific area, street, or landmark and I will find its unit postcode.`,
+  yo: (subject) =>
+    `${subject}, nitori naa ko ni koodu kan soso. Sọ fun mi ni agbegbe kan pato, opopona, tabi ami-ilẹ kan, ki n le wa koodu rẹ.`,
+  ha: (subject) =>
+    `${subject}, saboda haka ba shi da wata lambar gidan waya guda daya. Gaya mini wani takamaiman yanki, titi, ko alama, zan nemo lambar gidan waya ta.`,
+  ig: (subject) =>
+    `${subject}, ya mere o nweghị otu koodu ozi. Gwa m otu mpaghara, okporo ụzọ, ma ọ bụ ebe ama, m ga-achọta koodu ozi ya.`,
+};
+
+const FALLBACK_LEVEL: Record<AskLanguage, Record<ResultLevel, string>> = {
+  en: { state: 'A state', lga: 'An LGA', district: 'A district', area: 'An area' },
+  yo: { state: 'Ipinlẹ', lga: 'Agbegbe Ijoba Ibile', district: 'Agbegbe', area: 'Agbegbe' },
+  ha: { state: 'Jiha', lga: 'Karamar Hukuma', district: 'Gunduma', area: 'Yanki' },
+  ig: { state: 'Steeti', lga: 'Ọchịchị Ime Obodo', district: 'Distrikti', area: 'Mpaghara' },
+};
+
+const FALLBACK_BY_LEVEL: Record<AskLanguage, (label: string) => string> = {
+  en: (label) =>
+    `${label} has no single postcode; postcodes are assigned at the area or street level. Ask for a specific area, street, or landmark and I will find its unit postcode.`,
+  yo: (label) =>
+    `${label} ko ni koodu kan soso; a n fi koodu si ni ipele agbegbe tabi opopona. Sọ fun mi ni agbegbe kan pato, opopona, tabi ami-ilẹ kan, ki n le wa koodu rẹ.`,
+  ha: (label) =>
+    `${label} ba ta da lambar gidan waya guda daya; ana sanya lambar a matakin yanki ko titi. Gaya mini wani takamaiman yanki, titi, ko alama, zan nemo lambar gidan waya ta.`,
+  ig: (label) =>
+    `${label} enweghị otu koodu ozi; a na-etinye koodu n'ọkwa mpaghara ma ọ bụ okporo ụzọ. Gwa m otu mpaghara, okporo ụzọ, ma ọ bụ ebe ama kpọmkwem, m ga-achọta koodu ozi ya.`,
+};
+
+const FALLBACK_GENERIC: Record<AskLanguage, string> = {
+  en: 'I could not verify a postcode for that from the available data. Ask for a specific area, street, or landmark.',
+  yo: 'Mi o le ri koodu kan fun iyẹn ninu data to wa. Sọ fun mi ni agbegbe kan pato, opopona, tabi ami-ilẹ kan.',
+  ha: 'Ba zan iya tabbatar da lambar gidan waya ba daga bayanan da ke akwai. Gaya mini wani takamaiman yanki, titi, ko alama.',
+  ig: 'Enweghị m ike ịchọta koodu ozi maka nke ahụ na data dị. Gwa m otu mpaghara, okporo ụzọ, ma ọ bụ ebe ama kpọmkwem.',
+};
+
 /** Deterministic reply when a postcode request resolved to a state or LGA only. */
-function postcodeScopeCopy(list: AtlasResultList): string | undefined {
-  const kind = list.level === 'state' ? 'state' : list.level === 'lga' ? 'Local Government Area' : undefined;
-  if (!kind) return undefined;
-  const name = list.items[0]?.name;
-  const scope = list.scope ? ` in ${list.scope}` : '';
-  const subject = name ? `${name} is a ${kind}${scope}` : `That is a ${kind}`;
-  return `${subject}, so it has no single postcode. Tell me a specific area, street, or landmark and I will find its unit postcode.`;
+export function postcodeScopeCopy(list: AtlasResultList, language: AskLanguage): string | undefined {
+  const level: ScopeLevel | undefined = list.level === 'state' ? 'state' : list.level === 'lga' ? 'lga' : undefined;
+  if (!level) return undefined;
+  const noun = SCOPE_NOUN[language][level];
+  const subject = SCOPE_SUBJECT[language](list.items[0]?.name, noun, list.scope);
+  return SCOPE_COPY[language](subject);
 }
 
 /** One factual sentence describing where a map action moved the view. */
@@ -809,15 +882,10 @@ function groundedPostcodes(toolTurns: AskToolTurn[], userText: string): Set<stri
 }
 
 /** Honest reply used when a reply's only postcode claims were unverified. */
-function postcodeFallback(response: AskAtlasResponse): string {
-  const level = response.results?.level;
-  const label = { state: 'A state', lga: 'An LGA', district: 'A district', area: 'An area' }[
-    level as 'state' | 'lga' | 'district' | 'area'
-  ];
-  if (label) {
-    return `${label} has no single postcode; postcodes are assigned at the area or street level. Ask for a specific area, street, or landmark and I will find its unit postcode.`;
-  }
-  return 'I could not verify a postcode for that from the available data. Ask for a specific area, street, or landmark.';
+function postcodeFallback(response: AskAtlasResponse, language: AskLanguage): string {
+  const level = response.results?.level as ResultLevel | undefined;
+  const label = level ? FALLBACK_LEVEL[language][level] : undefined;
+  return label ? FALLBACK_BY_LEVEL[language](label) : FALLBACK_GENERIC[language];
 }
 
 /**
@@ -829,9 +897,10 @@ function withVerifiedPostcodes(
   response: AskAtlasResponse,
   toolTurns: AskToolTurn[],
   userText: string,
+  language: AskLanguage,
 ): AskAtlasResponse {
   const allowed = groundedPostcodes(toolTurns, userText);
-  const text = stripUnbackedPostcodes(response.text, allowed, postcodeFallback(response));
+  const text = stripUnbackedPostcodes(response.text, allowed, postcodeFallback(response, language));
   return text === response.text ? response : { ...response, text };
 }
 
@@ -927,7 +996,12 @@ export function createApiResponder(): AskAtlasResponder {
           // Final answer. Upgrade its grounding only when tools really ran,
           // then attach the derived lookup (feature 4) and list (feature 5).
           onProgress?.({ phase: 'composing' });
-          return attachDerived(grounded ? { ...response, grounding: 'atlas' } : response, toolTurns, request.text);
+          return attachDerived(
+            grounded ? { ...response, grounding: 'atlas' } : response,
+            toolTurns,
+            request.text,
+            request.language ?? 'en',
+          );
         }
 
         if (round === MAX_TOOL_ROUNDS) {
@@ -940,6 +1014,7 @@ export function createApiResponder(): AskAtlasResponder {
             },
             toolTurns,
             request.text,
+            request.language ?? 'en',
           );
         }
 
