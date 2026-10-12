@@ -30,7 +30,7 @@ export const AskAtlasComposer: React.FC<AskAtlasComposerProps> = ({
   inputRef,
 }) => (
   <form
-    className="flex items-center gap-2 border-t border-[#E5E7EB] bg-white px-3 py-2.5 dark:border-[#1F2937] dark:bg-[#111827]"
+    className="shrink-0 flex items-center gap-2 border-t border-[#E5E7EB] bg-white px-3 py-2.5 dark:border-[#1F2937] dark:bg-[#111827]"
     onSubmit={(e) => {
       e.preventDefault();
       onSubmit();

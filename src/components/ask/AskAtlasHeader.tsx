@@ -45,7 +45,7 @@ export const AskAtlasHeader: React.FC<AskAtlasHeaderProps> = ({
 }) => (
   <div
     onPointerDown={onDragStart}
-    className={`flex items-center justify-between gap-2 px-3.5 py-2.5 border-b border-[#E5E7EB] dark:border-[#1F2937] bg-white/95 dark:bg-[#111827]/95 backdrop-blur ${
+    className={`shrink-0 flex items-center justify-between gap-2 px-3.5 py-2.5 border-b border-[#E5E7EB] dark:border-[#1F2937] bg-white/95 dark:bg-[#111827]/95 backdrop-blur ${
       onDragStart ? 'cursor-grab active:cursor-grabbing touch-none' : ''
     }`}
   >

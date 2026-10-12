@@ -4,6 +4,11 @@
  */
 
 import React, { useRef } from 'react';
+import {
+  MAX_LIST_HEIGHT_RATIO,
+  MIN_LIST_HEIGHT,
+  clampListHeight,
+} from '../../lib/ask/panelLayout';
 
 /** Props for the vertical resize strip under the Ask Atlas message list. */
 export interface AskAtlasResizeHandleProps {
@@ -11,13 +16,18 @@ export interface AskAtlasResizeHandleProps {
   onResize: (heightPx: number) => void;
   /** Height to start the drag from: the list's current rendered height. */
   getCurrentHeight: () => number;
+  /**
+   * Largest height the drag may reach, measured at the moment it is asked for.
+   * Defaults to the flat share of the viewport, which is what a panel with no
+   * measured room left to grow into can offer.
+   */
+  getMaxHeight?: () => number;
 }
 
-/** Smallest list height the user can drag to (px). */
-const MIN_LIST_HEIGHT = 180;
-
-/** Largest list height as a share of the viewport (px). */
-const MAX_LIST_HEIGHT_RATIO = 0.85;
+/** Cap offered when the caller supplies no measurement of the panel. */
+function viewportCap(): number {
+  return Math.round(window.innerHeight * MAX_LIST_HEIGHT_RATIO);
+}
 
 /**
  * A thin horizontal grip below the message list. Drag it upward to grow the
@@ -25,7 +35,11 @@ const MAX_LIST_HEIGHT_RATIO = 0.85;
  * pulling the grip up reveals more of the conversation, which is what the
  * gesture is expected to do.
  */
-export const AskAtlasResizeHandle: React.FC<AskAtlasResizeHandleProps> = ({ onResize, getCurrentHeight }) => {
+export const AskAtlasResizeHandle: React.FC<AskAtlasResizeHandleProps> = ({
+  onResize,
+  getCurrentHeight,
+  getMaxHeight,
+}) => {
   // Drag session: the pointer's start Y and the list height it maps to.
   const dragRef = useRef<{ startY: number; startHeight: number } | null>(null);
 
@@ -41,10 +55,16 @@ export const AskAtlasResizeHandle: React.FC<AskAtlasResizeHandleProps> = ({ onRe
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current;
     if (!drag) return;
-    const maxHeight = Math.round(window.innerHeight * MAX_LIST_HEIGHT_RATIO);
     // Upward drag (negative delta) grows the list because the panel is anchored
-    // at the bottom; downward shrinks it.
-    const next = Math.min(Math.max(drag.startHeight - (e.clientY - drag.startY), MIN_LIST_HEIGHT), maxHeight);
+    // at the bottom; downward shrinks it. The cap is re-read each move so it
+    // follows a card the user has dragged down the screen, and it stays put
+    // while the list grows, because growing the list lifts the panel top by the
+    // same amount.
+    const maxHeight = getMaxHeight ? getMaxHeight() : viewportCap();
+    const next = clampListHeight(drag.startHeight - (e.clientY - drag.startY), {
+      min: MIN_LIST_HEIGHT,
+      max: maxHeight,
+    });
     onResize(next);
   };
 
@@ -61,7 +81,7 @@ export const AskAtlasResizeHandle: React.FC<AskAtlasResizeHandleProps> = ({ onRe
       aria-orientation="horizontal"
       aria-label="Resize the conversation"
       title="Drag up to enlarge, down to shrink"
-      className="group flex h-3 cursor-ns-resize touch-none select-none items-center justify-center border-t border-[#F3F4F6] dark:border-[#1F2937]"
+      className="group flex h-3 shrink-0 cursor-ns-resize touch-none select-none items-center justify-center border-t border-[#F3F4F6] dark:border-[#1F2937]"
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={stopDrag}

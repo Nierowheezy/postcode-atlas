@@ -17,6 +17,7 @@ import { AskAtlasThinkingBubble } from './AskAtlasThinkingBubble';
 import { AskAtlasComposer } from './AskAtlasComposer';
 import { AskAtlasResizeHandle } from './AskAtlasResizeHandle';
 import { AskAtlasClearDialog } from './AskAtlasClearDialog';
+import { maxListHeight } from '../../lib/ask/panelLayout';
 
 /**
  * An Ask Atlas panel: owns conversation state and delegates the actual send
@@ -39,6 +40,12 @@ export interface AskAtlasPanelProps {
   onMapAction?: (action: MapAction) => void;
   /** Moves the map to the coordinates on a reply (feature 8). */
   onViewLocation?: (location: AskAtlasViewLocation) => void;
+  /**
+   * Element the card is dragged within and the area the grip may grow into, so
+   * the panel cannot be pulled off screen or pushed out of the map area. Passed
+   * in by the shell; omitting it keeps the free drag and a window-based ceiling.
+   */
+  dragConstraintsRef?: React.RefObject<HTMLElement | null>;
 }
 
 let messageSeq = 0;
@@ -104,6 +111,7 @@ export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({
   onClose,
   onMapAction,
   onViewLocation,
+  dragConstraintsRef,
 }) => {
   const [initial] = useState(readPersistedConversation);
   const [messages, setMessages] = useState<AskAtlasMessage[]>(initial.messages);
@@ -212,7 +220,12 @@ export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({
 
   return (
     <DraggableCard
-      className="w-[min(94vw,420px)]"
+      // Flex column plus the map-area cap: the header, grip, and composer keep
+      // their size and the message list is the only child that gives, so a
+      // short map area shrinks the conversation instead of cropping the panel.
+      // `pointer-events-auto` is needed because the wrapper above is inert.
+      className="w-[min(94vw,420px)] pointer-events-auto flex flex-col ask-atlas-panel-fit"
+      dragConstraintsRef={dragConstraintsRef}
       renderHandle={(startDrag) => (
         <AskAtlasHeader
           hasMessages={messages.length > 0}
@@ -226,7 +239,7 @@ export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({
     >
       <div
         ref={listRef}
-        className="space-y-4 overflow-y-auto px-3.5 py-3"
+        className="space-y-4 overflow-y-auto px-3.5 py-3 min-h-0"
         style={{ height: `${listHeight}px` }}
         aria-live="polite"
       >
@@ -265,6 +278,37 @@ export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({
       <AskAtlasResizeHandle
         onResize={setListHeight}
         getCurrentHeight={() => listRef.current?.getBoundingClientRect().height ?? listHeight}
+        // The grip's ceiling follows the room above the panel rather than a
+        // flat share of the window: growing the list lifts the panel's top
+        // edge, so the distance from that edge to the top of the map area is
+        // the space the drag may spend. The map area's top matters, not the
+        // window's, because the shell header sits above it and the map clips
+        // what rises past it. The panel's own fit cap bounds it too, for a card
+        // dragged down a short screen.
+        getMaxHeight={() => {
+          const panel = listRef.current?.closest<HTMLElement>('.ask-atlas-panel-fit');
+          const host = panel?.parentElement;
+          if (!panel || !host || !listRef.current) return listHeight;
+          const panelRect = panel.getBoundingClientRect();
+          // The panel's own fit cap, measured rather than read: its containing
+          // block is the wrapper's content box, so that height is the tallest
+          // the card may become wherever it has been dragged. The computed
+          // `max-height` cannot be used, because a percentage stays a `calc()`
+          // string there until layout applies it.
+          const hostStyle = window.getComputedStyle(host);
+          const fitCap =
+            host.clientHeight -
+            Number.parseFloat(hostStyle.paddingTop || '0') -
+            Number.parseFloat(hostStyle.paddingBottom || '0');
+          return maxListHeight({
+            currentHeight: listRef.current.getBoundingClientRect().height,
+            panelHeight: panelRect.height,
+            panelTop: panelRect.top,
+            panelMaxHeight: fitCap,
+            containerTop: dragConstraintsRef?.current?.getBoundingClientRect().top ?? 0,
+            viewportHeight: window.innerHeight,
+          });
+        }}
       />
 
       <AskAtlasComposer

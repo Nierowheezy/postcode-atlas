@@ -263,6 +263,21 @@
     }
   }
 
+  /* Caps the Ask Atlas panel to the map area it floats in so its header and
+     composer stay on screen when that area is short, such as a phone in
+     landscape where the preferred conversation height alone overflows. The map
+     area, not the viewport, is the right measure: the shell header sits above
+     it and clips whatever rises past its top. The wrapper in `App.tsx` spans
+     the map area (`top-0 bottom-6`, with `pt-2` for the gap the grip keeps and
+     the safe-area insets as padding), so 100% is the room from the wrapper's
+     bottom edge to a little below the map top. The card's percentage needs the
+     wrapper's definite height and resolves to `none` without it, so the two
+     must stay together. The children keep their preferred size and the message
+     list gives instead. */
+  .ask-atlas-panel-fit {
+    max-height: 100%;
+  }
+
   /* The actions trigger, version badge, and theme toggle all rely on their own
      Tailwind classes plus the sheet/dropdown markup in TopBar. Nothing here is
      forced visible: forcing them into the phone header is what caused the

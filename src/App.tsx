@@ -70,6 +70,10 @@ function PostcodeAtlasContent() {
     import.meta.env.VITE_ASK_MODE === 'stub' ? createStubResponder() : createApiResponder(),
   );
 
+  // The map viewport: the Ask Atlas card is clamped to it while dragging, so the
+  // card can never be pulled off screen.
+  const mainRef = useRef<HTMLElement>(null);
+
   // Version / update state
   const [availableVersion, setAvailableVersion] = useState<string | null>(null);
   const [isJustUpdated, setIsJustUpdated] = useState(() => Boolean(window.__ATLAS_UPDATE_READY__));
@@ -439,7 +443,7 @@ function PostcodeAtlasContent() {
       />
 
       {/* Main Map Viewport (Occupies 95%+ of screen) */}
-      <main className="relative flex-1 w-full h-full overflow-hidden">
+      <main ref={mainRef} className="relative flex-1 w-full h-full overflow-hidden">
         {/* Floating Arc / Linear Command Search */}
         <div className="absolute top-4 left-4 z-30 pointer-events-auto safe-left">
           <MapSearch
@@ -531,13 +535,21 @@ function PostcodeAtlasContent() {
         )}
         {/* Ask Atlas Conversational Panel (Bottom Right) */}
         {isAskAtlasOpen && (
-          <div className="absolute bottom-6 right-4 z-30 pointer-events-auto">
+          // Transparent wrapper spanning the map area. Its definite height is
+          // what lets the card's own cap measure the room below the shell
+          // header rather than the whole viewport, and `items-end` keeps the
+          // card at the wrapper's bottom edge. `pt-2` is the gap the grip keeps
+          // (`PANEL_TOP_GAP` in `src/lib/ask/panelLayout.ts`); the safe-area
+          // helpers add only padding, never a visible margin. The card takes the
+          // pointer events; the empty area above it stays clickable for the map.
+          <div className="absolute bottom-6 right-4 top-0 z-30 pointer-events-none flex items-end pt-2 safe-bottom safe-right">
             <AskAtlasPanel
               responder={askResponderRef.current}
               getContext={getAskAtlasContext}
               onClose={() => setIsAskAtlasOpen(false)}
               onMapAction={handleMapAction}
               onViewLocation={handleViewLocation}
+              dragConstraintsRef={mainRef}
             />
           </div>
         )}
