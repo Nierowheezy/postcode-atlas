@@ -2,19 +2,14 @@ import { NamedCode, PostcodeLocation, PostcodeSegments } from '../../types/postc
 import { NIGERIA_DISCOVERY_POINTS } from '../geo/discoveryPoints';
 
 /**
- * Reads the publishable NIPOST key that Vite inlines at build time.
+ * Every NIPOST call goes through our own `/api/nipost` proxy.
  *
- * This key uses the `nipost_pk_` (publishable) tier, which NIPOST issues for
- * exactly this purpose: calling the gateway directly from a browser. A secret
- * key (`sk_`) must never be placed here, because anything in a `VITE_` variable
- * is readable in the shipped JavaScript bundle.
+ * The publishable key is locked to an origin allowlist, so a browser request to
+ * `api.postcode.gov.ng` is rejected with `origin_not_allowed`. Requests routed
+ * through the server carry no browser `Origin`, so the gateway serves them, and
+ * the key stays out of the shipped bundle. See `src/server/nipost/handler.ts`.
  */
-const API_BASE = (import.meta.env.VITE_NIPOST_API_BASE_URL as string) || 'https://api.postcode.gov.ng';
-const API_KEY = (import.meta.env.VITE_NIPOST_PUBLISHABLE_KEY as string) || '';
-
-export function isConfigured(): boolean {
-  return Boolean(API_KEY);
-}
+const PROXY_BASE = '/api/nipost';
 
 interface GatewayOptions {
   method?: 'GET' | 'POST';
@@ -38,25 +33,24 @@ class PostcodeApiClient {
   }
 
   /**
-   * Single entry point to the NIPOST NDAPS gateway.
-   * Adds the X-API-Key header, unwraps the `data` envelope, and throws on
-   * non-2xx responses so callers can handle failures in one place.
+   * Single entry point to the NIPOST NDAPS proxy.
+   * Calls the same-origin `/api/nipost` route, unwraps the `data` envelope, and
+   * throws on non-2xx responses so callers can handle failures in one place.
    */
   private async gateway<T>(path: string, options: GatewayOptions = {}): Promise<T> {
     const { method = 'GET', body, signal } = options;
 
-    const res = await fetch(`${API_BASE}${path}`, {
+    const res = await fetch(`${PROXY_BASE}${path}`, {
       method,
       signal,
       headers: {
-        'X-API-Key': API_KEY,
         ...(body ? { 'Content-Type': 'application/json' } : {}),
       },
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
 
     if (!res.ok) {
-      throw new Error(`NIPOST gateway ${method} ${path} failed: HTTP ${res.status}`);
+      throw new Error(`NIPOST proxy ${method} ${path} failed: HTTP ${res.status}`);
     }
 
     const json = await res.json();

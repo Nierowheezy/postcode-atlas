@@ -66,11 +66,12 @@ Client app  ──►  src/main.tsx
 - **Storage (`storage.ts`):** raw IndexedDB wrapper over db `atlas-dataset` v1. Five object stores — `meta`, `states`, `lgas`, `districts`, `areas` — all created with **no keyPath and no indexes**; composite out-of-line keys are passed at write time as arrays (`[state.code]`, `[state, lga]`, `[state, lga, district]`, `[state, lga, district, area]`). Reads use `IDBKeyRange.bound(prefix, [...prefix, '\uffff'])`. Has a full in-memory `Map` fallback (`MemoryDB`) used when `indexedDB` is unavailable (private mode); every read function try/catches to this fallback. `writeSnapshot` is one transaction across all stores with abort-on-error.
 - **Dataset types (`dataset.ts`):** `AtlasState`, `AtlasLga`, `AtlasDistrict`, `AtlasArea`, `AtlasCounts`, `AtlasDatasetMeta`, `AtlasSnapshot`, `LocationCandidate`. All small.
 
-### 2.3 NIPOST gateway client — `src/lib/api/postcodeClient.ts` (322 lines)
+### 2.3 NIPOST gateway client — `src/lib/api/postcodeClient.ts`
 
 Class `PostcodeApiClient`, exported as singleton `postcodeApi`.
 
-- **Single gateway method** `private gateway<T>(path, options)` (line 45–64): builds `${API_BASE}${path}`, adds `X-API-Key` header, `JSON.stringify`s the body, sends via `fetch`, unwraps `json.data ?? json`, and throws `Error("NIPOST gateway … failed: HTTP ${status}")` on non-2xx. Every other method is a thin wrapper on this.
+- **Single gateway method** `private gateway<T>(path, options)`: calls the same-origin `${PROXY_BASE}${path}` route (`/api/nipost`), `JSON.stringify`s the body, sends via `fetch`, unwraps `json.data ?? json`, and throws `Error("NIPOST proxy … failed: HTTP ${status}")` on non-2xx. Every other method is a thin wrapper on this.
+- **Why a proxy:** the publishable key is locked to an origin allowlist, so a browser call to `api.postcode.gov.ng` returns HTTP 403 `origin_not_allowed`. The server-side handler in `src/server/nipost/handler.ts` attaches the `X-API-Key` header, and its request carries no browser `Origin`, so the gateway serves it. The key therefore never enters the bundle.
 - **Endpoint methods + cache TTLs** (in-memory `Map<string, {data, expires}>` with LRU-by-oldest eviction at 200 entries, per-call `pruneExpired`):
 
   | Method | Path | Cache key | TTL |
@@ -86,7 +87,6 @@ Class `PostcodeApiClient`, exported as singleton `postcodeApi`.
   | `disassemble(code)` / `assemble(segments)` | `/v1/assembly/disassemble|assemble` | — | uncached |
   | `getDiscoveryPoints()` | none | — | returns bundled array |
   | `getRandomDiscoveryPoint()` | none | — | random index |
-  | `isConfigured()` | none | — | `Boolean(API_KEY)` |
 
 - `lookupPostcode` (line 161–199) maps the gateway record into `PostcodeLocation`, splitting the code into 5 segments. `reverseGeocode` (205–235) does the same for a single record. `fetchNearby` (286–302) caps at 50 units.
 - **Geo constants:** `NIGERIA_CENTER` is read from `src/lib/geo/nigeriaData.ts` (used as the map's resting viewport and as `App.tsx`'s initial `mapCenter`/`mapZoom`).
@@ -329,9 +329,9 @@ Sub-components (children of the panel, all receive a single `message` or slice):
 
 ## 6. Build, deploy, versioning
 
-- **`vite.config.ts` (105 lines):** plugins `[react(), tailwindcss(), versionManifest(), askDevMiddleware(env)]`. `__APP_VERSION__` define from `package.json` `version`. Alias `@` → repo root (and `tsconfig.json` matches with `"@/*": ["./*"]`). `server.port = 3001`. The dev middleware mounts `/api/ask` via `server.middlewares.use` and forwards to `handleAsk(request, env)` where `env = loadEnv(mode, process.cwd(), '')` — so dev uses the real `.env`. The `versionManifest` plugin is `apply:'build'` and writes `dist/version.json` in `closeBundle`.
+- **`vite.config.ts`:** plugins `[react(), tailwindcss(), versionManifest(), askDevMiddleware(env), nipostDevMiddleware(env)]`. `__APP_VERSION__` define from `package.json` `version`. Alias `@` → repo root (and `tsconfig.json` matches with `"@/*": ["./*"]`). `server.port = 3001`. Both dev middlewares use `server.middlewares.use` (`/api/ask`, `/api/nipost`) and forward to their shared handlers with `env = loadEnv(mode, process.cwd(), '')`, so dev uses the real `.env`. The `versionManifest` plugin is `apply:'build'` and writes `dist/version.json` in `closeBundle`.
 - **`vercel.json` (22 lines):** `buildCommand: "npm run build"`, `outputDirectory: "dist"`, `framework: null`, 14 rewrite rules that whitelist static assets (`/atlas-data.json`, `/version.json`, favicons, logos, manifest) before a catch-all `/(.*) → /index.html`. **No `headers` block.**
-- **`.env.example`**: `VITE_NIPOST_API_BASE_URL` (default `https://api.postcode.gov.ng`), `VITE_NIPOST_PUBLISHABLE_KEY` (publishable tier required), and server-only provider keys (`GEMINI_API_KEY`, `OPENROUTER_API_KEY`, `NVIDIA_API_KEY`) plus `ASK_AI_ORDER`/`NATLAS_*` — see §2.4 for the full set. `VITE_ASK_MODE` is a real-but-undocumented client flag (`stub`/default).
+- **`.env.example`**: `NIPOST_API_BASE_URL` (default `https://api.postcode.gov.ng`), `NIPOST_PUBLISHABLE_KEY` (publishable tier, read server-side by the `/api/nipost` proxy), and server-only provider keys (`GEMINI_API_KEY`, `OPENROUTER_API_KEY`, `NVIDIA_API_KEY`) plus `ASK_AI_ORDER`/`NATLAS_*` — see §2.4 for the full set. `VITE_ASK_MODE` is a real-but-undocumented client flag (`stub`/default).
 - **Versioning:** `package.json` `version` (currently `1.1.0`) is the single source of truth. The version manifest is emitted only on `vite build` (production); dev serves `version.json` from memory via the plugin no-op (there's no `version.json` in `public/` to git-track). The runtime update check pings `/version.json` every 5 minutes + on tab focus; a newer build shows `UpdateBanner` with reload/dismiss.
 
 ---
@@ -340,8 +340,8 @@ Sub-components (children of the panel, all receive a single `message` or slice):
 
 | Name | Scope | Default | Purpose |
 |---|---|---|---|
-| `VITE_NIPOST_API_BASE_URL` | client/VITE | `https://api.postcode.gov.ng` | NIPOST gateway base |
-| `VITE_NIPOST_PUBLISHABLE_KEY` | client/VITE | `""` | NIPOST publishable key (must be `nipost_pk_`) |
+| `NIPOST_API_BASE_URL` | server | `https://api.postcode.gov.ng` | NIPOST gateway base (read by `/api/nipost` and `npm run dataset`) |
+| `NIPOST_PUBLISHABLE_KEY` | server | `""` | NIPOST publishable key (must be `nipost_pk_`) |
 | `VITE_ASK_MODE` | client/VITE | unset → API responder | `stub` = offline canned replies |
 | `GEMINI_API_KEY` (+`GEMNINI_API_KEY` alias) | server | — | Gemini provider key |
 | `OPENROUTER_API_KEY` | server | — | OpenRouter provider key |
@@ -352,7 +352,7 @@ Sub-components (children of the panel, all receive a single `message` or slice):
 | `NATLAS_API_KEY` | server | `""` | optional N-ATLAS key |
 | `NATLAS_MODEL` | server | `NCAIR1/N-ATLaS` | N-ATLAS model |
 
-Everything `VITE_`-prefixed is inlined into the browser bundle and thus public. Server-only keys never reach the browser — that separation is the **only** reason `/api/ask` exists as a server function at all.
+Everything `VITE_`-prefixed is inlined into the browser bundle and thus public. Server-only keys never reach the browser — that separation is why `/api/ask` and `/api/nipost` exist as server functions at all.
 
 ---
 

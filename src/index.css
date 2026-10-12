@@ -239,36 +239,10 @@
 
 /* === Tailwind v4 Utilities Layer - Custom CSS must be in @layer utilities === */
 @layer utilities {
-  /* Mobile hamburger menu - visible on mobile, hidden on desktop */
-  @media (max-width: 767px) {
-    .mobile-hamburger {
-      display: flex !important;
-      align-items: center;
-      justify-content: center;
-    }
-  }
-
-  @media (min-width: 768px) {
-    .mobile-hamburger {
-      display: none !important;
-    }
-  }
-
-  /* Mobile version badge - visible on mobile */
-  @media (max-width: 767px) {
-    .mobile-version-badge {
-      display: flex !important;
-      align-items: center;
-    }
-  }
-
-  /* Mobile theme toggle - visible on mobile */
-  @media (max-width: 767px) {
-    .mobile-theme-toggle {
-      display: flex !important;
-      align-items: center;
-    }
-  }
+  /* The actions trigger, version badge, and theme toggle all rely on their own
+     Tailwind classes plus the sheet/dropdown markup in TopBar. Nothing here is
+     forced visible: forcing them into the phone header is what caused the
+     original overflow. */
 
   /* Ensure logo SVG has width on mobile */
   @media (max-width: 767px) {

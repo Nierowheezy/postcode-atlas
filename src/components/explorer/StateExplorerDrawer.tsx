@@ -78,7 +78,7 @@ export const StateExplorerDrawer: React.FC<StateExplorerDrawerProps> = ({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             onClick={onClose}
-            className="fixed inset-0 bg-stone-900/20 backdrop-blur-xs z-40"
+            className="fixed inset-0 bg-stone-900/15 z-40"
           />
 
           {/* Drawer Sidebar */}
@@ -87,7 +87,7 @@ export const StateExplorerDrawer: React.FC<StateExplorerDrawerProps> = ({
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 28, stiffness: 280 }}
-            className="fixed inset-y-0 right-0 w-full sm:w-88 md:w-96 bg-white dark:bg-[#111827] border-l border-[#E5E7EB] dark:border-[#374151] shadow-2xl z-50 flex flex-col font-sans transition-colors"
+            className="fixed inset-y-0 right-0 w-[85%] max-w-sm sm:w-88 md:w-96 bg-white dark:bg-[#111827] border-l border-[#E5E7EB] dark:border-[#374151] shadow-2xl z-50 flex flex-col font-sans transition-colors"
           >
             {/* Drawer Header */}
             <div className="p-4 border-b border-[#E5E7EB] dark:border-[#374151] flex items-center justify-between shrink-0 bg-white dark:bg-[#111827]">

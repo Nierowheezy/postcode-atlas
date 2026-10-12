@@ -182,8 +182,8 @@ postcode-atlas/
 
 | Variable | Required | Exposed to browser | Purpose |
 | --- | --- | --- | --- |
-| `VITE_NIPOST_PUBLISHABLE_KEY` | Yes | Yes | Publishable NDAPS key sent as the `X-API-Key` header |
-| `VITE_NIPOST_API_BASE_URL` | No | Yes | Gateway base URL, defaults to `https://api.postcode.gov.ng` |
+| `NIPOST_PUBLISHABLE_KEY` | Yes | No | Publishable NDAPS key; the `/api/nipost` proxy attaches it to the upstream call |
+| `NIPOST_API_BASE_URL` | No | No | Gateway base URL, defaults to `https://api.postcode.gov.ng` |
 | `GEMINI_API_KEY` | No¹ | No | Server-side Gemini key for the Ask Atlas chain |
 | `OPENROUTER_API_KEY` | No¹ | No | Server-side OpenRouter key (failover) |
 | `NVIDIA_API_KEY` | No¹ | No | Server-side NVIDIA key (failover) |
@@ -193,37 +193,40 @@ postcode-atlas/
 
 ¹ At least one provider key must be set for Ask Atlas to answer; with the default order that is `GEMINI_API_KEY`.
 
-Variables prefixed `VITE_` are inlined into the client bundle at build time and are therefore readable by anyone who opens the deployed site. Only publishable values belong in them. The Ask Atlas keys above are server-only: they are read from `process.env` inside the `/api/ask` function and never shipped to the browser.
+Variables prefixed `VITE_` are inlined into the client bundle at build time and are therefore readable by anyone who opens the deployed site. Only publishable values belong in them. The NIPOST key and the Ask Atlas provider keys are server-only: `/api/nipost` and `/api/ask` read them from `process.env` and never ship them to the browser.
+
+The NIPOST gateway is reached through the `/api/nipost` proxy, not from the browser. The publishable key is locked to an origin allowlist, so a direct browser call is rejected with `origin_not_allowed`, while a server-side call carries no browser `Origin` and is served. That is also why the NIPOST variables are server-only rather than `VITE_`.
 
 ---
 
 ## Deployment to Vercel
 
-The app builds to a fully static bundle and talks to the NIPOST gateway directly from the browser; the only server logic is the Ask Atlas `/api/ask` Vercel Function, which Vercel deploys alongside the static output.
+The app builds to a static bundle. Two small Vercel Functions are deployed alongside it: `/api/nipost/*` proxies every NIPOST NDAPS request (the publishable key is origin-locked, so browser calls are rejected), and `/api/ask` forwards chat traffic to LLM providers. The same handlers run as Vite dev middleware under `npm run dev`, so no separate server is needed locally.
 
 1. **Push to a Git repository** and import it into Vercel, or run `npx vercel` from the project root.
 
 2. **Add the environment variables.** In Vercel, go to **Project Settings → Environment Variables** and add:
 
    ```
-   VITE_NIPOST_PUBLISHABLE_KEY = nipost_pk_...
+   ```
+   NIPOST_PUBLISHABLE_KEY = nipost_pk_...
    ```
 
-   Apply to Production, Preview, and Development. For Ask Atlas, also add at least one server-side provider key (`GEMINI_API_KEY`, plus `OPENROUTER_API_KEY` / `NVIDIA_API_KEY` for failover) and, optionally, `NATLAS_BASE_URL` to route through N-ATLAS. These are read by the `/api/ask` function only and never reach the browser. See [`docs/local-inference.md`](docs/local-inference.md) for how the local N-ATLAS endpoint is stood up and pinned.
+   Apply to Production, Preview, and Development. For Ask Atlas, also add at least one server-side provider key (`GEMINI_API_KEY`, plus `OPENROUTER_API_KEY` / `NVIDIA_API_KEY` for failover) and, optionally, `NATLAS_BASE_URL` to route through N-ATLAS. All of these are read by the server functions (`/api/nipost` and `/api/ask`) and never reach the browser. See [`docs/local-inference.md`](docs/local-inference.md) for how the local N-ATLAS endpoint is stood up and pinned.
 
 3. **Deploy.** `vercel.json` already sets `buildCommand: npm run build` and `outputDirectory: dist`, plus a catch-all rewrite so client-side routes resolve on refresh. Vercel should detect the framework as Vite; if not, set the preset manually.
 
-4. **Rebuild after changing env vars.** Because `VITE_` values are baked in at build time, you must redeploy for a key change to take effect. Editing the variable alone is not enough.
+4. **Redeploy after changing function env vars.** The NIPOST and provider keys are read at request time from the function environment, not baked into the bundle, so a redeploy is enough to pick up a change. Set them for Production, Preview, and Development so previews keep working.
 
 ---
 
 ## Architecture notes
 
-**No backend, by design — with one exception.** This is a static bundle. All gateway traffic goes browser → `api.postcode.gov.ng`, authorised by the publishable key. The NIPOST NDAPS gateway permits direct browser calls with a publishable key, which is what makes this deployment shape possible. The exception is Ask Atlas: `/api/ask` is a small Vercel Function — the same handler runs as a Vite dev middleware under `npm run dev` — that forwards chat traffic to LLM providers, because provider keys must not live in the bundle.
+**A static bundle plus two functions.** The UI is a static bundle. NIPOST traffic goes browser → `/api/nipost/*` → `api.postcode.gov.ng`, because the publishable key is locked to an origin allowlist and rejects browser `Origin`s with `origin_not_allowed`. Ask Atlas chat goes browser → `/api/ask` → LLM providers, because provider keys must not live in the bundle. Both are small Vercel Functions, and the same handlers run as Vite dev middleware under `npm run dev`.
 
 **Caching is in-memory and per-session.** `postcodeClient.ts` keeps a `Map` of responses with per-endpoint TTLs — reference data (states, LGAs, districts, areas) is cached for an hour since it changes rarely, lookups for ten minutes, and nearby searches for three minutes. A page reload clears the cache.
 
-**Single point of gateway access.** Every NIPOST call funnels through the private `gateway()` method in `postcodeClient.ts`, which attaches the `X-API-Key` header, unwraps the `data` envelope, and normalises errors. Adding an endpoint means adding one method there; no component touches `fetch` directly.
+**Single point of gateway access.** Every NIPOST call funnels through the private `gateway()` method in `postcodeClient.ts`, which calls the same-origin `/api/nipost` proxy, unwraps the `data` envelope, and normalises errors. Adding an endpoint means adding one method there; no component touches `fetch` directly. The proxy attaches the `X-API-Key` header server-side and forwards only the NDAPS paths the app actually calls.
 
 **State lives at the root.** `App.tsx` owns selection, camera, breadcrumbs, and modal state, and passes handlers down. Components are presentational, which keeps the drill-down flows readable.
 
@@ -237,10 +240,10 @@ The app builds to a fully static bundle and talks to the NIPOST gateway directly
 
 ## Security notes
 
-This deployment shape is only safe because the NIPOST key in use is the **publishable** tier (`nipost_pk_...`), which NIPOST issues specifically for client-side use.
+The NIPOST key is held server-side, in the `/api/nipost` function environment, and never reaches the browser. The key in use is the **publishable** tier (`nipost_pk_...`).
 
-- Anything in a `VITE_` variable is public. Never put a secret `sk_` key in `VITE_NIPOST_PUBLISHABLE_KEY`.
-- If you later need secret-tier access, reintroduce a server or serverless function to hold that key. Do not inline it.
+- Anything in a `VITE_` variable is public. Never give a key a `VITE_` prefix unless it is safe for the shipped bundle.
+- Do not put a secret `sk_` key in `NIPOST_PUBLISHABLE_KEY` either: the proxy only needs the publishable tier.
 - `.env` is git-ignored; only `.env.example` is committed.
 - Ask Atlas provider keys (`GEMINI_API_KEY`, `OPENROUTER_API_KEY`, `NVIDIA_API_KEY`, `NATLAS_*`) are server-only: the `/api/ask` function reads them from `process.env` and they are never shipped in the bundle. If a key is missing or exhausted, the chain falls over to the next provider rather than exposing it.
 

@@ -23,8 +23,8 @@ import { loadEnv } from 'vite';
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8'));
 const env = { ...loadEnv('production', process.cwd(), ''), ...process.env };
 
-const API_BASE = env.VITE_NIPOST_API_BASE_URL?.trim() || 'https://api.postcode.gov.ng';
-const API_KEY = env.VITE_NIPOST_PUBLISHABLE_KEY?.trim() || '';
+const API_BASE = env.NIPOST_API_BASE_URL?.trim() || 'https://api.postcode.gov.ng';
+const API_KEY = env.NIPOST_PUBLISHABLE_KEY?.trim() || '';
 
 const LGA_CONCURRENCY = 6;
 const RETRY_429 = 8; // rate limits can last a while; be patient
@@ -116,7 +116,7 @@ async function buildSnapshot() {
 
 async function main() {
   if (!API_KEY) {
-    console.error('VITE_NIPOST_PUBLISHABLE_KEY is not set; add it to .env first.');
+    console.error('NIPOST_PUBLISHABLE_KEY is not set; add it to .env first.');
     process.exitCode = 1;
     return;
   }

@@ -5,6 +5,7 @@ import {readFileSync, writeFileSync, mkdirSync} from 'fs';
 import {fileURLToPath} from 'url';
 import {defineConfig, loadEnv, type Plugin} from 'vite';
 import {handleAsk} from './src/server/ask/handler';
+import {handleNipostProxy} from './src/server/nipost/handler';
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'));
 
@@ -81,6 +82,42 @@ function askDevMiddleware(env: Record<string, string>): Plugin {
   };
 }
 
+/**
+ * Mounts the NIPOST proxy as Vite dev middleware so `npm run dev` serves
+ * `/api/nipost/*` exactly like the Vercel Function in production. The
+ * publishable key is read from `.env` and passed to the handler directly, so it
+ * never reaches the browser bundle.
+ */
+function nipostDevMiddleware(env: Record<string, string>): Plugin {
+  return {
+    name: 'postcode-atlas-nipost-proxy',
+    configureServer(server) {
+      server.middlewares.use('/api/nipost', async (req, res) => {
+        // Read the body up front (POST /v1/assembly/assemble carries one) and
+        // rebuild the request the shared handler expects. connect strips the
+        // mount prefix, so `req.url` is already the upstream path plus query.
+        const chunks: Buffer[] = [];
+        if (req.method !== 'GET' && req.method !== 'HEAD') {
+          for await (const chunk of req) chunks.push(Buffer.from(chunk));
+        }
+
+        const headers = new Headers();
+        const contentType = req.headers['content-type'];
+        if (contentType) headers.set('content-type', String(contentType));
+
+        const init: RequestInit = { method: req.method ?? 'GET', headers };
+        if (chunks.length > 0) init.body = Buffer.concat(chunks).toString('utf-8');
+
+        const request = new Request(`http://localhost/api/nipost${req.url ?? ''}`, init);
+        const response = await handleNipostProxy(request, env);
+        res.statusCode = response.status;
+        res.setHeader('Content-Type', response.headers.get('content-type') ?? 'application/json');
+        res.end(await response.text());
+      });
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   return {
@@ -89,6 +126,7 @@ export default defineConfig(({ mode }) => {
       tailwindcss(),
       versionManifest(),
       askDevMiddleware(env),
+      nipostDevMiddleware(env),
     ],
     define: {
       __APP_VERSION__: JSON.stringify(pkg.version),

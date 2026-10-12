@@ -1,0 +1,126 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * NIPOST NDAPS gateway proxy, shared by the Vite dev middleware and the Vercel
+ * Function for `/api/nipost/*`.
+ *
+ * The publishable key is locked to an origin allowlist, so a browser request to
+ * `api.postcode.gov.ng` is rejected with `origin_not_allowed`. A request routed
+ * through this handler carries no browser `Origin`, so the gateway serves it,
+ * and the key never enters the shipped bundle.
+ *
+ * Only the NDAPS paths this app actually calls are forwarded. Keeping the list
+ * closed stops the endpoint from being used as an open proxy.
+ */
+
+/** Server-side environment. Matches `process.env` and Vite's `loadEnv` result. */
+export type NipostServerEnv = Record<string, string | undefined>;
+
+/** Path this proxy is mounted at, in dev and on Vercel. */
+const PROXY_PREFIX = '/api/nipost';
+
+/** Upstream used when `NIPOST_API_BASE_URL` is not set. */
+const DEFAULT_UPSTREAM = 'https://api.postcode.gov.ng';
+
+/** The only NDAPS paths the app calls. */
+const ALLOWED_PATHS: ReadonlySet<string> = new Set([
+  '/v1/reference/states',
+  '/v1/reference/lgas',
+  '/v1/reference/districts',
+  '/v1/reference/areas',
+  '/v1/lookup',
+  '/v1/search/autocomplete',
+  '/v1/search/reverse',
+  '/v1/search/nearby',
+  '/v1/assembly/disassemble',
+  '/v1/assembly/assemble',
+]);
+
+/** True when the path (without query) may be forwarded upstream. */
+export function isAllowedNipostPath(pathname: string): boolean {
+  return ALLOWED_PATHS.has(pathname);
+}
+
+/**
+ * Removes the proxy prefix so the same handler serves both mounts: the dev
+ * middleware strips `/api/nipost` before the handler sees it, while the Vercel
+ * Function receives the full path.
+ */
+export function resolveUpstreamPath(pathname: string): string {
+  return pathname.startsWith(PROXY_PREFIX)
+    ? pathname.slice(PROXY_PREFIX.length)
+    : pathname;
+}
+
+function errorResponse(status: number, code: string, message: string): Response {
+  return new Response(JSON.stringify({ error: { code, message } }), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  });
+}
+
+/**
+ * Forwards one request to the NIPOST gateway with the server-held key and
+ * returns the upstream body unchanged, so the client keeps its existing
+ * envelope unwrapping and error handling.
+ */
+export async function handleNipostProxy(
+  request: Request,
+  env: NipostServerEnv
+): Promise<Response> {
+  const url = new URL(request.url);
+  const pathname = resolveUpstreamPath(url.pathname);
+
+  if (!isAllowedNipostPath(pathname)) {
+    return errorResponse(
+      404,
+      'unknown_path',
+      'This proxy forwards only the NIPOST NDAPS paths the app uses.'
+    );
+  }
+
+  if (request.method !== 'GET' && request.method !== 'POST') {
+    return errorResponse(405, 'method_not_allowed', 'Only GET and POST are proxied.');
+  }
+
+  const key = env.NIPOST_PUBLISHABLE_KEY;
+  if (!key) {
+    return errorResponse(
+      500,
+      'not_configured',
+      'NIPOST_PUBLISHABLE_KEY is not set on the server.'
+    );
+  }
+
+  const base = (env.NIPOST_API_BASE_URL || DEFAULT_UPSTREAM).replace(/\/+$/, '');
+  const headers: Record<string, string> = { 'X-API-Key': key };
+  let body: string | undefined;
+  if (request.method === 'POST') {
+    body = await request.text();
+    headers['content-type'] = request.headers.get('content-type') ?? 'application/json';
+  }
+
+  let upstream: Response;
+  try {
+    upstream = await fetch(`${base}${pathname}${url.search}`, {
+      method: request.method,
+      headers,
+      body,
+    });
+  } catch {
+    return errorResponse(
+      502,
+      'upstream_unreachable',
+      'The NIPOST gateway could not be reached.'
+    );
+  }
+
+  return new Response(await upstream.text(), {
+    status: upstream.status,
+    headers: {
+      'content-type': upstream.headers.get('content-type') ?? 'application/json',
+      'cache-control': 'no-store',
+    },
+  });
+}

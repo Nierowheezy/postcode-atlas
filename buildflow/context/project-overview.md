@@ -96,7 +96,7 @@ Keep the existing Atlas visual identity — an interactive geographic instrument
 
 - **Vercel**, static Vite SPA (`npm run build` → `dist/`), existing SPA rewrites in `vercel.json`
 - Dev: `npm run dev` (port 3001)
-- Env: `VITE_NIPOST_PUBLISHABLE_KEY` (publishable only, never `sk_`)
+- Env: `NIPOST_PUBLISHABLE_KEY` (publishable only, never `sk_`), read server-side by the `/api/nipost` proxy because the key is origin-locked
 - N-ATLAS credentials: if a secret server-side credential is required, add a minimal Vercel Function proxy (`/api/health` if introduced); do **not** put it in `VITE_*`. Exact architecture depends on official N-ATLAS auth requirements (`> TODO`)
 - No database, no workers/cron, existing PWA/version-check preserved; AI requests need network but cached Atlas resources keep working offline
 
