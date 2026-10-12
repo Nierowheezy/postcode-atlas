@@ -72,18 +72,22 @@ export const ScaleCenterControl: React.FC<ScaleCenterControlProps> = ({ onCenter
         <span className="font-semibold text-[11px] tracking-tight">Center</span>
       </button>
 
-      {/* Subtle Vertical Divider */}
-      <div className="h-3.5 w-px bg-[#E5E7EB] dark:bg-[#374151]" />
+      {/* Divider + scale bar are secondary chrome: hidden on phones so the
+          capsule never collides with the bottom-right telemetry HUD. */}
+      <div className="hidden sm:flex items-center gap-2.5">
+        {/* Subtle Vertical Divider */}
+        <div className="h-3.5 w-px bg-[#E5E7EB] dark:bg-[#374151]" />
 
-      {/* Minimal Notched Scale Bar */}
-      <div className="flex flex-col items-start font-mono">
-        <span className="text-[10px] text-[#4B5563] dark:text-[#9CA3AF] font-bold leading-none mb-1 tabular-nums">
-          {scale.label}
-        </span>
-        <div
-          style={{ width: `${scale.width}px` }}
-          className="h-1 border-b-[1.5px] border-l-[1.5px] border-r-[1.5px] border-[#111827] dark:border-[#F3F4F6] transition-colors"
-        />
+        {/* Minimal Notched Scale Bar */}
+        <div className="flex flex-col items-start font-mono">
+          <span className="text-[10px] text-[#4B5563] dark:text-[#9CA3AF] font-bold leading-none mb-1 tabular-nums">
+            {scale.label}
+          </span>
+          <div
+            style={{ width: `${scale.width}px` }}
+            className="h-1 border-b-[1.5px] border-l-[1.5px] border-r-[1.5px] border-[#111827] dark:border-[#F3F4F6] transition-colors"
+          />
+        </div>
       </div>
     </div>
   );

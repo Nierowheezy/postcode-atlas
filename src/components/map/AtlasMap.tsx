@@ -483,10 +483,10 @@ export const AtlasMap: React.FC<AtlasMapProps> = ({
                 {cursorCoords[0].toFixed(4)}° N, {cursorCoords[1].toFixed(4)}° E
               </span>
             </div>
-            <span className="text-[#E5E7EB] dark:text-[#374151]">|</span>
-            <span className="text-[#6B7280] dark:text-[#9CA3AF]">{activeProvider.name}</span>
-            <span className="text-[#E5E7EB] dark:text-[#374151]">|</span>
-            <span className="text-[#6B7280] dark:text-[#9CA3AF]">Z: {currentZoom.toFixed(1)}</span>
+            <span className="hidden sm:inline text-[#E5E7EB] dark:text-[#374151]">|</span>
+            <span className="hidden sm:inline text-[#6B7280] dark:text-[#9CA3AF]">{activeProvider.name}</span>
+            <span className="hidden sm:inline text-[#E5E7EB] dark:text-[#374151]">|</span>
+            <span className="hidden sm:inline text-[#6B7280] dark:text-[#9CA3AF]">Z: {currentZoom.toFixed(1)}</span>
           </div>
         </div>
       </MapContainer>
