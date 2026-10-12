@@ -1,6 +1,6 @@
-# Nigerian Postcode Atlas — N-ATLAS Integration - Project Overview
+# Nigerian Postcode Atlas - N-ATLAS Integration - Project Overview
 
-<!-- buildflow:source-hash 042dffb0540de25c5442be3c0a4e2cf29bf56669e5fdaf94227d47ff35f6445c -->
+<!-- buildflow:source-hash 3ad643d2d088d458a4c539e40b62c00854c63aa23f4796aef1ec9beac4c15b37 -->
 
 > A conversational map for exploring Nigeria's digital addressing and postcode system, extending the existing Postcode Atlas.
 
@@ -8,7 +8,7 @@
 
 Nigeria's digital postcode hierarchy (state → LGA → district → area → unit → postcode) is structured but hard for ordinary users to navigate: they must know whether they need to search, decode, assemble, locate, or explore, and which lookup to perform. Postcode Atlas already makes the hierarchy visually explorable, but this project adds N-ATLAS on top so users can ask in natural language ("What's the postcode for Ikeja?", "Show me districts in Ikeja.") and get grounded answers.
 
-Core principle: **N-ATLAS understands the request; Atlas tools retrieve authoritative data; the Atlas UI visualizes the result.** NIPOST/NDAPS data through the existing `postcodeClient` remains the source of truth — the model must never invent postcodes, districts, or LGAs.
+Core principle: **N-ATLAS understands the request; Atlas tools retrieve authoritative data; the Atlas UI visualizes the result.** NIPOST/NDAPS data through the existing `postcodeClient` remains the source of truth, so the model must never invent postcodes, districts, or LGAs.
 
 ## Users
 
@@ -37,7 +37,7 @@ MVP, in build-plan order:
 15. **Challenge-ready demo** - polished end-to-end conversational experience.
 16. **Deployment readiness** - deploy and verify production app + N-ATLAS integration.
 
-Post-MVP (17–23): address interpretation, multilingual queries (Yoruba/Hausa/Igbo/Pidgin), richer Atlas explanations, saved discoveries, developer API, developer docs, advanced evaluation.
+Post-MVP (17-24): address interpretation (17), multilingual queries in Yoruba, Hausa, Igbo, and Nigerian Pidgin (18, done), richer Atlas explanations (19), saved discoveries (20), developer API (21), developer documentation (22), advanced evaluation (23), and mobile responsiveness (24, sliced into 24a viewport and safe areas, 24b Ask Atlas on phones, 24c overlay bounds and touch targets, 24d drawers and modals on phones).
 
 Existing Atlas capabilities (map, explore/decode/assemble/locate, Hunt game, data/density views, themes, PWA) are treated as shipped and are not rebuilt.
 
@@ -84,24 +84,24 @@ Not in MVP. Public Atlas stays free; potential future developer API (free/develo
 
 ## UI/UX
 
-Keep the existing Atlas visual identity — an interactive geographic instrument, not a generic AI chatbot. Map-first, clean, fast, minimal noise, AI integrated not dominant.
+Keep the existing Atlas visual identity: an interactive geographic instrument, not a generic AI chatbot. Map-first, clean, fast, minimal noise, AI integrated not dominant.
 
 - `Ask Atlas` - chat-style entry point extending existing search; concise responses with `[View on map]` actions and a grounding indicator ("Verified against NIPOST postcode data" where verifiable)
 - Response tone: prefer short factual answers over long prose
-- Loading: `Understanding your request…` / `Finding the location…`
-- Errors: state inability clearly + suggest a rephrased query; ask clarifying questions for ambiguous locations
-- Constraint: AI UI must not obscure the map on mobile; keyboard-accessible, sufficient contrast, no critical functionality map-only
+- Loading: brief status copy such as `Understanding your request` or `Finding the location`
+- Errors: state inability clearly + suggest a better phrasing, and ask for clarification on ambiguous requests
+- Responsive: desktop, tablet, and mobile must all work; the AI interface must not obscure the map on smaller screens (build-plan item 24)
+- Accessibility: keyboard-accessible interaction, clear focus states, sufficient contrast, screen-reader-friendly controls, and no critical functionality dependent solely on map interaction
 
 ## Deployment
 
 - **Vercel**, static Vite SPA (`npm run build` → `dist/`), existing SPA rewrites in `vercel.json`
 - Dev: `npm run dev` (port 3001)
 - Env: `NIPOST_PUBLISHABLE_KEY` (publishable only, never `sk_`), read server-side by the `/api/nipost` proxy because the key is origin-locked
-- N-ATLAS credentials: if a secret server-side credential is required, add a minimal Vercel Function proxy (`/api/health` if introduced); do **not** put it in `VITE_*`. Exact architecture depends on official N-ATLAS auth requirements (`> TODO`)
+- N-ATLAS credentials: keep any secret server-side behind a function proxy, never in `VITE_*`; only publishable values belong in the shipped bundle
 - No database, no workers/cron, existing PWA/version-check preserved; AI requests need network but cached Atlas resources keep working offline
 
 ## Open questions
 
-- N-ATLAS API/auth requirements unverified — decides whether a server proxy is needed (`> TODO`)
-- Exact N-ATLAS tool schemas/names to be finalized during `/feature 3`
-- Build plan items 1–4 (Ask Atlas UI, integration, tool layer, lookup) are all unchecked; existing Atlas features are documented as pre-build and intentionally not tracked as features
+- Build plan progress: items 1-16 and 18 are done; items 17 and 19-24 remain, with 24 sliced into 24a-24d and 24a as the next feature.
+- `buildflow/context/coding-standards.md` is still the BuildFlow default (Next.js, Prisma, Clerk, shadcn) and does not describe this Vite + React + Tailwind v4 app; tune it with `/onboard`.

@@ -466,7 +466,7 @@ export const AtlasMap: React.FC<AtlasMapProps> = ({
         )}
 
         {/* Bottom-Right Controls & Telemetry Stack (inside MapContainer for useMap context) */}
-        <div className="absolute bottom-3 right-3 flex flex-col items-end gap-2 z-[1000] pointer-events-none select-none">
+        <div className="absolute bottom-3 right-3 flex flex-col items-end gap-2 z-[1000] pointer-events-none select-none safe-bottom safe-right">
           {/* Minimal Custom Zoom Controls */}
           <CustomZoomControl
             tileStyle={tileStyle}

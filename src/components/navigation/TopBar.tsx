@@ -104,7 +104,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   return (
     <>
       {/* Main Top Bar */}
-      <header className="h-12 bg-white/95 dark:bg-[#111827]/95 backdrop-blur-md border-b border-[#E5E7EB] dark:border-[#374151] px-3 flex items-center justify-between select-none z-30 shrink-0 font-sans transition-colors">
+      <header className="min-h-[calc(3rem_+_env(safe-area-inset-top,0px))] safe-top bg-white/95 dark:bg-[#111827]/95 backdrop-blur-md border-b border-[#E5E7EB] dark:border-[#374151] pl-[calc(0.75rem_+_env(safe-area-inset-left,0px))] pr-[calc(0.75rem_+_env(safe-area-inset-right,0px))] flex items-center justify-between select-none z-30 shrink-0 font-sans transition-colors">
         {/* Zone 1: Logo + compact breadcrumbs */}
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <a
@@ -269,7 +269,7 @@ export const TopBar: React.FC<TopBarProps> = ({
 
       {/* Mobile breadcrumb drawer */}
       {mobileBreadcrumbsOpen && (
-        <div className="md:hidden absolute top-12 left-3 right-3 z-40 bg-white dark:bg-[#111827] border border-[#E5E7EB] dark:border-[#374151] rounded-lg shadow-lg p-3 animate-slide-down">
+        <div className="md:hidden absolute top-[calc(3rem_+_env(safe-area-inset-top,0px))] left-[calc(0.75rem_+_env(safe-area-inset-left,0px))] right-[calc(0.75rem_+_env(safe-area-inset-right,0px))] z-40 bg-white dark:bg-[#111827] border border-[#E5E7EB] dark:border-[#374151] rounded-lg shadow-lg p-3 animate-slide-down">
           <div className="flex items-center gap-2 text-xs font-mono text-[#6B7280] dark:text-[#9CA3AF]">
             <button
               onClick={onResetBreadcrumbs}
@@ -318,7 +318,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             onClick={closeActionsMenu}
             aria-hidden="true"
           />
-          <div className="absolute bottom-0 left-0 right-0 bg-white dark:bg-[#111827] border-t border-[#E5E7EB] dark:border-[#374151] rounded-t-2xl shadow-xl p-4 animate-slide-up max-h-[80vh] overflow-y-auto">
+          <div className="absolute bottom-0 left-0 right-0 bg-white dark:bg-[#111827] border-t border-[#E5E7EB] dark:border-[#374151] rounded-t-2xl shadow-xl pt-4 px-4 pb-[calc(1rem_+_env(safe-area-inset-bottom,0px))] animate-slide-up max-h-[80vh] supports-[height:100dvh]:max-h-[80dvh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-[#111827] dark:text-white">Actions</h3>
               <button
@@ -382,7 +382,7 @@ export const TopBar: React.FC<TopBarProps> = ({
           <div
             role="menu"
             aria-label="Actions"
-            className="hidden md:block lg:hidden fixed top-12 right-3 z-50 w-64 bg-white dark:bg-[#111827] border border-[#E5E7EB] dark:border-[#374151] rounded-lg shadow-lg p-1.5 animate-slide-down"
+            className="hidden md:block lg:hidden fixed top-[calc(3rem_+_env(safe-area-inset-top,0px))] right-[calc(0.75rem_+_env(safe-area-inset-right,0px))] z-50 w-64 bg-white dark:bg-[#111827] border border-[#E5E7EB] dark:border-[#374151] rounded-lg shadow-lg p-1.5 animate-slide-down"
           >
             {primaryActions.map((action) => (
               <button
@@ -419,7 +419,7 @@ export const TopBar: React.FC<TopBarProps> = ({
           <div
             role="menu"
             aria-label="About and version"
-            className="hidden md:block fixed top-12 right-3 z-50 w-60 bg-white dark:bg-[#111827] border border-[#E5E7EB] dark:border-[#374151] rounded-lg shadow-lg p-1.5 animate-slide-down"
+            className="hidden md:block fixed top-[calc(3rem_+_env(safe-area-inset-top,0px))] right-[calc(0.75rem_+_env(safe-area-inset-right,0px))] z-50 w-60 bg-white dark:bg-[#111827] border border-[#E5E7EB] dark:border-[#374151] rounded-lg shadow-lg p-1.5 animate-slide-down"
           >
             <button
               role="menuitem"

@@ -401,7 +401,7 @@ function PostcodeAtlasContent() {
   };
 
   return (
-    <div className="flex flex-col w-screen h-screen overflow-hidden bg-[#FAFAF9] dark:bg-[#0B0F17] select-none font-sans relative">
+    <div className="flex flex-col w-screen app-viewport overflow-hidden bg-[#FAFAF9] dark:bg-[#0B0F17] select-none font-sans relative">
       {/* Toast Notification Container */}
       <ToastContainer />
 
@@ -441,7 +441,7 @@ function PostcodeAtlasContent() {
       {/* Main Map Viewport (Occupies 95%+ of screen) */}
       <main className="relative flex-1 w-full h-full overflow-hidden">
         {/* Floating Arc / Linear Command Search */}
-        <div className="absolute top-4 left-4 z-30 pointer-events-auto">
+        <div className="absolute top-4 left-4 z-30 pointer-events-auto safe-left">
           <MapSearch
             onSelectResult={handleSelectSearchResult}
             onLocateUser={handleLocateUser}
@@ -451,7 +451,7 @@ function PostcodeAtlasContent() {
 
         {/* Postcode Hunt Active Draggable Objective Bar */}
         {huntTarget && !hasFoundHunt && (
-          <div className="absolute top-4 right-16 sm:right-20 z-30 pointer-events-auto">
+          <div className="absolute top-4 right-16 sm:right-20 z-30 pointer-events-auto safe-right">
             <DraggableCard dragHandleText="Hunt Target">
               <div className="bg-[#111827]/95 text-white backdrop-blur-md px-3 py-1.5 rounded-lg border border-[#374151] shadow-md flex items-center gap-2.5 text-xs">
                 <div>
@@ -497,7 +497,7 @@ function PostcodeAtlasContent() {
 
         {/* Mapbox/Linear Draggable Location Inspector Panel */}
         {selectedLocation && (
-          <div className="absolute bottom-6 left-4 sm:left-6 z-30 pointer-events-auto">
+          <div className="absolute bottom-6 left-4 sm:left-6 z-30 pointer-events-auto safe-bottom safe-left">
             <DraggableCard dragHandleText="Postcode Inspector">
               <PostcodeInspector
                 location={selectedLocation}
@@ -516,7 +516,7 @@ function PostcodeAtlasContent() {
 
         {/* Data Mode Draggable HUD (Top Right) */}
         {currentMode === 'data' && (
-          <div className="absolute top-14 sm:top-16 right-4 z-30 pointer-events-auto">
+          <div className="absolute top-14 sm:top-16 right-4 z-30 pointer-events-auto safe-right">
             <DraggableCard dragHandleText="Drag Telemetry">
               <DataModeOverlay
                 visibleCount={visibleCount}

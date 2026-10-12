@@ -201,7 +201,7 @@ export const PostcodeAssemblyDrawer: React.FC<PostcodeAssemblyDrawerProps> = ({
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 28, stiffness: 280 }}
-            className="fixed inset-y-0 right-0 w-[85%] max-w-md sm:w-96 md:w-[420px] bg-white dark:bg-[#111827] border-l border-[#E5E7EB] dark:border-[#374151] shadow-2xl z-50 flex flex-col font-sans transition-colors"
+            className="fixed inset-y-0 right-0 w-[85%] max-w-md sm:w-96 md:w-[420px] bg-white dark:bg-[#111827] border-l border-[#E5E7EB] dark:border-[#374151] shadow-2xl z-50 flex flex-col font-sans transition-colors safe-top safe-right safe-bottom"
           >
             {/* Header */}
             <div className="p-4 border-b border-[#E5E7EB] dark:border-[#374151] flex items-center justify-between bg-white dark:bg-[#111827] shrink-0">

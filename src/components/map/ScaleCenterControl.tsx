@@ -60,7 +60,7 @@ export const ScaleCenterControl: React.FC<ScaleCenterControlProps> = ({ onCenter
   };
 
   return (
-    <div className="absolute bottom-3 left-3 z-[1000] pointer-events-auto select-none flex items-center gap-2.5 bg-white/95 dark:bg-[#111827]/95 backdrop-blur-md px-3 py-1.5 rounded-lg border border-[#E5E7EB] dark:border-[#374151] shadow-xs text-xs font-sans transition-colors">
+    <div className="absolute bottom-[calc(0.75rem_+_env(safe-area-inset-bottom,0px))] left-[calc(0.75rem_+_env(safe-area-inset-left,0px))] z-[1000] pointer-events-auto select-none flex items-center gap-2.5 bg-white/95 dark:bg-[#111827]/95 backdrop-blur-md px-3 py-1.5 rounded-lg border border-[#E5E7EB] dark:border-[#374151] shadow-xs text-xs font-sans transition-colors">
       {/* Center Nigeria Control Button */}
       <button
         onClick={handleCenter}
