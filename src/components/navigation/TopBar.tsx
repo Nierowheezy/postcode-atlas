@@ -61,31 +61,45 @@ export const TopBar: React.FC<TopBarProps> = ({
   onToggleAskAtlas,
 }) => {
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
+  const [metaMenuOpen, setMetaMenuOpen] = useState(false);
   const [mobileBreadcrumbsOpen, setMobileBreadcrumbsOpen] = useState(false);
 
-  // One list feeds both the phone sheet and the desktop dropdown, so the two
-  // layouts cannot drift apart.
-  const actions: ActionItem[] = [
+  // Primary actions are the place actions; About and the version live in the meta
+  // menu, so the phone sheet composes both lists to keep About reachable there.
+  const primaryActions: ActionItem[] = [
     { icon: Compass, label: 'States', onClick: onOpenStatesDrawer, title: 'Browse 37 States' },
     { icon: Wrench, label: 'Assemble', onClick: onOpenAssemblyDrawer, title: 'NIPOST Assembly Engine' },
     { icon: Sparkles, label: 'Surprise me', onClick: onRandomPlace, title: 'Explore a random location', accent: true },
     { icon: Target, label: 'Hunt', onClick: onOpenHunt, title: 'Postcode Hunt challenge' },
-    { icon: Info, label: 'About', onClick: onOpenStory, title: 'NIPOST NDAPS Documentation' },
   ];
+  const aboutAction: ActionItem = {
+    icon: Info,
+    label: 'About',
+    onClick: onOpenStory,
+    title: 'NIPOST NDAPS Documentation',
+  };
+  const actions: ActionItem[] = [...primaryActions, aboutAction];
 
   const closeActionsMenu = () => {
     setActionsMenuOpen(false);
     setMobileBreadcrumbsOpen(false);
   };
 
+  const closeMetaMenu = () => {
+    setMetaMenuOpen(false);
+  };
+
   useEffect(() => {
-    if (!actionsMenuOpen) return;
+    if (!actionsMenuOpen && !metaMenuOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setActionsMenuOpen(false);
+      if (event.key === 'Escape') {
+        setActionsMenuOpen(false);
+        setMetaMenuOpen(false);
+      }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [actionsMenuOpen]);
+  }, [actionsMenuOpen, metaMenuOpen]);
 
   return (
     <>
@@ -190,8 +204,23 @@ export const TopBar: React.FC<TopBarProps> = ({
           ))}
         </div>
 
-        {/* Zone 3: Right side - menu, version, theme */}
+        {/* Zone 3: Right side - actions, ask, version, theme */}
         <div className="flex items-center gap-1">
+          {/* Primary actions, inline on desktop; the burger covers phones and tablets */}
+          <nav aria-label="Primary actions" className="hidden lg:flex items-center gap-0.5 mr-1 shrink-0">
+            {primaryActions.map((action) => (
+              <button
+                key={action.label}
+                onClick={action.onClick}
+                title={action.title}
+                className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1F2937] rounded transition-colors cursor-pointer whitespace-nowrap"
+              >
+                <action.icon className={`w-4 h-4 ${iconToneClass(action.accent)}`} />
+                <span>{action.label}</span>
+              </button>
+            ))}
+          </nav>
+
           {/* Ask Atlas conversational entry point */}
           <button
             onClick={onToggleAskAtlas}
@@ -203,10 +232,13 @@ export const TopBar: React.FC<TopBarProps> = ({
             <span className="hidden sm:inline">Ask Atlas</span>
           </button>
 
-          {/* Actions trigger - bottom sheet on phones, dropdown on desktop */}
+          {/* Actions trigger - bottom sheet on phones, dropdown on tablets, inline nav on desktop */}
           <button
-            className="flex items-center justify-center p-2 text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1F2937] rounded transition-colors"
-            onClick={() => setActionsMenuOpen(!actionsMenuOpen)}
+            className="lg:hidden flex items-center justify-center p-2 text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1F2937] rounded transition-colors"
+            onClick={() => {
+              setActionsMenuOpen(!actionsMenuOpen);
+              setMetaMenuOpen(false);
+            }}
             aria-label={actionsMenuOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={actionsMenuOpen}
             aria-haspopup="menu"
@@ -214,15 +246,18 @@ export const TopBar: React.FC<TopBarProps> = ({
             {actionsMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
 
-          {/* Version badge - hidden on phones (md and up); also in the actions menu */}
+          {/* Meta menu (desktop and tablet): About and the version, kept out of the primary nav */}
           <button
-            onClick={onOpenChangelog}
-            title={`Version ${APP_VERSION} — release notes`}
-            aria-label={`Version ${APP_VERSION}. Open release notes.`}
-            className="hidden md:flex items-center gap-1 px-1.5 py-1 text-[11px] font-mono text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1F2937] rounded border border-[#E5E7EB] dark:border-[#374151] transition-colors cursor-pointer"
+            onClick={() => {
+              setMetaMenuOpen(!metaMenuOpen);
+              setActionsMenuOpen(false);
+            }}
+            aria-label="About and version"
+            aria-haspopup="menu"
+            aria-expanded={metaMenuOpen}
+            className="hidden md:flex items-center justify-center p-2 text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1F2937] rounded transition-colors cursor-pointer"
           >
-            <GitCommitHorizontal className="w-3 h-3" />
-            <span>v{APP_VERSION}</span>
+            <Info className="w-4 h-4" />
           </button>
 
           {/* Theme Mode Selector - hidden on phones (sm and up); also in the actions menu */}
@@ -336,20 +371,20 @@ export const TopBar: React.FC<TopBarProps> = ({
         </div>
       )}
 
-      {/* Desktop actions dropdown */}
+      {/* Tablet actions dropdown */}
       {actionsMenuOpen && (
         <>
           <div
-            className="hidden md:block fixed inset-0 z-40"
+            className="hidden md:block lg:hidden fixed inset-0 z-40"
             onClick={closeActionsMenu}
             aria-hidden="true"
           />
           <div
             role="menu"
             aria-label="Actions"
-            className="hidden md:block fixed top-12 right-3 z-50 w-64 bg-white dark:bg-[#111827] border border-[#E5E7EB] dark:border-[#374151] rounded-lg shadow-lg p-1.5 animate-slide-down"
+            className="hidden md:block lg:hidden fixed top-12 right-3 z-50 w-64 bg-white dark:bg-[#111827] border border-[#E5E7EB] dark:border-[#374151] rounded-lg shadow-lg p-1.5 animate-slide-down"
           >
-            {actions.map((action) => (
+            {primaryActions.map((action) => (
               <button
                 key={action.label}
                 role="menuitem"
@@ -369,6 +404,56 @@ export const TopBar: React.FC<TopBarProps> = ({
                 </span>
               </button>
             ))}
+          </div>
+        </>
+      )}
+
+      {/* Meta menu: About and the version/release notes, for desktop and tablet */}
+      {metaMenuOpen && (
+        <>
+          <div
+            className="hidden md:block fixed inset-0 z-40"
+            onClick={closeMetaMenu}
+            aria-hidden="true"
+          />
+          <div
+            role="menu"
+            aria-label="About and version"
+            className="hidden md:block fixed top-12 right-3 z-50 w-60 bg-white dark:bg-[#111827] border border-[#E5E7EB] dark:border-[#374151] rounded-lg shadow-lg p-1.5 animate-slide-down"
+          >
+            <button
+              role="menuitem"
+              title={aboutAction.title}
+              onClick={() => {
+                onOpenStory();
+                closeMetaMenu();
+              }}
+              className="w-full flex items-start gap-2.5 px-2.5 py-2 rounded-md text-left hover:bg-[#F3F4F6] dark:hover:bg-[#1F2937] transition-colors cursor-pointer"
+            >
+              <Info className="w-4 h-4 mt-0.5 shrink-0 text-[#6B7280] dark:text-[#9CA3AF]" />
+              <span className="min-w-0">
+                <span className="block text-xs font-medium text-[#374151] dark:text-[#D1D5DB]">
+                  About Postcode Atlas
+                </span>
+                <span className="block text-[10px] text-[#9CA3AF] truncate">{aboutAction.title}</span>
+              </span>
+            </button>
+            <button
+              role="menuitem"
+              onClick={() => {
+                onOpenChangelog();
+                closeMetaMenu();
+              }}
+              className="w-full flex items-start gap-2.5 px-2.5 py-2 rounded-md text-left hover:bg-[#F3F4F6] dark:hover:bg-[#1F2937] transition-colors cursor-pointer"
+            >
+              <GitCommitHorizontal className="w-4 h-4 mt-0.5 shrink-0 text-[#6B7280] dark:text-[#9CA3AF]" />
+              <span className="min-w-0">
+                <span className="block text-xs font-medium text-[#374151] dark:text-[#D1D5DB]">
+                  Release notes
+                </span>
+                <span className="block text-[10px] text-[#9CA3AF] truncate">Version {APP_VERSION}</span>
+              </span>
+            </button>
           </div>
         </>
       )}
