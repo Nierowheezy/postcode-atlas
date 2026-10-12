@@ -53,6 +53,27 @@ export function resolveUpstreamPath(pathname: string): string {
     : pathname;
 }
 
+/**
+ * Resolves the NDAPS path and query for one proxy request.
+ *
+ * The dev middleware strips `/api/nipost`, so the NDAPS path is the request
+ * pathname. On Vercel the function is reached through the literal catch-all
+ * route `/api/nipost/[...path]`, and the `vercel.json` rewrite carries the NDAPS
+ * path in a `path` query parameter, so it is read from there instead.
+ */
+export function resolveUpstreamTarget(url: URL): { pathname: string; search: string } {
+  const carried = url.searchParams.get('path');
+
+  if (carried) {
+    const params = new URLSearchParams(url.searchParams);
+    params.delete('path');
+    const search = params.toString();
+    return { pathname: carried, search: search ? `?${search}` : '' };
+  }
+
+  return { pathname: resolveUpstreamPath(url.pathname), search: url.search };
+}
+
 function errorResponse(status: number, code: string, message: string): Response {
   return new Response(JSON.stringify({ error: { code, message } }), {
     status,
@@ -70,7 +91,7 @@ export async function handleNipostProxy(
   env: NipostServerEnv
 ): Promise<Response> {
   const url = new URL(request.url);
-  const pathname = resolveUpstreamPath(url.pathname);
+  const { pathname, search } = resolveUpstreamTarget(url);
 
   if (!isAllowedNipostPath(pathname)) {
     return errorResponse(
@@ -103,7 +124,7 @@ export async function handleNipostProxy(
 
   let upstream: Response;
   try {
-    upstream = await fetch(`${base}${pathname}${url.search}`, {
+    upstream = await fetch(`${base}${pathname}${search}`, {
       method: request.method,
       headers,
       body,

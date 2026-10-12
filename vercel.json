@@ -18,6 +18,7 @@
     { "source": "/version.json", "destination": "/version.json" },
     { "source": "/atlas-data.json", "destination": "/atlas-data.json" },
     { "source": "/og.jpg", "destination": "/og.jpg" },
+    { "source": "/api/nipost/:path*", "destination": "/api/nipost/[...path]?path=/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

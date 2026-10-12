@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isAllowedNipostPath, resolveUpstreamPath } from './handler';
+import { isAllowedNipostPath, resolveUpstreamPath, resolveUpstreamTarget } from './handler';
 
 describe('isAllowedNipostPath', () => {
   it('allows every NDAPS path the app calls', () => {
@@ -42,5 +42,36 @@ describe('resolveUpstreamPath', () => {
 
   it('leaves a bare upstream path alone (dev middleware)', () => {
     expect(resolveUpstreamPath('/v1/reference/lgas')).toBe('/v1/reference/lgas');
+  });
+});
+
+describe('resolveUpstreamTarget', () => {
+  it('reads the carried path and keeps the rest of the query (Vercel rewrite)', () => {
+    const url = new URL(
+      'https://atlas.test/api/nipost/%5B...path%5D?path=/v1/reference/lgas&state=LA'
+    );
+
+    expect(resolveUpstreamTarget(url)).toEqual({
+      pathname: '/v1/reference/lgas',
+      search: '?state=LA',
+    });
+  });
+
+  it('reads the request path when no path is carried (dev middleware)', () => {
+    const url = new URL('https://atlas.test/api/nipost/v1/search/reverse?lat=6.5&lng=3.3');
+
+    expect(resolveUpstreamTarget(url)).toEqual({
+      pathname: '/v1/search/reverse',
+      search: '?lat=6.5&lng=3.3',
+    });
+  });
+
+  it('returns no query when the carried path has none', () => {
+    const url = new URL('https://atlas.test/api/nipost/%5B...path%5D?path=/v1/reference/states');
+
+    expect(resolveUpstreamTarget(url)).toEqual({
+      pathname: '/v1/reference/states',
+      search: '',
+    });
   });
 });
