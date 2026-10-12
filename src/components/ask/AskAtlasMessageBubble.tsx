@@ -5,12 +5,20 @@
 
 import React from 'react';
 import { MessageSquare } from 'lucide-react';
-import type { AskAtlasMessage } from '../../lib/ask/types';
+import type { AskAtlasMessage, AskLanguage } from '../../lib/ask/types';
 import { GROUNDING_FOOTER, groundingBasis } from '../../lib/ask/grounding';
 import { AskAtlasResultsList } from './AskAtlasResultsList';
 import { AskAtlasDecodedCard } from './AskAtlasDecodedCard';
 import { AskAtlasNearbyList } from './AskAtlasNearbyList';
 import type { AskAtlasViewLocation } from './AskAtlasPanel';
+
+/** Human label per reply language, for the Auto footer. */
+const LANGUAGE_LABELS: Record<AskLanguage, string> = {
+  en: 'English',
+  yo: 'Yoruba',
+  ha: 'Hausa',
+  ig: 'Igbo',
+};
 
 /** Props for a single conversation turn. */
 export interface AskAtlasMessageBubbleProps {
@@ -33,6 +41,8 @@ const AssistantAvatar: React.FC = () => (
  */
 export const AskAtlasMessageBubble: React.FC<AskAtlasMessageBubbleProps> = ({ message, onViewLocation }) => {
   const basis = groundingBasis(message);
+  const autoLabel =
+    message.autoDetected && message.replyLanguage ? `Auto · ${LANGUAGE_LABELS[message.replyLanguage]}` : null;
   if (message.role === 'user') {
     return (
       <div className="flex justify-end">
@@ -101,10 +111,16 @@ export const AskAtlasMessageBubble: React.FC<AskAtlasMessageBubbleProps> = ({ me
         )}
 
         <span className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] text-[#9CA3AF] dark:text-[#6B7280]">
-          {basis !== 'chat' && <span>{GROUNDING_FOOTER[basis]}</span>}
+          {autoLabel && <span>{autoLabel}</span>}
+          {basis !== 'chat' && (
+            <>
+              {autoLabel && <span aria-hidden="true">·</span>}
+              <span>{GROUNDING_FOOTER[basis]}</span>
+            </>
+          )}
           {message.engine && (
             <>
-              {basis !== 'chat' && <span aria-hidden="true">·</span>}
+              {(autoLabel || basis !== 'chat') && <span aria-hidden="true">·</span>}
               <span className="font-mono">
                 {message.engine.provider} · try {message.engine.attempt}
               </span>

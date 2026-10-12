@@ -6,7 +6,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { MessageSquare } from 'lucide-react';
 import { DraggableCard } from '../ui/DraggableCard';
-import { AskLanguage, AskAtlasMessage, AskAtlasResponder, AtlasContextSnapshot, AtlasReferent } from '../../lib/ask/types';
+import { LanguageMode, AskAtlasMessage, AskAtlasResponder, AtlasContextSnapshot, AtlasReferent } from '../../lib/ask/types';
+import { detectLanguage } from '../../lib/ask/language';
 import type { MapAction } from '../../lib/tools/types';
 import { useAskAtlas } from '../../lib/ask/useAskAtlas';
 import { clearConversation, loadConversation, saveConversation } from '../../lib/ask/persistence';
@@ -87,9 +88,9 @@ const SUGGESTIONS = [
  * Restore a saved conversation, bumping the id counter past any restored ids so
  * newly created messages never collide with the ones read back from storage.
  */
-function readPersistedConversation(): { messages: AskAtlasMessage[]; language: AskLanguage } {
+function readPersistedConversation(): { messages: AskAtlasMessage[]; language: LanguageMode } {
   const saved = loadConversation();
-  if (!saved) return { messages: [], language: 'en' };
+  if (!saved) return { messages: [], language: 'auto' };
   for (const message of saved.messages) {
     const parsed = Number.parseInt(message.id.replace(/^msg-/, ''), 10);
     if (Number.isFinite(parsed) && parsed > messageSeq) messageSeq = parsed;
@@ -107,8 +108,8 @@ export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({
   const [initial] = useState(readPersistedConversation);
   const [messages, setMessages] = useState<AskAtlasMessage[]>(initial.messages);
   const [input, setInput] = useState('');
-  // Reply language for the whole conversation; sent on every request.
-  const [language, setLanguage] = useState<AskLanguage>(initial.language);
+  // Reply-language mode for the conversation; Auto is resolved per question.
+  const [language, setLanguage] = useState<LanguageMode>(initial.language);
   // Conversation area height in px, set on open and updated by the grip.
   const [listHeight, setListHeight] = useState<number>(defaultListHeight);
   // The delete confirmation is modal, so Escape must not close the panel.
@@ -155,6 +156,10 @@ export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({
     const text = input.trim();
     if (!text || isReplying) return;
 
+    // Auto reads the question and replies in its language; a manual chip wins.
+    const auto = language === 'auto';
+    const replyLanguage = auto ? detectLanguage(text).replyLanguage : language;
+
     // Feature 10: carry the place the conversation is currently about, so a
     // follow-up like "what are its LGAs?" has something to resolve against.
     // The referent, not raw history, is what the model resolves against:
@@ -165,7 +170,7 @@ export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({
     setInput('');
 
     try {
-      const res = await send({ text, context, language });
+      const res = await send({ text, context, language: replyLanguage });
       const reply: AskAtlasMessage = {
         ...makeMessage('assistant', res.text),
         question: text,
@@ -179,6 +184,8 @@ export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({
         nearby: res.nearby,
         mapAction: res.mapAction,
         referent: res.referent,
+        replyLanguage,
+        autoDetected: auto,
       };
       setMessages((prev) => [...prev, reply]);
       // Feature 8: the tool already validated this action, so the map moves

@@ -5,10 +5,11 @@
 
 import React from 'react';
 import { ChevronDown, MessageSquare, Trash2, X } from 'lucide-react';
-import type { AskLanguage } from '../../lib/ask/types';
+import type { LanguageMode } from '../../lib/ask/types';
 
-/** Reply languages offered by the chip; order matches LANGUAGE_NAMES in prompt.ts. */
-const LANGUAGES: { value: AskLanguage; label: string; title: string }[] = [
+/** Reply-language chip options; Auto detects the language of the question. */
+const LANGUAGES: { value: LanguageMode; label: string; title: string }[] = [
+  { value: 'auto', label: 'Auto', title: 'Detect the language of your question' },
   { value: 'en', label: 'EN', title: 'English' },
   { value: 'yo', label: 'YO', title: 'Yoruba' },
   { value: 'ha', label: 'HA', title: 'Hausa' },
@@ -19,9 +20,9 @@ const LANGUAGES: { value: AskLanguage; label: string; title: string }[] = [
 export interface AskAtlasHeaderProps {
   /** Show the clear-conversation button only when there is a conversation. */
   hasMessages: boolean;
-  /** Desired reply language, driven by the chip. */
-  language: AskLanguage;
-  onLanguageChange: (language: AskLanguage) => void;
+  /** Reply-language selection, or Auto detection of the question. */
+  language: LanguageMode;
+  onLanguageChange: (language: LanguageMode) => void;
   /** Opens the typed confirmation for deleting the conversation. */
   onClear: () => void;
   onClose: () => void;
@@ -68,7 +69,7 @@ export const AskAtlasHeader: React.FC<AskAtlasHeaderProps> = ({
       <div className="relative inline-flex">
         <select
           value={language}
-          onChange={(event) => onLanguageChange(event.target.value as AskLanguage)}
+          onChange={(event) => onLanguageChange(event.target.value as LanguageMode)}
           aria-label="Reply language"
           title="Reply language"
           className="appearance-none cursor-pointer rounded-full border border-[#E5E7EB] dark:border-[#374151] bg-transparent py-0.5 pl-2 pr-5 text-[10px] font-semibold text-[#6B7280] dark:text-[#9CA3AF] outline-none focus:border-[#0F7B4D] dark:focus:border-[#10B981]"

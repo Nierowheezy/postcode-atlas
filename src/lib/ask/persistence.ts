@@ -14,23 +14,27 @@
  * and degrade to "no persistence" rather than throwing.
  */
 
-import type { AskAtlasMessage, AskLanguage } from './types';
+import type { AskAtlasMessage, LanguageMode } from './types';
 
 const STORAGE_KEY = 'ask-atlas:conversation:v1';
 
 /** Most recent turns kept on disk, so a long chat cannot grow without bound. */
 const MAX_PERSISTED_MESSAGES = 40;
 
-/** The persisted shape. `version` lets a future change migrate or drop it. */
+/**
+ * The persisted shape. `version` lets a future change migrate or drop it.
+ * Version 2 stores the chip's `LanguageMode`, which can be `auto`; version 1
+ * stored a fixed `AskLanguage` whose default was `en`.
+ */
 export interface PersistedConversation {
-  version: 1;
-  language: AskLanguage;
+  version: 2;
+  language: LanguageMode;
   messages: AskAtlasMessage[];
 }
 
-const LANGUAGES: readonly AskLanguage[] = ['en', 'yo', 'ha', 'ig'];
+const LANGUAGES: readonly LanguageMode[] = ['auto', 'en', 'yo', 'ha', 'ig'];
 
-function isLanguage(value: unknown): value is AskLanguage {
+function isLanguage(value: unknown): value is LanguageMode {
   return typeof value === 'string' && (LANGUAGES as readonly string[]).includes(value);
 }
 
@@ -56,22 +60,26 @@ export function loadConversation(): PersistedConversation | null {
     const record = parsed as Record<string, unknown>;
     const messages = Array.isArray(record.messages) ? record.messages.filter(isMessage) : [];
     if (messages.length === 0) return null;
-    return {
-      version: 1,
-      language: isLanguage(record.language) ? record.language : 'en',
-      messages,
-    };
+    // Version 1 had no Auto mode and forced `en`, so a saved `en` becomes Auto;
+    // a deliberate non-English choice is preserved.
+    const language: LanguageMode =
+      record.version === 1 && record.language === 'en'
+        ? 'auto'
+        : isLanguage(record.language)
+          ? record.language
+          : 'auto';
+    return { version: 2, language, messages };
   } catch {
     return null;
   }
 }
 
 /** Persist the conversation. Silently no-ops when storage is unavailable. */
-export function saveConversation(language: AskLanguage, messages: AskAtlasMessage[]): void {
+export function saveConversation(language: LanguageMode, messages: AskAtlasMessage[]): void {
   if (typeof window === 'undefined') return;
   try {
     const payload: PersistedConversation = {
-      version: 1,
+      version: 2,
       language,
       messages: messages.slice(-MAX_PERSISTED_MESSAGES),
     };

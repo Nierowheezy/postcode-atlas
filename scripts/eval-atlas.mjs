@@ -209,6 +209,53 @@ const cases = [
       /kano|district/i.test(r.full) || 'follow-up did not resolve to Kano',
     check3: (r) => noInvented(r) || 'invented postcode',
   },
+  // --- multilingual (feature 18) --------------------------------------------
+  {
+    n: 17,
+    name: 'Yoruba: postcode for Ikeja',
+    text: 'Kí ni kòòdù Ikeja?',
+    language: 'Yoruba',
+    expect: 'auto-detects Yoruba, no invented code, natlas',
+    check: (r) => isNatlas(r) || `provider not natlas (${r.meter})`,
+    check2: (r) => noInvented(r) || `invented postcode: ${postcodes(r.reply).join(', ')}`,
+  },
+  {
+    n: 18,
+    name: 'Hausa: postcode for Ikeja',
+    text: 'Menene lambar gidan waya na Ikeja?',
+    language: 'Hausa',
+    expect: 'auto-detects Hausa, no invented code, natlas',
+    check: (r) => isNatlas(r) || `provider not natlas (${r.meter})`,
+    check2: (r) => noInvented(r) || `invented postcode: ${postcodes(r.reply).join(', ')}`,
+  },
+  {
+    n: 19,
+    name: 'Igbo: postcode for Ikeja',
+    text: 'Gịnị bụ koodu ozi nke Ikeja?',
+    language: 'Igbo',
+    expect: 'auto-detects Igbo, no invented code, natlas',
+    check: (r) => isNatlas(r) || `provider not natlas (${r.meter})`,
+    check2: (r) => noInvented(r) || `invented postcode: ${postcodes(r.reply).join(', ')}`,
+  },
+  {
+    n: 20,
+    name: 'Yoruba greeting',
+    text: 'Ẹ ku aaro',
+    language: 'Yoruba',
+    expect: 'small talk, no tool call',
+    check: (r) => isNatlas(r) || 'provider not natlas',
+    check2: (r) => (!hasToolResults(r) ? true : 'greeting triggered a tool call'),
+    check3: (r) => noInvented(r) || 'greeting invented a postcode',
+  },
+  {
+    n: 21,
+    name: 'Pidgin: postcode for Ikeja',
+    text: 'Abeg, wetin be the postcode for Ikeja?',
+    language: 'English',
+    expect: 'Pidgin detected, English reply, grounded',
+    check: (r) => isNatlas(r) || 'provider not natlas',
+    check2: (r) => noInvented(r) || 'invented postcode',
+  },
 ];
 
 // --- browser helpers --------------------------------------------------------
@@ -316,6 +363,12 @@ for (const c of cases) {
   for (const fn of checks) {
     const out = fn(after, { before, after, case: c });
     if (out !== true) failures.push(out);
+  }
+  // Multilingual cases assert the chip's Auto mode resolved to the expected
+  // reply language, which the bubble shows as "Auto · <language>".
+  if (c.language) {
+    const label = `Auto · ${c.language}`;
+    if (!after.full.includes(label)) failures.push(`no auto-detect label "${label}"`);
   }
   // Map cases also assert the map actually framed the requested state: the
   // top-bar breadcrumb gains the state name and the zoom leaves the national

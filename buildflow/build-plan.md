@@ -88,7 +88,7 @@ and deployment readiness. Adapt it to the project as implementation progresses.
 
 - [ ] 17. **Address interpretation** - interpret Nigerian addresses and resolve them into the Atlas location hierarchy where supported
 
-- [ ] 18. **Multilingual queries** - support Yoruba, Hausa, Igbo, and Nigerian Pidgin queries where N-ATLAS supports them reliably
+- [x] 18. **Multilingual queries** - support Yoruba, Hausa, Igbo, and Nigerian Pidgin queries where N-ATLAS supports them reliably
 
 - [ ] 19. **Atlas explanations** - provide richer explanations of Nigeria's digital addressing and postcode system
 

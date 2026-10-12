@@ -13,8 +13,16 @@
  * normalization, so any message that also names a place, a postcode, or a map
  * action still reaches the tools.
  */
+
+/**
+ * Diacritics are folded away so we can keep one entry per greeting instead of
+ * one per tone-marked spelling: "Ẹ ku àárọ̀" and "E ku aaro" both normalize to
+ * "e ku aaro". This also folds the underdots (ẹ, ọ, ṣ).
+ */
 function normalize(text: string): string {
   return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/[!?.,;:]+/g, ' ')
     .replace(/\s+/g, ' ')
@@ -22,13 +30,26 @@ function normalize(text: string): string {
 }
 
 const PHRASES = new Set([
+  // English
   'hi', 'hii', 'hiii', 'hey', 'heyy', 'hello', 'helloo', 'hi there', 'hello there', 'hey there',
   'good morning', 'good afternoon', 'good evening', 'good day', 'morning', 'afternoon', 'evening',
   'thanks', 'thank you', 'thankyou', 'thank you very much', 'thanks a lot', 'cheers', 'cheerio',
   'bye', 'goodbye', 'see you', 'see ya', 'later', 'how are you', 'how are you doing',
   'how is it going', "how's it going", 'hows it going', "what's up", 'whats up', 'sup', 'yo',
-  'ok', 'okay', 'alright', 'greetings', 'how far', 'how you dey', 'how body', 'wetin dey',
+  'ok', 'okay', 'alright', 'greetings',
   'hi how are you', 'hello how are you', 'hey how are you',
+  // Nigerian Pidgin
+  'how far', 'how you dey', 'how body', 'wetin dey', 'wetin dey happen', 'wetin happen',
+  'no wahala', 'na wa', 'abeg', 'how una dey', 'una dey', 'oga',
+  // Yoruba
+  'e ku', 'e ku aaro', 'e ku osan', 'e ku irole', 'e ku ale',
+  'ku aaro', 'ku osan', 'ku irole', 'ku ale',
+  'e kaaro', 'e kaasan', 'e kaale', 'bawo ni', 'bawo', 'e se', 'o se', 'o dabo', 'jowo',
+  // Hausa
+  'sannu', 'sannu da zuwa', 'ina kwana', 'ina wuni', 'yaya', 'ya ya', 'yaya kake', 'yaya kike',
+  'na gode', 'barka', 'barka da rana', 'barka da yini', 'sai an jima', 'sai wata rana', 'madalla',
+  // Igbo
+  'ndewo', 'ndeewo', 'nno', 'nnoo', 'kedu', 'kedu ka i mere', 'i di mma', 'daalu', 'daalu rinne', 'biko',
 ]);
 
 /** True when the whole message is a greeting, thanks, or other small talk. */

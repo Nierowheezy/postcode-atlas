@@ -1,7 +1,7 @@
 {
   "target": "http://localhost:3001/",
-  "passed": 16,
-  "total": 16,
+  "passed": 21,
+  "total": 21,
   "results": [
     {
       "n": 1,
@@ -41,7 +41,7 @@
       "failures": [],
       "grounding": "Verified against NIPOST",
       "meter": "natlas · try 1",
-      "reply": "The postcode FC-02-D43-LG-01 is in the Federal Capital Territory, Abuja Municipal LGA, D43 district, LG area, and Unit 01. It's a valid postcode with the coordinates 9.057977, 7.493727."
+      "reply": "The postcode FC-02-D43-LG-01 is in the Federal Capital Territory, Abuja Municipal, Abuja, and is valid."
     },
     {
       "n": 5,
@@ -51,7 +51,7 @@
       "failures": [],
       "grounding": "Answered from NIPOST tool results",
       "meter": "natlas · try 1",
-      "reply": "Wuse 2 is a neighborhood in Abuja, Nigeria."
+      "reply": "Wuse 2 is a location in Abuja, Nigeria. It is a popular area known for its commercial and residential activities."
     },
     {
       "n": 6,
@@ -59,9 +59,9 @@
       "expect": "verified landmark postcode or honest",
       "pass": true,
       "failures": [],
-      "grounding": "Answered from NIPOST tool results",
+      "grounding": "Not verified",
       "meter": "natlas · try 1",
-      "reply": "The Infrastructure Bank PLC has no single postcode. Please provide a specific area, street, or landmark for a more accurate postcode."
+      "reply": "The Infrastructure Bank PLC does not have a postcode. Please provide a specific area, street, or landmark for a more accurate postcode."
     },
     {
       "n": 7,
@@ -81,7 +81,7 @@
       "failures": [],
       "grounding": "No data footer",
       "meter": "natlas · try 1",
-      "reply": "Hello! I'm here to help you find Nigerian postcodes and answer questions about places in Nigeria. Can you please ask about a specific place or postcode?"
+      "reply": "Hello! I'm here to help you find Nigerian postcodes, places, or guide you on the map. Please ask me a specific question about a place or postcode, and I'll do my best to assist you!"
     },
     {
       "n": 9,
@@ -91,7 +91,7 @@
       "failures": [],
       "grounding": "Not verified",
       "meter": "natlas · try 1",
-      "reply": "I'm sorry, I can't help with that."
+      "reply": "I'm sorry, I can't help with that. Please ask a question about Nigerian postcodes or places."
     },
     {
       "n": 10,
@@ -101,7 +101,7 @@
       "failures": [],
       "grounding": "Verified against NIPOST",
       "meter": "natlas · try 1",
-      "reply": "The Lagos state has no single postcode. To find the postcode for a specific area, please provide the name of a town, area, or landmark within Lagos."
+      "reply": "Lagos is a state in Nigeria. It has two local government areas (LGAs): Lagos Island and Lagos Mainland."
     },
     {
       "n": 11,
@@ -111,7 +111,7 @@
       "failures": [],
       "grounding": "Answered from NIPOST tool results",
       "meter": "natlas · try 1",
-      "reply": "Port Harcourt is not found. Please specify the exact location or provide more details."
+      "reply": "Port Harcourt is a city in Nigeria."
     },
     {
       "n": 12,
@@ -119,9 +119,9 @@
       "expect": "narrows or resolves; no invented postcode",
       "pass": true,
       "failures": [],
-      "grounding": "Answered from NIPOST tool results",
+      "grounding": "Not verified",
       "meter": "natlas · try 1",
-      "reply": "Wuse is an area in Abuja, Nigeria. It has no single postcode. Please provide a specific street or landmark for a more accurate postcode."
+      "reply": "It seems there is no LGA called \"Wuse\" in the Federal Capital Territory (FCT). Please provide a different name for the LGA."
     },
     {
       "n": 13,
@@ -131,7 +131,7 @@
       "failures": [],
       "grounding": "Verified against NIPOST",
       "meter": "natlas · try 1",
-      "reply": "Ikeja is a Local Government Area in Lagos State."
+      "reply": "Ikeja is an LGA in Lagos State. The postcode for Ikeja is 11, and it is located in the LA state."
     },
     {
       "n": 14,
@@ -149,9 +149,9 @@
       "expect": "says a state has no single postcode",
       "pass": true,
       "failures": [],
-      "grounding": "Answered from NIPOST tool results",
+      "grounding": "Not verified",
       "meter": "natlas · try 1",
-      "reply": "Lagos state does not have a single postcode, as it is a large area with various local government areas (LGAs). To find the postcode for a specific location within Lagos, please provide the name of the LGA, district, or area."
+      "reply": "Sure, I can help you with a postcode in Nigeria. Can you please provide a specific area, street, or landmark within Lagos?"
     },
     {
       "n": 16,
@@ -159,9 +159,59 @@
       "expect": "resolves \"its\" to Kano",
       "pass": true,
       "failures": [],
-      "grounding": "Answered from NIPOST tool results",
+      "grounding": "Verified against NIPOST",
       "meter": "natlas · try 1",
-      "reply": "I can't list districts or areas: the offline dataset carries states and LGAs, and NIPOST's district and area records are codes without names. Ask about an LGA, a postcode, or the map instead."
+      "reply": "Ajingi LGA in Kano State has 20 districts."
+    },
+    {
+      "n": 17,
+      "name": "Yoruba: postcode for Ikeja",
+      "expect": "auto-detects Yoruba, no invented code, natlas",
+      "pass": true,
+      "failures": [],
+      "grounding": "Not verified",
+      "meter": "natlas · try 1",
+      "reply": "Ikeja ko ni koodu. Dipo, o jẹ apakan ti Ipinle Eko, eyiti ko ni koodu nipa ara rẹ. Ti o ba nilo koodu kan pato, jọwọ pese orukọ ti opopona, agbegbe, tabi agbegbe laarin Ikeja."
+    },
+    {
+      "n": 18,
+      "name": "Hausa: postcode for Ikeja",
+      "expect": "auto-detects Hausa, no invented code, natlas",
+      "pass": true,
+      "failures": [],
+      "grounding": "Not verified",
+      "meter": "natlas · try 1",
+      "reply": "I could not verify a postcode for that from the available data. Ask for a specific area, street, or landmark."
+    },
+    {
+      "n": 19,
+      "name": "Igbo: postcode for Ikeja",
+      "expect": "auto-detects Igbo, no invented code, natlas",
+      "pass": true,
+      "failures": [],
+      "grounding": "Verified against NIPOST",
+      "meter": "natlas · try 1",
+      "reply": "Ikeja bụ Local Government Area (LGA) dị na Lagos State. Koodu ozi ya bụ 11."
+    },
+    {
+      "n": 20,
+      "name": "Yoruba greeting",
+      "expect": "small talk, no tool call",
+      "pass": true,
+      "failures": [],
+      "grounding": "No data footer",
+      "meter": "natlas · try 1",
+      "reply": "Kí ló dé tí o fi ń béèrè nípa kóòdù pósítì àti ibi ní Nàìjíríà? O le béèrè nípa pósítì àgbègbè kan, bíi, “Kí ni kóòdù pósítì fún Ìkẹ́kọ̀ọ́” tàbí “Níbo ni Banki Ilé-iṣẹ́ Ẹ̀rọ wa wà.” Tí o bá mọ ibi kan pàtó, o lè sọ fún mi, mo sì lè fún ọ ní ìtọ́sọ́nà pósítì rẹ̀."
+    },
+    {
+      "n": 21,
+      "name": "Pidgin: postcode for Ikeja",
+      "expect": "Pidgin detected, English reply, grounded",
+      "pass": true,
+      "failures": [],
+      "grounding": "Verified against NIPOST",
+      "meter": "natlas · try 1",
+      "reply": "Ikeja is a Local Government Area, so it has no single postcode. Tell me a specific area, street, or landmark and I will find its unit postcode."
     }
   ]
 }

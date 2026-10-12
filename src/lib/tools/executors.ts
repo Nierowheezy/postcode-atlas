@@ -175,8 +175,22 @@ export async function getAreas(args: GetAreasArgs): Promise<HierarchyPage<AtlasA
   return toHierarchyPage(await atlasStore.getAreas(stateCode, lgaCode, args.district.trim()));
 }
 
-export function getPostcode(args: GetPostcodeArgs): Promise<PostcodeLocation | null> {
-  return atlasStore.getPostcode(args.code);
+/**
+ * Look up one exact postcode. The code must be well formed
+ * (STATE-LGA-DISTRICT-AREA-UNIT, or the 11-character compact form) before we
+ * reach the store: a model that misreads a place question for a code hands us a
+ * made-up value, and letting it through answers it as if it were real. A
+ * well-formed code with no record still resolves to null.
+ */
+export async function getPostcode(args: GetPostcodeArgs): Promise<PostcodeLocation | null> {
+  const code = toDashedCode(args.code);
+  if (!POSTCODE_PATTERN.test(code)) {
+    throw new ToolFault(
+      'invalid_args',
+      `"${args.code}" is not a postcode. A postcode looks like FC-02-D43-LG-01, and a state, city, or LGA name has no single postcode of its own.`,
+    );
+  }
+  return atlasStore.getPostcode(code);
 }
 
 export async function decodePostcode(args: DecodePostcodeArgs): Promise<DecodedPostcode> {

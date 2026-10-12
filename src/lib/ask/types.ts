@@ -43,6 +43,16 @@ export type ResponseGrounding = 'atlas' | 'unverified';
 /** Reply languages offered by the chip (N-ATLAS differentiator). */
 export type AskLanguage = 'en' | 'yo' | 'ha' | 'ig';
 
+/**
+ * Input languages the detector can recognise. Nigerian Pidgin (`pcm`) has no
+ * reply mode of its own; it maps to English, so `AskLanguage` stays unchanged
+ * and remains the only value that crosses to the server.
+ */
+export type DetectedLanguage = AskLanguage | 'pcm';
+
+/** The reply-language chip selection: a fixed language, or Auto detection. */
+export type LanguageMode = AskLanguage | 'auto';
+
 export type AskEngineProvider = 'gemini' | 'openrouter' | 'nvidia' | 'natlas';
 
 /** Which provider/model produced a reply, and which failover attempt succeeded. */
@@ -114,6 +124,10 @@ export interface AskAtlasMessage {
    * factual claim) without re-sending anything. Survives persistence.
    */
   question?: string;
+  /** Reply language actually used for this turn (feature 18). */
+  replyLanguage?: AskLanguage;
+  /** True when Auto chose `replyLanguage`; absent for a manual chip. */
+  autoDetected?: boolean;
   grounding?: ResponseGrounding;
   /** Which provider/model answered (present on real API replies). */
   engine?: AskEngineInfo;
