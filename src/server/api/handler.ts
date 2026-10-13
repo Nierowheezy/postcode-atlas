@@ -10,8 +10,15 @@
  * Feature 21b adds routes here; 21c adds the access gate around them.
  */
 
-import { fetchNipostJson, type NipostGatewayEnv } from '../nipost/gateway';
+import { fetchNipostJson, type NipostFetchResult, type NipostGatewayEnv } from '../nipost/gateway';
 import { normalizePostcodeCode, toPostcodeRecord } from './postcode';
+import {
+  REFERENCE_LIST_KEY,
+  REFERENCE_PATH,
+  normalizeReferenceParam,
+  toNamedCodes,
+  type ReferenceLevel,
+} from './hierarchy';
 
 /** Version prefix for every route. */
 export const API_PREFIX = '/api/v1';
@@ -64,13 +71,48 @@ function jsonResponse(
   });
 }
 
+/** Postcode lookups can change; cache them at the edge for five minutes. */
+const LOOKUP_MAX_AGE_SECONDS = 300;
+
+/** The hierarchy changes only when NIPOST updates it, so it caches for an hour. */
+const REFERENCE_MAX_AGE_SECONDS = 3600;
+
 /** A `{ data }` success body. NDAPS records are cacheable at the edge. */
-function dataResponse(data: unknown): Response {
-  return jsonResponse({ data }, 200, 'public, max-age=300');
+function dataResponse(data: unknown, maxAgeSeconds = LOOKUP_MAX_AGE_SECONDS): Response {
+  return jsonResponse({ data }, 200, `public, max-age=${maxAgeSeconds}`);
 }
 
 function errorResponse(code: ApiErrorCode, message: string): Response {
   return jsonResponse({ error: { code, message } }, ERROR_STATUS[code], 'no-store');
+}
+
+type NipostFailure = Extract<NipostFetchResult, { ok: false }>;
+
+/**
+ * Map a failed gateway call onto the public error contract. `notFoundStatuses`
+ * are the upstream HTTP statuses that mean "the resource is not there" for the
+ * calling route; any other upstream status becomes `upstream_error`.
+ */
+function upstreamErrorResponse(
+  result: NipostFailure,
+  notFoundStatuses: readonly number[],
+  notFoundMessage: string
+): Response {
+  switch (result.reason) {
+    case 'not_configured':
+      return errorResponse(
+        'not_configured',
+        'The NIPOST gateway is not configured on the server.'
+      );
+    case 'unreachable':
+      return errorResponse('upstream_unreachable', 'The NIPOST gateway could not be reached.');
+    case 'upstream_status':
+      return notFoundStatuses.includes(result.status)
+        ? errorResponse('not_found', notFoundMessage)
+        : errorResponse('upstream_error', 'The NIPOST gateway returned an unexpected status.');
+    case 'bad_response':
+      return errorResponse('upstream_error', 'The NIPOST gateway returned a non-JSON body.');
+  }
 }
 
 /** Ensure a leading slash and drop any trailing slash (`/` stays `/`). */
@@ -114,21 +156,7 @@ async function handlePostcode(rawCode: string, env: NipostGatewayEnv): Promise<R
   const result = await fetchNipostJson('/v1/lookup', { code, level: '1' }, env);
 
   if (!result.ok) {
-    switch (result.reason) {
-      case 'not_configured':
-        return errorResponse(
-          'not_configured',
-          'The NIPOST gateway is not configured on the server.'
-        );
-      case 'unreachable':
-        return errorResponse('upstream_unreachable', 'The NIPOST gateway could not be reached.');
-      case 'upstream_status':
-        return result.status === 404
-          ? errorResponse('not_found', 'No record was found for that postcode.')
-          : errorResponse('upstream_error', 'The NIPOST gateway returned an unexpected status.');
-      case 'bad_response':
-        return errorResponse('upstream_error', 'The NIPOST gateway returned a non-JSON body.');
-    }
+    return upstreamErrorResponse(result, [404], 'No record was found for that postcode.');
   }
 
   const record = toPostcodeRecord(code, result.data);
@@ -137,6 +165,38 @@ async function handlePostcode(rawCode: string, env: NipostGatewayEnv): Promise<R
   }
 
   return dataResponse(record);
+}
+
+/**
+ * Answer one hierarchy reference route. The NDAPS path and list field come from
+ * the level; `params` are the already-validated parent codes.
+ */
+async function handleReference(
+  level: ReferenceLevel,
+  params: Record<string, string>,
+  env: NipostGatewayEnv
+): Promise<Response> {
+  const result = await fetchNipostJson(REFERENCE_PATH[level], params, env);
+
+  if (!result.ok) {
+    // NDAPS answers 400 for a state it does not know, and 200 with an empty list
+    // for an unknown child. Either way the parent in the path is the problem.
+    return upstreamErrorResponse(
+      result,
+      [400, 404],
+      'No reference data was found for that hierarchy path.'
+    );
+  }
+
+  return dataResponse(
+    toNamedCodes(result.data, REFERENCE_LIST_KEY[level]),
+    REFERENCE_MAX_AGE_SECONDS
+  );
+}
+
+/** `400 invalid_code` for a malformed hierarchy path parameter. */
+function invalidReferenceParam(level: ReferenceLevel): Response {
+  return errorResponse('invalid_code', `The ${level} in the path is not well-formed.`);
 }
 
 /** Route and serve one public API request. */
@@ -165,6 +225,37 @@ export async function handleApi(
   const postcodeMatch = path.match(/^\/postcodes\/([^/]+)$/);
   if (postcodeMatch) {
     return handlePostcode(safeDecode(postcodeMatch[1]), env);
+  }
+
+  if (path === '/states') {
+    return handleReference('state', {}, env);
+  }
+
+  const lgasMatch = path.match(/^\/states\/([^/]+)\/lgas$/);
+  if (lgasMatch) {
+    const state = normalizeReferenceParam('state', safeDecode(lgasMatch[1]));
+    if (!state) return invalidReferenceParam('state');
+    return handleReference('lga', { state }, env);
+  }
+
+  const districtsMatch = path.match(/^\/states\/([^/]+)\/lgas\/([^/]+)\/districts$/);
+  if (districtsMatch) {
+    const state = normalizeReferenceParam('state', safeDecode(districtsMatch[1]));
+    if (!state) return invalidReferenceParam('state');
+    const lga = normalizeReferenceParam('lga', safeDecode(districtsMatch[2]));
+    if (!lga) return invalidReferenceParam('lga');
+    return handleReference('district', { state, lga }, env);
+  }
+
+  const areasMatch = path.match(/^\/states\/([^/]+)\/lgas\/([^/]+)\/districts\/([^/]+)\/areas$/);
+  if (areasMatch) {
+    const state = normalizeReferenceParam('state', safeDecode(areasMatch[1]));
+    if (!state) return invalidReferenceParam('state');
+    const lga = normalizeReferenceParam('lga', safeDecode(areasMatch[2]));
+    if (!lga) return invalidReferenceParam('lga');
+    const district = normalizeReferenceParam('district', safeDecode(areasMatch[3]));
+    if (!district) return invalidReferenceParam('district');
+    return handleReference('area', { state, lga, district }, env);
   }
 
   return errorResponse('unknown_route', 'No route matches that path.');

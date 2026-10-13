@@ -96,8 +96,10 @@ and deployment readiness. Adapt it to the project as implementation progresses.
 
 - [ ] 21. **Developer API** - expose Atlas postcode and location capabilities for external applications
   - [x] 21a. **API foundation and postcode lookup** - server-side NDAPS gateway client, the locked public envelope and error contract, CORS and cache headers, and `GET /api/v1/postcodes/{code}`
-  - [ ] 21b. **Hierarchy, search, and content endpoints** - states, LGAs, districts, areas, free-text search, postcode decode, nearby, and editorial explanations on the 21a contract
-  - [ ] 21c. **Access control and usage limits** - API-key verification plus rate limiting with standard 401 and 429 responses
+  - [x] 21b. **Reference hierarchy endpoints** - states, LGAs, districts, and areas from the NDAPS reference paths on the 21a contract
+  - [ ] 21c. **Search, decode, and nearby endpoints** - autocomplete, postcode decode, nearby, and reverse geocode on the 21a contract
+  - [ ] 21d. **Editorial explanations endpoint** - the curated feature 19 Atlas copy as read-only API content, labelled as editorial rather than verified NIPOST data
+  - [ ] 21e. **Access control and usage limits** - API-key verification plus rate limiting with standard 401 and 429 responses
 
 - [ ] 22. **Developer documentation** - provide integration documentation and examples for the Atlas API
 

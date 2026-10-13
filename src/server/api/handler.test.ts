@@ -250,3 +250,160 @@ describe('handleApi', () => {
     expect(response.status).toBe(200);
   });
 });
+
+describe('handleApi hierarchy routes', () => {
+  const STATES_BODY = { data: { states: [{ code: 'LA', name: 'Lagos' }] } };
+  const LGAS_BODY = { data: { lgas: [{ code: '11', name: 'Ikeja' }] } };
+  const DISTRICTS_BODY = { data: { districts: [{ code: 'A12' }] } };
+  const AREAS_BODY = { data: { areas: [{ code: 'AK' }] } };
+
+  it('lists states with a one-hour cache', async () => {
+    const fetchMock = stubLookup(jsonResponse(STATES_BODY));
+
+    const response = await handleApi(get('/api/v1/states'), ENV);
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledWith('https://api.postcode.gov.ng/v1/reference/states', {
+      headers: { 'X-API-Key': 'nipost_pk_test' },
+    });
+    expect(response.headers.get('cache-control')).toContain('max-age=3600');
+    await expect(response.json()).resolves.toEqual({ data: [{ code: 'LA', name: 'Lagos' }] });
+  });
+
+  it('lists LGAs for a state', async () => {
+    const fetchMock = stubLookup(jsonResponse(LGAS_BODY));
+
+    const response = await handleApi(get('/api/v1/states/LA/lgas'), ENV);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.postcode.gov.ng/v1/reference/lgas?state=LA',
+      { headers: { 'X-API-Key': 'nipost_pk_test' } }
+    );
+    await expect(response.json()).resolves.toEqual({ data: [{ code: '11', name: 'Ikeja' }] });
+  });
+
+  it('lists districts for a state and LGA', async () => {
+    const fetchMock = stubLookup(jsonResponse(DISTRICTS_BODY));
+
+    const response = await handleApi(get('/api/v1/states/LA/lgas/11/districts'), ENV);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.postcode.gov.ng/v1/reference/districts?state=LA&lga=11',
+      { headers: { 'X-API-Key': 'nipost_pk_test' } }
+    );
+    await expect(response.json()).resolves.toEqual({ data: [{ code: 'A12' }] });
+  });
+
+  it('lists areas for a state, LGA, and district', async () => {
+    const fetchMock = stubLookup(jsonResponse(AREAS_BODY));
+
+    const response = await handleApi(get('/api/v1/states/LA/lgas/11/districts/A12/areas'), ENV);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.postcode.gov.ng/v1/reference/areas?state=LA&lga=11&district=A12',
+      { headers: { 'X-API-Key': 'nipost_pk_test' } }
+    );
+    await expect(response.json()).resolves.toEqual({ data: [{ code: 'AK' }] });
+  });
+
+  it('normalizes lower-case path params before the call', async () => {
+    const fetchMock = stubLookup(jsonResponse(AREAS_BODY));
+
+    await handleApi(get('/api/v1/states/la/lgas/11/districts/a12/areas'), ENV);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.postcode.gov.ng/v1/reference/areas?state=LA&lga=11&district=A12',
+      { headers: { 'X-API-Key': 'nipost_pk_test' } }
+    );
+  });
+
+  it('rejects a malformed param without calling upstream', async () => {
+    const fetchMock = stubLookup(jsonResponse(STATES_BODY));
+
+    const response = await handleApi(get('/api/v1/states/l1/lgas'), ENV);
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ error: { code: 'invalid_code' } });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects a malformed LGA in a deeper path without calling upstream', async () => {
+    const fetchMock = stubLookup(jsonResponse(STATES_BODY));
+
+    const response = await handleApi(get('/api/v1/states/LA/lgas/xx/districts'), ENV);
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ error: { code: 'invalid_code' } });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('maps an unknown state (upstream 400) to not_found', async () => {
+    stubLookup(new Response(JSON.stringify({ error: { code: 'bad_request' } }), { status: 400 }));
+
+    const response = await handleApi(get('/api/v1/states/ZZ/lgas'), ENV);
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toMatchObject({ error: { code: 'not_found' } });
+  });
+
+  it('keeps an empty list a 200 with an empty array', async () => {
+    stubLookup(jsonResponse({ data: { districts: [] } }));
+
+    const response = await handleApi(get('/api/v1/states/LA/lgas/99/districts'), ENV);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ data: [] });
+  });
+
+  it('treats a body missing the list key as an empty list', async () => {
+    stubLookup(jsonResponse({ data: {} }));
+
+    const response = await handleApi(get('/api/v1/states'), ENV);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ data: [] });
+  });
+
+  it('maps a 5xx upstream failure to upstream_error', async () => {
+    stubLookup(new Response('boom', { status: 503 }));
+
+    const response = await handleApi(get('/api/v1/states'), ENV);
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toMatchObject({ error: { code: 'upstream_error' } });
+  });
+
+  it('maps an unreachable gateway to upstream_unreachable', async () => {
+    stubLookup(new Error('offline'));
+
+    const response = await handleApi(get('/api/v1/states'), ENV);
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: 'upstream_unreachable' },
+    });
+  });
+
+  it('maps a non-JSON upstream body to upstream_error', async () => {
+    stubLookup(new Response('<html>no</html>', { status: 200 }));
+
+    const response = await handleApi(get('/api/v1/states'), ENV);
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toMatchObject({ error: { code: 'upstream_error' } });
+  });
+
+  it('reports not_configured when the server holds no key', async () => {
+    const response = await handleApi(get('/api/v1/states'), {});
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toMatchObject({ error: { code: 'not_configured' } });
+  });
+
+  it('returns unknown_route for a hierarchy prefix with no leaf route', async () => {
+    const response = await handleApi(get('/api/v1/states/LA'), ENV);
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toMatchObject({ error: { code: 'unknown_route' } });
+  });
+});
