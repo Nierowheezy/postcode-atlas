@@ -11,9 +11,15 @@
  */
 
 import type { PostcodeLocation, PostcodeSegments } from '../../types/postcode';
+import { createAtlasAddressLookup } from '../address/lookup';
+import { parseAddressText } from '../address/parse';
+import { resolveAddress } from '../address/resolve';
+import type { InterpretedAddress } from '../address/types';
 import { postcodeApi } from '../api/postcodeClient';
 import { atlasStore } from '../atlas/store';
 import type { AtlasArea, AtlasDistrict, AtlasLga, AtlasState, LocationCandidate } from '../atlas/dataset';
+import { matchLgaName, matchStateName } from '../atlas/names';
+import { POSTCODE_PATTERN, toDashedCode } from '../atlas/postcodeCode';
 import { NIGERIA_CENTER, NIGERIA_DEFAULT_ZOOM, NIGERIA_STATES } from '../geo/nigeriaData';
 import type {
   DecodePostcodeArgs,
@@ -23,6 +29,7 @@ import type {
   GetNearbyArgs,
   GetPostcodeArgs,
   GetStateArgs,
+  InterpretAddressArgs,
   NavigateMapArgs,
   SearchLocationArgs,
 } from './schemas';
@@ -40,24 +47,9 @@ const MAX_HIERARCHY_ROWS = 50;
 /** Zoom used when the map frames an LGA, matching the explorer's own view. */
 const LGA_VIEW_ZOOM = 12;
 const MAX_NEARBY_UNITS = 50;
-const POSTCODE_PATTERN = /^([A-Z]{2})-(\d{2})-([A-Z0-9]{3})-([A-Z]{2})-(\d{2})$/;
-const COMPACT_POSTCODE_LENGTH = 11;
 
 export function searchLocation(args: SearchLocationArgs): Promise<LocationCandidate[]> {
   return atlasStore.searchLocations(args.query);
-}
-
-/** Aliases people and the model use for a state that is not its official name. */
-const STATE_ALIASES: Record<string, string> = {
-  abuja: 'FC',
-  fct: 'FC',
-  'abuja fct': 'FC',
-  'federal capital': 'FC',
-};
-
-/** Trim a trailing "state"/"lga" qualifier so "Lagos State" and "Ikeja LGA" resolve. */
-function trimQualifier(value: string, qualifier: string): string {
-  return value.trim().replace(new RegExp(`\\s+${qualifier}$`, 'i'), '').trim();
 }
 
 /**
@@ -67,15 +59,7 @@ function trimQualifier(value: string, qualifier: string): string {
  * catalogue, so it works offline once the store hydrates.
  */
 async function resolveState(wanted: string): Promise<AtlasState> {
-  const states = await atlasStore.getStates();
-  const cleaned = trimQualifier(wanted, 'state').toLowerCase();
-  const aliasCode = STATE_ALIASES[cleaned];
-  const match = states.find(
-    (state) =>
-      (aliasCode !== undefined && state.code.toUpperCase() === aliasCode) ||
-      state.code.toUpperCase() === cleaned.toUpperCase() ||
-      state.name.toLowerCase() === cleaned,
-  );
+  const match = matchStateName(await atlasStore.getStates(), wanted);
   if (!match) {
     throw new ToolFault('not_found', `No Nigerian state matches "${wanted}".`);
   }
@@ -84,11 +68,7 @@ async function resolveState(wanted: string): Promise<AtlasState> {
 
 /** Resolve an LGA name or code within a resolved state to its canonical code. */
 async function resolveLgaCode(stateCode: string, wanted: string): Promise<string> {
-  const lgas = await atlasStore.getLgas(stateCode);
-  const cleaned = trimQualifier(wanted, 'lga').toLowerCase();
-  const match = lgas.find(
-    (lga) => lga.code.toUpperCase() === cleaned.toUpperCase() || lga.name.toLowerCase() === cleaned,
-  );
+  const match = matchLgaName(await atlasStore.getLgas(stateCode), wanted);
   if (!match) {
     throw new ToolFault('not_found', `No LGA matches "${wanted}" in state ${stateCode}.`);
   }
@@ -313,20 +293,6 @@ export async function getNearby(args: GetNearbyArgs): Promise<NearbyUnit[]> {
     .slice(0, MAX_NEARBY_UNITS);
 }
 
-/** Reinsert dashes so both `FC-02-D43-LG-01` and `FC02D43LG01` decode the same. */
-function toDashedCode(input: string): string {
-  const compact = input.trim().toUpperCase().replace(/[\s-]+/g, '');
-  if (compact.length !== COMPACT_POSTCODE_LENGTH) return compact;
-
-  return [
-    compact.slice(0, 2),
-    compact.slice(2, 4),
-    compact.slice(4, 7),
-    compact.slice(7, 9),
-    compact.slice(9, 11),
-  ].join('-');
-}
-
 function toCoordinates(lat?: number, lng?: number): [number, number] | undefined {
   return lat !== undefined && lng !== undefined ? [lat, lng] : undefined;
 }
@@ -378,3 +344,14 @@ function asCoordinates(value: unknown): [number, number] | undefined {
   const [lng, lat] = value;
   return typeof lat === 'number' && typeof lng === 'number' ? [lat, lng] : undefined;
 }
+
+/**
+ * Read a pasted address against the Atlas data (feature 17): the state, LGA,
+ * and postcode it can place, and the parts it cannot. A code appears only when
+ * the address carried one or a verified landmark matched, so a street never
+ * comes back with an invented postcode.
+ */
+export async function interpretAddress(args: InterpretAddressArgs): Promise<InterpretedAddress> {
+  return resolveAddress(parseAddressText(args.text), createAtlasAddressLookup());
+}
+

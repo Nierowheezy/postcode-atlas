@@ -21,6 +21,7 @@ import {
   getPostcodeSchema,
   getStateSchema,
   getStatesSchema,
+  interpretAddressSchema,
   navigateMapSchema,
   searchLocationSchema,
 } from './schemas.js';
@@ -48,6 +49,7 @@ const SCHEMAS: Record<ToolName, z.ZodType> = {
   decodePostcode: decodePostcodeSchema,
   getNearby: getNearbySchema,
   navigateMap: navigateMapSchema,
+  interpretAddress: interpretAddressSchema,
 };
 
 function buildProviderTools(): ProviderTool[] {

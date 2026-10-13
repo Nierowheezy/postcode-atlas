@@ -6,10 +6,12 @@
 import React from 'react';
 import { MessageSquare } from 'lucide-react';
 import type { AskAtlasMessage, AskLanguage } from '../../lib/ask/types';
+import type { MapAction } from '../../lib/tools/types';
 import { GROUNDING_FOOTER, groundingBasis } from '../../lib/ask/grounding';
 import { AskAtlasResultsList } from './AskAtlasResultsList';
 import { AskAtlasDecodedCard } from './AskAtlasDecodedCard';
 import { AskAtlasNearbyList } from './AskAtlasNearbyList';
+import { AskAtlasAddress } from './AskAtlasAddress';
 import type { AskAtlasViewLocation } from './AskAtlasPanel';
 
 /** Human label per reply language, for the Auto footer. */
@@ -25,6 +27,8 @@ export interface AskAtlasMessageBubbleProps {
   message: AskAtlasMessage;
   /** Moves the map to this reply's location (feature 8). */
   onViewLocation?: (location: AskAtlasViewLocation) => void;
+  /** Applies a validated map move for a resolved address (features 8, 17). */
+  onMapAction?: (action: MapAction) => void;
 }
 
 /** Small round mark that heads every assistant turn. */
@@ -39,7 +43,7 @@ const AssistantAvatar: React.FC = () => (
  * assistant answers as plain, full-width prose under its avatar, Grok-style.
  * Structured payloads (lookup, list, decode, nearby) render as cards beneath.
  */
-export const AskAtlasMessageBubble: React.FC<AskAtlasMessageBubbleProps> = ({ message, onViewLocation }) => {
+export const AskAtlasMessageBubble: React.FC<AskAtlasMessageBubbleProps> = ({ message, onViewLocation, onMapAction }) => {
   const basis = groundingBasis(message);
   const autoLabel =
     message.autoDetected && message.replyLanguage ? `Auto · ${LANGUAGE_LABELS[message.replyLanguage]}` : null;
@@ -93,6 +97,7 @@ export const AskAtlasMessageBubble: React.FC<AskAtlasMessageBubbleProps> = ({ me
         {message.results && <AskAtlasResultsList list={message.results} />}
         {message.decoded && <AskAtlasDecodedCard decoded={message.decoded} />}
         {message.nearby && <AskAtlasNearbyList list={message.nearby} />}
+        {message.address && <AskAtlasAddress address={message.address} onMapAction={onMapAction} />}
 
         {message.location && (
           <button

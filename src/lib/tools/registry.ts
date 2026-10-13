@@ -18,6 +18,7 @@ import {
   getPostcode,
   getState,
   getStates,
+  interpretAddress,
   navigateMap,
   searchLocation,
 } from './executors';
@@ -31,6 +32,7 @@ import {
   getPostcodeSchema,
   getStateSchema,
   getStatesSchema,
+  interpretAddressSchema,
   navigateMapSchema,
   searchLocationSchema,
 } from './schemas';
@@ -113,6 +115,12 @@ export const TOOL_REGISTRY: Record<ToolName, RegisteredTool> = {
     description: TOOL_DESCRIPTIONS.navigateMap,
     schema: navigateMapSchema,
     execute: navigateMap,
+  }),
+  interpretAddress: register({
+    name: 'interpretAddress',
+    description: TOOL_DESCRIPTIONS.interpretAddress,
+    schema: interpretAddressSchema,
+    execute: interpretAddress,
   }),
 };
 

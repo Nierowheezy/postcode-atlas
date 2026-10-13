@@ -41,6 +41,33 @@ describe('groundingBasis', () => {
         }),
       ),
     ).toBe('payload');
+    expect(
+      groundingBasis(
+        assistant({
+          address: {
+            input: '12 Allen Avenue, Ikeja, Lagos',
+            state: { code: 'LA', name: 'Lagos' },
+            lga: { code: 'LA-05', name: 'Ikeja' },
+            unresolved: ['12 Allen Avenue'],
+            resolvedTo: 'lga',
+          },
+        }),
+      ),
+    ).toBe('payload');
+  });
+
+  it('does not label an address that placed nothing as a verified payload', () => {
+    // The tool ran but the address matched no state, LGA, or postcode: it
+    // verified nothing, so the reply falls back to the tool-results or
+    // unverified line rather than claiming a data payload.
+    expect(
+      groundingBasis(
+        assistant({
+          address: { input: 'Nowhereville', unresolved: ['Nowhereville'], resolvedTo: 'none' },
+          grounding: 'atlas',
+        }),
+      ),
+    ).toBe('tools');
   });
 
   it('does not label an empty nearby search as a verified payload', () => {

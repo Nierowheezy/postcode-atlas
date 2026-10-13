@@ -10,6 +10,7 @@
  */
 
 import type { DecodedPostcode, MapAction, NearbyUnit, ToolError } from '../tools/types';
+import type { InterpretedAddress } from '../address/types';
 
 export interface AtlasContextSnapshot {
   selectedState?: { code: string; name: string };
@@ -105,6 +106,13 @@ export interface AskAtlasResponse {
    */
   referent?: AtlasReferent;
   /**
+   * How a pasted address mapped onto the hierarchy (feature 17). Derived on
+   * the client from an executed `interpretAddress` result; absent when the
+   * reply did not interpret one. Carries only what the data supports, and
+   * lists anything it could not place in `unresolved`.
+   */
+  address?: InterpretedAddress;
+  /**
    * Present when the model asked for tool calls instead of answering.
    * `text` is empty then; the client executes the calls and feeds the
    * results back via the next request's `toolTurns`.
@@ -146,6 +154,8 @@ export interface AskAtlasMessage {
   mapAction?: MapAction;
   /** The place this reply resolved, used as the next turn's referent (feature 10). */
   referent?: AtlasReferent;
+  /** Address interpretation rendered as the feature 17 card. */
+  address?: InterpretedAddress;
   timestamp: number;
 }
 

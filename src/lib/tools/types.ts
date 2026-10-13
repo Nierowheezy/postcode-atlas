@@ -11,6 +11,7 @@
 
 import type { ZodType } from 'zod';
 import type { PostcodeLocation, PostcodeSegments, StateGeoInfo } from '../../types/postcode';
+import type { InterpretedAddress } from '../address/types';
 import type { AtlasArea, AtlasDistrict, AtlasLga, AtlasState, LocationCandidate } from '../atlas/dataset';
 
 export const TOOL_NAMES = [
@@ -24,6 +25,7 @@ export const TOOL_NAMES = [
   'decodePostcode',
   'getNearby',
   'navigateMap',
+  'interpretAddress',
 ] as const;
 
 export type ToolName = (typeof TOOL_NAMES)[number];
@@ -145,4 +147,5 @@ export interface ToolResultMap {
   decodePostcode: DecodedPostcode;
   getNearby: NearbyUnit[];
   navigateMap: MapAction;
+  interpretAddress: InterpretedAddress;
 }

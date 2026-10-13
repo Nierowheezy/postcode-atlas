@@ -191,6 +191,7 @@ export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({
         decoded: res.decoded,
         nearby: res.nearby,
         mapAction: res.mapAction,
+        address: res.address,
         referent: res.referent,
         replyLanguage,
         autoDetected: auto,
@@ -270,7 +271,7 @@ export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({
           </div>
         )}
         {messages.map((m) => (
-          <AskAtlasMessageBubble key={m.id} message={m} onViewLocation={onViewLocation} />
+          <AskAtlasMessageBubble key={m.id} message={m} onViewLocation={onViewLocation} onMapAction={onMapAction} />
         ))}
         {isReplying && <AskAtlasThinkingBubble phase={phase} />}
       </div>

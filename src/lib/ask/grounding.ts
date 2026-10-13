@@ -41,7 +41,8 @@ export function groundingBasis(message: AskAtlasMessage): GroundingBasis {
     message.lookup ||
     message.results ||
     message.decoded ||
-    (message.nearby && message.nearby.items.length > 0)
+    (message.nearby && message.nearby.items.length > 0) ||
+    (message.address && message.address.resolvedTo !== 'none')
   )
     return 'payload';
   // A map move shows no postcode data, so it is labelled for what it is rather

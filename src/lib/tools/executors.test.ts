@@ -1,16 +1,32 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
- * The store is the only thing `getPostcode` touches, so stub it and assert on
- * the call. This keeps the test offline and focused on the format guard.
+ * These executors answer from the Atlas store and nothing else, so stub the
+ * store at the module boundary. That keeps the tests offline and focused on
+ * the code, not on a live dataset or the network.
  */
-const { storeGetPostcode } = vi.hoisted(() => ({ storeGetPostcode: vi.fn() }));
+const { storeGetPostcode, storeGetStates, storeGetLgas, storeGetDiscovery, storeSearch } = vi.hoisted(
+  () => ({
+    storeGetPostcode: vi.fn(),
+    storeGetStates: vi.fn(),
+    storeGetLgas: vi.fn(),
+    storeGetDiscovery: vi.fn(),
+    storeSearch: vi.fn(),
+  }),
+);
 
 vi.mock('../atlas/store', () => ({
-  atlasStore: { getPostcode: storeGetPostcode },
+  atlasStore: {
+    getPostcode: storeGetPostcode,
+    getStates: storeGetStates,
+    getLgas: storeGetLgas,
+    getDiscoveryPoints: storeGetDiscovery,
+    searchLocations: storeSearch,
+  },
 }));
 
-import { getPostcode } from './executors';
+import { getPostcode, interpretAddress } from './executors';
+import { runTool } from './registry';
 
 describe('getPostcode format guard', () => {
   beforeEach(() => {
@@ -39,5 +55,41 @@ describe('getPostcode format guard', () => {
   it('returns null for a well-formed code with no record', async () => {
     await expect(getPostcode({ code: 'FC-02-D43-LG-01' })).resolves.toBeNull();
     expect(storeGetPostcode).toHaveBeenCalledOnce();
+  });
+});
+
+describe('interpretAddress', () => {
+  beforeEach(() => {
+    storeGetStates.mockReset().mockResolvedValue([
+      { code: 'LA', name: 'Lagos' },
+      { code: 'KN', name: 'Kano' },
+    ]);
+    storeGetLgas.mockReset().mockResolvedValue([{ state: 'LA', code: 'LA-05', name: 'Ikeja' }]);
+    storeGetDiscovery.mockReset().mockResolvedValue([]);
+    storeSearch.mockReset().mockResolvedValue([]);
+  });
+
+  it('places the state and LGA of a pasted address and reports the street', async () => {
+    const result = await interpretAddress({ text: '12 Allen Avenue, Ikeja, Lagos' });
+    expect(result.state).toEqual({ code: 'LA', name: 'Lagos' });
+    expect(result.lga).toEqual({ code: 'LA-05', name: 'Ikeja' });
+    expect(result.unresolved).toEqual(['12 Allen Avenue']);
+    expect(result.resolvedTo).toBe('lga');
+    expect(result.postcode).toBeUndefined();
+  });
+
+  it('reports honestly when only a state can be placed', async () => {
+    const result = await interpretAddress({ text: 'Nowhereville, Kano' });
+    expect(result.state).toEqual({ code: 'KN', name: 'Kano' });
+    expect(result.unresolved).toEqual(['Nowhereville']);
+    expect(result.postcode).toBeUndefined();
+    expect(result.resolvedTo).toBe('state');
+  });
+
+  it('runs through runTool and rejects an empty address as invalid_args', async () => {
+    await expect(runTool('interpretAddress', { text: '   ' })).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'invalid_args' },
+    });
   });
 });

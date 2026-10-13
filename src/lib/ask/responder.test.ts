@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deriveMapAction, deriveReferent, hasEmptyScopeList, asksForPostcode, postcodeScopeCopy } from './responder';
+import { deriveAddress, deriveMapAction, deriveReferent, hasEmptyScopeList, asksForPostcode, postcodeScopeCopy } from './responder';
 import type { AskToolResult, AskToolTurn, AtlasResultList } from './types';
 
 function turn(...toolResults: AskToolResult[]): AskToolTurn {
@@ -101,6 +101,35 @@ describe('deriveMapAction', () => {
   it('ignores failed and non-map results', () => {
     expect(deriveMapAction([turn({ tool_call_id: 'c1', name: 'navigateMap', ok: false })])).toBeUndefined();
     expect(deriveMapAction([turn(ok('getState', { code: 'KN', name: 'Kano' }))])).toBeUndefined();
+  });
+});
+
+describe('deriveAddress', () => {
+  const payload = {
+    input: '12 Allen Avenue, Ikeja, Lagos',
+    state: { code: 'LA', name: 'Lagos' },
+    lga: { code: 'LA-05', name: 'Ikeja' },
+    unresolved: ['12 Allen Avenue'],
+    resolvedTo: 'lga',
+  };
+
+  it('reads an interpretAddress result as the reply payload', () => {
+    expect(deriveAddress([turn(ok('interpretAddress', payload))])).toEqual(payload);
+  });
+
+  it('keeps the last interpretation when several ran', () => {
+    const later = { ...payload, input: 'Wuse 2, Abuja', resolvedTo: 'lga' };
+    expect(deriveAddress([turn(ok('interpretAddress', payload), ok('interpretAddress', later))])).toEqual(later);
+  });
+
+  it('returns nothing for a failed or unrelated tool turn', () => {
+    expect(deriveAddress([turn({ tool_call_id: 'c1', name: 'interpretAddress', ok: false })])).toBeUndefined();
+    expect(deriveAddress([turn(ok('getState', { code: 'KN', name: 'Kano' }))])).toBeUndefined();
+    expect(deriveAddress([])).toBeUndefined();
+  });
+
+  it('rejects a shape that is not an interpreted address', () => {
+    expect(deriveAddress([turn(ok('interpretAddress', { input: 'x', resolvedTo: 'none' }))])).toBeUndefined();
   });
 });
 

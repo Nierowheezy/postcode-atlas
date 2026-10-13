@@ -86,7 +86,7 @@ and deployment readiness. Adapt it to the project as implementation progresses.
 
 ## Post-MVP
 
-- [ ] 17. **Address interpretation** - interpret Nigerian addresses and resolve them into the Atlas location hierarchy where supported
+- [x] 17. **Address interpretation** - interpret Nigerian addresses and resolve them into the Atlas location hierarchy where supported
 
 - [x] 18. **Multilingual queries** - support Yoruba, Hausa, Igbo, and Nigerian Pidgin queries where N-ATLAS supports them reliably
 

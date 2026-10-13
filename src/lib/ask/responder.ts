@@ -24,6 +24,7 @@ import { AskApiError } from './errors';
 import { postcodesIn, stripUnbackedPostcodes } from './postcode';
 import { runTool } from '../tools/registry';
 import { atlasStore } from '../atlas/store';
+import type { InterpretedAddress } from '../address/types';
 import type { PostcodeLocation } from '../../types/postcode';
 import type { DecodedPostcode, MapAction, NearbyUnit, StateSummary } from '../tools/types';
 import type { AtlasArea, AtlasDistrict, AtlasLga, AtlasState, LocationCandidate } from '../atlas/dataset';
@@ -542,6 +543,41 @@ export function deriveNearby(toolTurns: AskToolTurn[]): NearbyResultList | undef
   return nearby;
 }
 
+/**
+ * Narrow executed data to an interpreted address. The shape is load-bearing
+ * for the developer API (feature 17), so a payload that does not carry the
+ * parser's own fields is rejected rather than cast.
+ */
+function asInterpretedAddress(value: unknown): InterpretedAddress | undefined {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const address = value as Record<string, unknown>;
+  return typeof address.input === 'string' &&
+    typeof address.resolvedTo === 'string' &&
+    Array.isArray(address.unresolved)
+    ? (value as InterpretedAddress)
+    : undefined;
+}
+
+/**
+ * Derive the address interpretation (feature 17) from the executed tool
+ * results. Deterministic: the last successful `interpretAddress` result wins.
+ * A failed result or a reply that never interpreted an address leaves it unset,
+ * so the card only ever shows what the resolver placed.
+ */
+export function deriveAddress(toolTurns: AskToolTurn[]): InterpretedAddress | undefined {
+  let address: InterpretedAddress | undefined;
+
+  for (const turn of toolTurns) {
+    for (const result of turn.toolResults) {
+      if (!result.ok || result.name !== 'interpretAddress') continue;
+      const payload = asInterpretedAddress(result.data);
+      if (payload) address = payload;
+    }
+  }
+
+  return address;
+}
+
 /** A finite coordinate pair, or undefined for anything malformed. */
 function asMapCenter(value: unknown): [number, number] | undefined {
   if (!Array.isArray(value) || value.length < 2) return undefined;
@@ -724,11 +760,14 @@ async function attachDerived(
   const referent = deriveReferent(toolTurns);
   if (referent) next = { ...next, referent };
 
+  const address = deriveAddress(toolTurns);
+  if (address) next = { ...next, address };
+
   // A pure map move carries no rows to quote, so the model tends to pad the
   // reply with remembered facts (population, area, capital) that no tool
   // returned. Use a short deterministic line instead, so a map action makes no
   // unverified claim. When a data payload exists the model's prose is kept.
-  const hasData = Boolean(next.lookup || next.results || next.decoded || next.nearby);
+  const hasData = Boolean(next.lookup || next.results || next.decoded || next.nearby || next.address);
   if (mapAction && !hasData) {
     return { ...next, text: mapActionCopy(mapAction) };
   }
@@ -736,7 +775,7 @@ async function attachDerived(
   // A successful but empty getDistricts/getAreas means the offline dataset has no
   // such rows (NDAPS stores them code-only), not that none exist. Never let a
   // "there are no districts" style reply stand.
-  if (!next.lookup && !next.decoded && !next.results && hasEmptyScopeList(toolTurns)) {
+  if (!next.lookup && !next.decoded && !next.results && !next.address && hasEmptyScopeList(toolTurns)) {
     return { ...next, text: SCOPE_UNAVAILABLE_COPY };
   }
 
