@@ -5,6 +5,7 @@ import {readFileSync, writeFileSync, mkdirSync} from 'fs';
 import {fileURLToPath} from 'url';
 import {defineConfig, loadEnv, type Plugin} from 'vite';
 import {handleAsk} from './src/server/ask/handler';
+import {handleApi} from './src/server/api/handler';
 import {handleNipostProxy} from './src/server/nipost/handler';
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'));
@@ -118,6 +119,30 @@ function nipostDevMiddleware(env: Record<string, string>): Plugin {
   };
 }
 
+/**
+ * Mounts the public developer API (`/api/v1/*`) as Vite dev middleware so
+ * `npm run dev` serves it exactly like the Vercel Function in production. The
+ * NIPOST key is read from `.env` and passed straight to the handler, so it
+ * never reaches the browser bundle.
+ */
+function apiDevMiddleware(env: Record<string, string>): Plugin {
+  return {
+    name: 'postcode-atlas-api-v1',
+    configureServer(server) {
+      server.middlewares.use('/api/v1', async (req, res) => {
+        // connect strips the mount prefix, so `req.url` is already the API path.
+        const request = new Request(`http://localhost/api/v1${req.url ?? ''}`, {
+          method: req.method ?? 'GET',
+        });
+        const response = await handleApi(request, env);
+        res.statusCode = response.status;
+        response.headers.forEach((value, key) => res.setHeader(key, value));
+        res.end(await response.text());
+      });
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   return {
@@ -127,6 +152,7 @@ export default defineConfig(({ mode }) => {
       versionManifest(),
       askDevMiddleware(env),
       nipostDevMiddleware(env),
+      apiDevMiddleware(env),
     ],
     define: {
       __APP_VERSION__: JSON.stringify(pkg.version),

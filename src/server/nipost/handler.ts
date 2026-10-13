@@ -14,14 +14,17 @@
  * closed stops the endpoint from being used as an open proxy.
  */
 
+import {
+  readNipostApiKey,
+  resolveNipostBaseUrl,
+  type NipostGatewayEnv,
+} from './gateway';
+
 /** Server-side environment. Matches `process.env` and Vite's `loadEnv` result. */
-export type NipostServerEnv = Record<string, string | undefined>;
+export type NipostServerEnv = NipostGatewayEnv;
 
 /** Path this proxy is mounted at, in dev and on Vercel. */
 const PROXY_PREFIX = '/api/nipost';
-
-/** Upstream used when `NIPOST_API_BASE_URL` is not set. */
-const DEFAULT_UPSTREAM = 'https://api.postcode.gov.ng';
 
 /** The only NDAPS paths the app calls. */
 const ALLOWED_PATHS: ReadonlySet<string> = new Set([
@@ -105,7 +108,7 @@ export async function handleNipostProxy(
     return errorResponse(405, 'method_not_allowed', 'Only GET and POST are proxied.');
   }
 
-  const key = env.NIPOST_PUBLISHABLE_KEY;
+  const key = readNipostApiKey(env);
   if (!key) {
     return errorResponse(
       500,
@@ -114,7 +117,7 @@ export async function handleNipostProxy(
     );
   }
 
-  const base = (env.NIPOST_API_BASE_URL || DEFAULT_UPSTREAM).replace(/\/+$/, '');
+  const base = resolveNipostBaseUrl(env);
   const headers: Record<string, string> = { 'X-API-Key': key };
   let body: string | undefined;
   if (request.method === 'POST') {
