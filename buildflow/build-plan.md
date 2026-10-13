@@ -92,7 +92,7 @@ and deployment readiness. Adapt it to the project as implementation progresses.
 
 - [x] 19. **Atlas explanations** - provide richer explanations of Nigeria's digital addressing and postcode system
 
-- [ ] 20. **Saved discoveries** - save and share postcode results, locations, and Atlas discoveries
+- [x] 20. **Saved discoveries** - save and share postcode results, locations, and Atlas discoveries
 
 - [ ] 21. **Developer API** - expose Atlas postcode and location capabilities for external applications
 

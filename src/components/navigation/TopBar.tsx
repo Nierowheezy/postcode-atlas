@@ -10,6 +10,7 @@ import {
   GitCommitHorizontal,
   Menu,
   MessageSquare,
+  Bookmark,
   X,
 } from 'lucide-react';
 import { ThemeToggle } from '../ui/ThemeToggle';
@@ -33,6 +34,10 @@ interface TopBarProps {
   onOpenHunt: () => void;
   onOpenStory: () => void;
   onToggleAskAtlas: () => void;
+  /** Opens the saved discoveries drawer (feature 20). */
+  onOpenSaved: () => void;
+  /** Saved discovery count, shown as a badge; zero hides it. */
+  savedCount?: number;
 }
 
 interface ActionItem {
@@ -41,10 +46,15 @@ interface ActionItem {
   onClick: () => void;
   title: string;
   accent?: boolean;
+  /** Optional count badge, hidden at zero. */
+  count?: number;
 }
 
 const iconToneClass = (accent?: boolean): string =>
   accent ? 'text-[#0F7B4D] dark:text-[#10B981]' : 'text-[#6B7280] dark:text-[#9CA3AF]';
+
+/** Compact count for a badge; anything past 99 collapses. */
+const countLabel = (count: number): string => (count > 99 ? '99+' : String(count));
 
 export const TopBar: React.FC<TopBarProps> = ({
   currentMode,
@@ -59,6 +69,8 @@ export const TopBar: React.FC<TopBarProps> = ({
   onOpenHunt,
   onOpenStory,
   onToggleAskAtlas,
+  onOpenSaved,
+  savedCount = 0,
 }) => {
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
   const [metaMenuOpen, setMetaMenuOpen] = useState(false);
@@ -70,6 +82,7 @@ export const TopBar: React.FC<TopBarProps> = ({
     { icon: Compass, label: 'States', onClick: onOpenStatesDrawer, title: 'Browse 37 States' },
     { icon: Wrench, label: 'Assemble', onClick: onOpenAssemblyDrawer, title: 'NIPOST Assembly Engine' },
     { icon: Sparkles, label: 'Surprise me', onClick: onRandomPlace, title: 'Explore a random location', accent: true },
+    { icon: Bookmark, label: 'Saved', onClick: onOpenSaved, title: 'Saved discoveries', count: savedCount },
     { icon: Target, label: 'Hunt', onClick: onOpenHunt, title: 'Postcode Hunt challenge' },
   ];
   const aboutAction: ActionItem = {
@@ -217,6 +230,11 @@ export const TopBar: React.FC<TopBarProps> = ({
               >
                 <action.icon className={`w-4 h-4 ${iconToneClass(action.accent)}`} />
                 <span>{action.label}</span>
+                {action.count ? (
+                  <span className="ml-0.5 px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-[#0F7B4D]/10 text-[#0F7B4D] dark:bg-[#10B981]/15 dark:text-[#10B981]">
+                    {countLabel(action.count)}
+                  </span>
+                ) : null}
               </button>
             ))}
           </nav>
@@ -341,8 +359,13 @@ export const TopBar: React.FC<TopBarProps> = ({
                   className="flex flex-col items-center gap-1.5 p-3 bg-[#F3F4F6] dark:bg-[#1F2937] rounded-xl border border-[#E5E7EB] dark:border-[#374151] transition-colors active:scale-[0.98] min-h-[80px]"
                 >
                   <action.icon className={`w-6 h-6 ${iconToneClass(action.accent)}`} />
-                  <span className="text-xs font-medium text-[#374151] dark:text-[#D1D5DB] text-center">
+                  <span className="flex items-center gap-1 text-xs font-medium text-[#374151] dark:text-[#D1D5DB] text-center">
                     {action.label}
+                    {action.count ? (
+                      <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-[#0F7B4D]/10 text-[#0F7B4D] dark:bg-[#10B981]/15 dark:text-[#10B981]">
+                        {countLabel(action.count)}
+                      </span>
+                    ) : null}
                   </span>
                 </button>
               ))}

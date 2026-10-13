@@ -1,18 +1,25 @@
 import React, { useState } from 'react';
 import { PostcodeLocation } from '../../types/postcode';
-import { X, Copy, Check, Share2, ExternalLink, Navigation2 } from 'lucide-react';
+import { X, Copy, Check, Share2, ExternalLink, Navigation2, Bookmark, BookmarkCheck } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
+import { postcodeShareUrl, shareOrCopy } from '../../lib/share/shareLink';
 
 interface PostcodeInspectorProps {
   location: PostcodeLocation | null;
   onClose: () => void;
   onFlyTo?: (coords: [number, number]) => void;
+  /** Whether this postcode is already in saved discoveries. */
+  isSaved?: boolean;
+  /** Save this postcode, or remove it when it is already saved. */
+  onToggleSave?: (location: PostcodeLocation) => void;
 }
 
 export const PostcodeInspector: React.FC<PostcodeInspectorProps> = ({
   location,
   onClose,
   onFlyTo,
+  isSaved = false,
+  onToggleSave,
 }) => {
   const [copied, setCopied] = useState(false);
   const [shared, setShared] = useState(false);
@@ -32,51 +39,34 @@ export const PostcodeInspector: React.FC<PostcodeInspectorProps> = ({
   };
 
   const handleShare = async () => {
-    const url = `${window.location.origin}/?code=${encodeURIComponent(location.postcode)}`;
+    const result = await shareOrCopy({
+      title: `Postcode Atlas · ${location.postcode}`,
+      text: `Nigeria Digital Postcode: ${location.postcode} (${location.stateName || location.state})`,
+      url: postcodeShareUrl(location.postcode),
+    });
 
-    // Try native Web Share API on mobile / supporting browsers
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `Postcode Atlas · ${location.postcode}`,
-          text: `Nigeria Digital Postcode: ${location.postcode} (${location.stateName || location.state})`,
-          url,
-        });
-        setShared(true);
-        showToast({ title: 'Postcode Shared', type: 'info' });
-        setTimeout(() => setShared(false), 2000);
-        return;
-      } catch (err) {
-        if ((err as Error)?.name === 'AbortError') return;
-      }
-    }
+    // A dismissed sheet is not a failure, so stay silent as before.
+    if (result === 'cancelled') return;
 
-    // Direct clipboard copy fallback
-    try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(url);
-      } else {
-        throw new Error('Clipboard API not available');
-      }
-    } catch {
-      // Legacy document.execCommand fallback
-      const el = document.createElement('textarea');
-      el.value = url;
-      el.setAttribute('readonly', '');
-      el.style.position = 'absolute';
-      el.style.left = '-9999px';
-      document.body.appendChild(el);
-      el.select();
-      document.execCommand('copy');
-      document.body.removeChild(el);
+    if (result === 'failed') {
+      showToast({
+        title: 'Could not share',
+        description: 'Copy the link manually from the address bar',
+        type: 'error',
+      });
+      return;
     }
 
     setShared(true);
-    showToast({
-      title: 'Share Link Copied',
-      description: `${location.postcode} URL copied to clipboard`,
-      type: 'success',
-    });
+    showToast(
+      result === 'shared'
+        ? { title: 'Postcode Shared', type: 'info' }
+        : {
+            title: 'Share Link Copied',
+            description: `${location.postcode} URL copied to clipboard`,
+            type: 'success',
+          },
+    );
     setTimeout(() => setShared(false), 2000);
   };
 
@@ -111,13 +101,30 @@ export const PostcodeInspector: React.FC<PostcodeInspectorProps> = ({
           </div>
         </div>
 
-        <button
-          onClick={onClose}
-          className="p-1 text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white rounded transition-colors cursor-pointer"
-          aria-label="Close inspector"
-        >
-          <X className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-0.5">
+          <button
+            type="button"
+            onClick={() => onToggleSave?.(location)}
+            disabled={!onToggleSave}
+            aria-pressed={isSaved}
+            aria-label={isSaved ? 'Remove from saved discoveries' : 'Save this discovery'}
+            title={isSaved ? 'Remove from saved discoveries' : 'Save this discovery'}
+            className="p-1 rounded transition-colors text-[#9CA3AF] hover:text-[#0F7B4D] dark:hover:text-[#10B981] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isSaved ? (
+              <BookmarkCheck className="w-4 h-4 text-[#0F7B4D] dark:text-[#10B981]" />
+            ) : (
+              <Bookmark className="w-4 h-4" />
+            )}
+          </button>
+          <button
+            onClick={onClose}
+            className="p-1 text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white rounded transition-colors cursor-pointer"
+            aria-label="Close inspector"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* Primary Locality & Address */}

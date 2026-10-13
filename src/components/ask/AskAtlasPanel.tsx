@@ -9,6 +9,7 @@ import { DraggableCard } from '../ui/DraggableCard';
 import { LanguageMode, AskAtlasMessage, AskAtlasResponder, AtlasContextSnapshot, AtlasReferent } from '../../lib/ask/types';
 import { detectLanguage } from '../../lib/ask/language';
 import type { MapAction } from '../../lib/tools/types';
+import type { SavedDiscovery } from '../../lib/saved/types';
 import { useAskAtlas } from '../../lib/ask/useAskAtlas';
 import { clearConversation, loadConversation, saveConversation } from '../../lib/ask/persistence';
 import { AskAtlasHeader } from './AskAtlasHeader';
@@ -46,6 +47,10 @@ export interface AskAtlasPanelProps {
    * in by the shell; omitting it keeps the free drag and a window-based ceiling.
    */
   dragConstraintsRef?: React.RefObject<HTMLElement | null>;
+  /** Whether a reply's savable finding is already saved (feature 20). */
+  isMessageSaved?: (message: AskAtlasMessage) => boolean;
+  /** Save or remove a reply's finding (feature 20). */
+  onToggleSaveDiscovery?: (discovery: SavedDiscovery) => void;
 }
 
 let messageSeq = 0;
@@ -112,6 +117,8 @@ export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({
   onMapAction,
   onViewLocation,
   dragConstraintsRef,
+  isMessageSaved,
+  onToggleSaveDiscovery,
 }) => {
   const [initial] = useState(readPersistedConversation);
   const [messages, setMessages] = useState<AskAtlasMessage[]>(initial.messages);
@@ -272,7 +279,14 @@ export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({
           </div>
         )}
         {messages.map((m) => (
-          <AskAtlasMessageBubble key={m.id} message={m} onViewLocation={onViewLocation} onMapAction={onMapAction} />
+          <AskAtlasMessageBubble
+            key={m.id}
+            message={m}
+            onViewLocation={onViewLocation}
+            onMapAction={onMapAction}
+            isSaved={isMessageSaved?.(m)}
+            onToggleSave={onToggleSaveDiscovery}
+          />
         ))}
         {isReplying && <AskAtlasThinkingBubble phase={phase} />}
       </div>

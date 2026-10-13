@@ -9,6 +9,7 @@ import { AtlasMap } from './components/map/AtlasMap';
 import { MapSearch } from './components/search/MapSearch';
 import { PostcodeInspector } from './components/postcode/PostcodeInspector';
 import { StateExplorerDrawer } from './components/explorer/StateExplorerDrawer';
+import { SavedDiscoveriesDrawer } from './components/saved/SavedDiscoveriesDrawer';
 import { PostcodeAssemblyDrawer } from './components/assembly/PostcodeAssemblyDrawer';
 import { DataModeOverlay } from './components/data/DataModeOverlay';
 import { PostcodeHuntModal } from './components/hunt/PostcodeHuntModal';
@@ -23,11 +24,15 @@ import {
 } from './lib/version';
 import { ToastProvider, useToast } from './hooks/useToast';
 import { ThemeProvider } from './hooks/useTheme';
+import { useSavedDiscoveries } from './hooks/useSavedDiscoveries';
+import { postcodeSavedId, savedFromLocation, savedFromMessage } from './lib/saved/drafts';
+import { discoveryShareUrl, shareOrCopy } from './lib/share/shareLink';
+import type { SavedDiscovery } from './lib/saved/types';
 import { ToastContainer } from './components/ui/Toast';
 import { DraggableCard } from './components/ui/DraggableCard';
 import { AskAtlasPanel } from './components/ask/AskAtlasPanel';
 import { createApiResponder, createStubResponder } from './lib/ask/responder';
-import { AtlasContextSnapshot } from './lib/ask/types';
+import { AskAtlasMessage, AtlasContextSnapshot } from './lib/ask/types';
 import type { MapAction } from './lib/tools/types';
 import {
   MapViewMode,
@@ -63,6 +68,7 @@ function PostcodeAtlasContent() {
   const [isStoryModalOpen, setIsStoryModalOpen] = useState(false);
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
   const [isAskAtlasOpen, setIsAskAtlasOpen] = useState(false);
+  const [isSavedDrawerOpen, setIsSavedDrawerOpen] = useState(false);
 
   // Real server-backed responder by default; VITE_ASK_MODE=stub keeps the
   // quota-free canned path for offline/UI work.
@@ -118,6 +124,13 @@ function PostcodeAtlasContent() {
   const [isLocating, setIsLocating] = useState(false);
 
   const { showToast } = useToast();
+  const {
+    saved: savedDiscoveries,
+    isSaved: isDiscoverySaved,
+    toggle: toggleSavedDiscovery,
+    remove: removeSavedDiscovery,
+    clear: clearSavedDiscoveries,
+  } = useSavedDiscoveries();
 
   // Handle URL deep link on mount (e.g. ?code=LA-11-A12-AK-08 or ?state=LA)
   useEffect(() => {
@@ -223,6 +236,28 @@ function PostcodeAtlasContent() {
     });
   };
 
+  // Save or remove a discovery from the saved list (feature 20).
+  const handleToggleSaved = (draft: SavedDiscovery) => {
+    const nowSaved = toggleSavedDiscovery(draft);
+    showToast({
+      title: nowSaved ? 'Saved to discoveries' : 'Removed from discoveries',
+      description: draft.label,
+      type: nowSaved ? 'success' : 'info',
+    });
+  };
+
+  // The selected postcode as a saved draft, when it has a postcode.
+  const handleToggleSaveLocation = (loc: PostcodeLocation) => {
+    const draft = savedFromLocation(loc);
+    if (draft) handleToggleSaved(draft);
+  };
+
+  // Whether an Ask Atlas reply's savable finding is already saved.
+  const handleIsMessageSaved = (message: AskAtlasMessage) => {
+    const draft = savedFromMessage(message);
+    return draft ? isDiscoverySaved(draft.id) : false;
+  };
+
   // State selection handler
   const handleSelectState = (state: StateGeoInfo) => {
     setSelectedLocation(null);
@@ -254,6 +289,61 @@ function PostcodeAtlasContent() {
       description: `${state.name} State (${state.code}-${lga.code})`,
       type: 'info',
     });
+  };
+
+  // Reopen a saved discovery on the map (feature 20).
+  const handleOpenSavedItem = (item: SavedDiscovery) => {
+    if (item.kind === 'postcode' && item.postcode) {
+      handleSelectLocation({
+        postcode: item.postcode,
+        state: item.stateCode || '',
+        stateName: item.stateName,
+        lga: item.lgaCode,
+        lgaName: item.lgaName,
+        lat: item.lat,
+        lng: item.lng,
+        address: item.label,
+        category: item.category,
+      });
+    } else if (item.stateCode) {
+      const stateInfo = NIGERIA_STATES[item.stateCode.toUpperCase()];
+      if (stateInfo) {
+        if (item.lgaCode) {
+          handleSelectLGA(stateInfo, { code: item.lgaCode, name: item.lgaName || item.lgaCode });
+        } else {
+          handleSelectState(stateInfo);
+        }
+      }
+    } else if (item.lat != null && item.lng != null) {
+      setFlyToCoords([item.lat, item.lng]);
+      setFlyToZoom(16);
+    }
+    setIsSavedDrawerOpen(false);
+  };
+
+  // Share a saved discovery through its deep link (feature 20).
+  const handleShareSavedItem = async (item: SavedDiscovery) => {
+    const url = discoveryShareUrl(item);
+    if (!url) return;
+    const result = await shareOrCopy({
+      title: `Postcode Atlas · ${item.label}`,
+      text: item.postcode
+        ? `Nigeria Digital Postcode: ${item.postcode}`
+        : `${item.label} on the Postcode Atlas`,
+      url,
+    });
+    if (result === 'cancelled') return;
+    showToast(
+      result === 'failed'
+        ? {
+            title: 'Could not share',
+            description: 'Copy the link manually from the address bar',
+            type: 'error',
+          }
+        : result === 'shared'
+        ? { title: 'Shared', description: item.label, type: 'info' }
+        : { title: 'Share Link Copied', description: item.label, type: 'success' },
+    );
   };
 
   // Reset to Nigeria national view
@@ -439,6 +529,8 @@ function PostcodeAtlasContent() {
         onOpenHunt={() => setIsHuntModalOpen(true)}
         onOpenStory={() => setIsStoryModalOpen(true)}
         onOpenChangelog={() => setIsChangelogOpen(true)}
+        onOpenSaved={() => setIsSavedDrawerOpen(true)}
+        savedCount={savedDiscoveries.length}
         onToggleAskAtlas={() => setIsAskAtlasOpen((v) => !v)}
       />
 
@@ -505,6 +597,8 @@ function PostcodeAtlasContent() {
             <DraggableCard dragHandleText="Postcode Inspector">
               <PostcodeInspector
                 location={selectedLocation}
+                isSaved={isDiscoverySaved(postcodeSavedId(selectedLocation.postcode))}
+                onToggleSave={handleToggleSaveLocation}
                 onClose={() => {
                   setSelectedLocation(null);
                   updateUrlLocation(undefined);
@@ -550,6 +644,8 @@ function PostcodeAtlasContent() {
               onMapAction={handleMapAction}
               onViewLocation={handleViewLocation}
               dragConstraintsRef={mainRef}
+              isMessageSaved={handleIsMessageSaved}
+              onToggleSaveDiscovery={handleToggleSaved}
             />
           </div>
         )}
@@ -561,6 +657,17 @@ function PostcodeAtlasContent() {
         onClose={() => setIsStatesDrawerOpen(false)}
         onSelectState={handleSelectState}
         onSelectLGA={handleSelectLGA}
+      />
+
+      {/* Saved Discoveries Drawer (feature 20) */}
+      <SavedDiscoveriesDrawer
+        isOpen={isSavedDrawerOpen}
+        onClose={() => setIsSavedDrawerOpen(false)}
+        items={savedDiscoveries}
+        onOpenItem={handleOpenSavedItem}
+        onRemoveItem={removeSavedDiscovery}
+        onClear={clearSavedDiscoveries}
+        onShareItem={handleShareSavedItem}
       />
 
       {/* Postcode Assembly & Disassembly Engine Drawer */}

@@ -14,6 +14,8 @@ import { AskAtlasNearbyList } from './AskAtlasNearbyList';
 import { AskAtlasAddress } from './AskAtlasAddress';
 import { AskAtlasExplanationCard } from './AskAtlasExplanationCard';
 import type { AskAtlasViewLocation } from './AskAtlasPanel';
+import { savedFromMessage } from '../../lib/saved/drafts';
+import type { SavedDiscovery } from '../../lib/saved/types';
 
 /** Human label per reply language, for the Auto footer. */
 const LANGUAGE_LABELS: Record<AskLanguage, string> = {
@@ -30,6 +32,10 @@ export interface AskAtlasMessageBubbleProps {
   onViewLocation?: (location: AskAtlasViewLocation) => void;
   /** Applies a validated map move for a resolved address (features 8, 17). */
   onMapAction?: (action: MapAction) => void;
+  /** Whether this reply's savable finding is already saved (feature 20). */
+  isSaved?: boolean;
+  /** Save this reply's finding, or remove it when it is already saved (feature 20). */
+  onToggleSave?: (discovery: SavedDiscovery) => void;
 }
 
 /** Small round mark that heads every assistant turn. */
@@ -44,10 +50,13 @@ const AssistantAvatar: React.FC = () => (
  * assistant answers as plain, full-width prose under its avatar, Grok-style.
  * Structured payloads (lookup, list, decode, nearby) render as cards beneath.
  */
-export const AskAtlasMessageBubble: React.FC<AskAtlasMessageBubbleProps> = ({ message, onViewLocation, onMapAction }) => {
+export const AskAtlasMessageBubble: React.FC<AskAtlasMessageBubbleProps> = ({ message, onViewLocation, onMapAction, isSaved = false, onToggleSave }) => {
   const basis = groundingBasis(message);
   const autoLabel =
     message.autoDetected && message.replyLanguage ? `Auto · ${LANGUAGE_LABELS[message.replyLanguage]}` : null;
+  // One finding per reply is savable; lists, nearby results, addresses, and
+  // explanations have no single reopen target, so they yield null.
+  const savedDraft = message.role === 'assistant' ? savedFromMessage(message) : null;
   if (message.role === 'user') {
     return (
       <div className="flex justify-end">
@@ -101,20 +110,35 @@ export const AskAtlasMessageBubble: React.FC<AskAtlasMessageBubbleProps> = ({ me
         {message.address && <AskAtlasAddress address={message.address} onMapAction={onMapAction} />}
         {message.explanation && <AskAtlasExplanationCard explanation={message.explanation} />}
 
-        {message.location && (
-          <button
-            type="button"
-            onClick={() => onViewLocation?.(message.location as AskAtlasViewLocation)}
-            disabled={!onViewLocation}
-            title={
-              onViewLocation
-                ? `Show ${message.location.label} on the map`
-                : 'Map control is not connected in this view'
-            }
-            className="mt-2 block text-[11px] font-medium text-[#0F7B4D] enabled:hover:underline disabled:cursor-not-allowed disabled:opacity-60 dark:text-[#10B981]"
-          >
-            [View on map]
-          </button>
+        {(message.location || (savedDraft && onToggleSave)) && (
+          <span className="mt-2 flex flex-wrap items-center gap-3 text-[11px]">
+            {message.location && (
+              <button
+                type="button"
+                onClick={() => onViewLocation?.(message.location as AskAtlasViewLocation)}
+                disabled={!onViewLocation}
+                title={
+                  onViewLocation
+                    ? `Show ${message.location.label} on the map`
+                    : 'Map control is not connected in this view'
+                }
+                className="font-medium text-[#0F7B4D] enabled:hover:underline disabled:cursor-not-allowed disabled:opacity-60 dark:text-[#10B981]"
+              >
+                [View on map]
+              </button>
+            )}
+            {savedDraft && onToggleSave && (
+              <button
+                type="button"
+                onClick={() => onToggleSave(savedDraft)}
+                aria-pressed={isSaved}
+                title={isSaved ? 'Remove from saved discoveries' : 'Save this discovery'}
+                className="font-medium text-[#0F7B4D] hover:underline dark:text-[#10B981]"
+              >
+                {isSaved ? '[Saved]' : '[Save]'}
+              </button>
+            )}
+          </span>
         )}
 
         <span className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] text-[#9CA3AF] dark:text-[#6B7280]">
