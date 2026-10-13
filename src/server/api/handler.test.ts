@@ -696,3 +696,89 @@ describe('handleApi nearby and reverse routes', () => {
     await expect(response.json()).resolves.toMatchObject({ error: { code: 'upstream_error' } });
   });
 });
+
+describe('handleApi explanation routes', () => {
+  it('serves the editorial index with a one-day cache and no upstream call', async () => {
+    const fetchMock = stubLookup(jsonResponse({ data: {} }));
+
+    const response = await handleApi(get('/api/v1/explanations'), ENV);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('cache-control')).toContain('max-age=86400');
+    expect(fetchMock).not.toHaveBeenCalled();
+    await expect(response.json()).resolves.toEqual({
+      data: [
+        {
+          topic: 'hierarchy',
+          title: "How Nigeria's digital addressing hierarchy works",
+          source: 'editorial',
+        },
+        {
+          topic: 'postcode_parts',
+          title: 'What each part of a postcode means',
+          source: 'editorial',
+        },
+        {
+          topic: 'single_postcode',
+          title: 'Why a state or LGA has no single postcode',
+          source: 'editorial',
+        },
+        { topic: 'ndaps', title: 'What NDAPS is', source: 'editorial' },
+      ],
+    });
+  });
+
+  it('serves one explanation with its content and the editorial source', async () => {
+    const fetchMock = stubLookup(jsonResponse({ data: {} }));
+
+    const response = await handleApi(get('/api/v1/explanations/postcode_parts'), ENV);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('cache-control')).toContain('max-age=86400');
+    expect(fetchMock).not.toHaveBeenCalled();
+    await expect(response.json()).resolves.toMatchObject({
+      data: {
+        topic: 'postcode_parts',
+        title: 'What each part of a postcode means',
+        example: 'LA-11-A12-AK-08',
+        source: 'editorial',
+      },
+    });
+  });
+
+  it('serves an explanation with no gateway key configured', async () => {
+    const response = await handleApi(get('/api/v1/explanations/hierarchy'), {});
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      data: { topic: 'hierarchy', source: 'editorial' },
+    });
+  });
+
+  it('resolves a mixed-case topic and a trailing slash', async () => {
+    const mixedCase = await handleApi(get('/api/v1/explanations/Hierarchy'), ENV);
+    const trailingSlash = await handleApi(get('/api/v1/explanations/'), ENV);
+
+    expect(mixedCase.status).toBe(200);
+    await expect(mixedCase.json()).resolves.toMatchObject({
+      data: { topic: 'hierarchy', source: 'editorial' },
+    });
+    expect(trailingSlash.status).toBe(200);
+    await expect(trailingSlash.json()).resolves.toEqual({
+      data: expect.arrayContaining([
+        expect.objectContaining({ topic: 'ndaps', source: 'editorial' }),
+      ]),
+    });
+  });
+
+  it('maps an unknown topic to 404 not_found without an upstream call', async () => {
+    const fetchMock = stubLookup(jsonResponse({ data: {} }));
+
+    const response = await handleApi(get('/api/v1/explanations/not_a_topic'), ENV);
+
+    expect(response.status).toBe(404);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    await expect(response.json()).resolves.toMatchObject({ error: { code: 'not_found' } });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});

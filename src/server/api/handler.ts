@@ -11,6 +11,7 @@
  */
 
 import { fetchNipostJson, type NipostFetchResult, type NipostGatewayEnv } from '../nipost/gateway';
+import { listExplanations, readExplanation } from './explain';
 import { decodePostcode, normalizePostcodeCode, toPostcodeRecord } from './postcode';
 import {
   NEARBY_MAX_RADIUS_M,
@@ -88,6 +89,9 @@ const REFERENCE_MAX_AGE_SECONDS = 3600;
 
 /** A decoded postcode is pure structure that never changes; cache it the same. */
 const DECODE_MAX_AGE_SECONDS = 3600;
+
+/** Editorial copy changes only on deploy, so it caches at the edge for a day. */
+const EDITORIAL_MAX_AGE_SECONDS = 86400;
 
 /** A `{ data }` success body. NDAPS records are cacheable at the edge. */
 function dataResponse(data: unknown, maxAgeSeconds = LOOKUP_MAX_AGE_SECONDS): Response {
@@ -268,6 +272,26 @@ async function handleReverse(url: URL, env: NipostGatewayEnv): Promise<Response>
 }
 
 /**
+ * Answer the editorial explanation index. The copy is bundled in the deployment,
+ * so this route never calls the gateway and works with no key.
+ */
+function handleExplanationIndex(): Response {
+  return dataResponse(listExplanations(), EDITORIAL_MAX_AGE_SECONDS);
+}
+
+/**
+ * Answer one editorial explanation by topic, or `404 not_found` for an unknown
+ * one. Upstream-free, like the index.
+ */
+function handleExplanation(rawTopic: string): Response {
+  const explanation = readExplanation(rawTopic);
+  if (!explanation) {
+    return errorResponse('not_found', 'No explanation exists for that topic.');
+  }
+  return dataResponse(explanation, EDITORIAL_MAX_AGE_SECONDS);
+}
+
+/**
  * Answer one hierarchy reference route. The NDAPS path and list field come from
  * the level; `params` are the already-validated parent codes.
  */
@@ -343,6 +367,15 @@ export async function handleApi(
 
   if (path === '/search/reverse') {
     return handleReverse(url, env);
+  }
+
+  if (path === '/explanations') {
+    return handleExplanationIndex();
+  }
+
+  const explanationMatch = path.match(/^\/explanations\/([^/]+)$/);
+  if (explanationMatch) {
+    return handleExplanation(safeDecode(explanationMatch[1]));
   }
 
   if (path === '/states') {
