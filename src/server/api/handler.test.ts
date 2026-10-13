@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { resetRateLimits } from './access';
 import { handleApi, resolveApiPath } from './handler';
 
 const ENV = { NIPOST_PUBLISHABLE_KEY: 'nipost_pk_test' };
@@ -24,6 +25,14 @@ function get(path: string): Request {
   return new Request(`https://atlas.test${path}`);
 }
 
+/** A request with explicit headers, for the access-gate cases. */
+function requestWith(
+  headers: Record<string, string>,
+  path = '/api/v1/explanations'
+): Request {
+  return new Request(`https://atlas.test${path}`, { headers });
+}
+
 function stubLookup(response: Response | Error): ReturnType<typeof vi.fn> {
   const fetchMock = vi.fn();
   if (response instanceof Error) fetchMock.mockRejectedValue(response);
@@ -34,6 +43,7 @@ function stubLookup(response: Response | Error): ReturnType<typeof vi.fn> {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  resetRateLimits();
 });
 
 describe('resolveApiPath', () => {
@@ -780,5 +790,109 @@ describe('handleApi explanation routes', () => {
     expect(response.headers.get('cache-control')).toBe('no-store');
     await expect(response.json()).resolves.toMatchObject({ error: { code: 'not_found' } });
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('access gate', () => {
+  const KEYS_ENV = { ...ENV, ATLAS_API_KEYS: 'key-one,key-two' };
+
+  it('rejects a keyless request when keys are configured', async () => {
+    const response = await handleApi(get('/api/v1/explanations'), KEYS_ENV);
+
+    expect(response.status).toBe(401);
+    expect(response.headers.get('www-authenticate')).toBe('Bearer');
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: 'unauthorized' },
+    });
+  });
+
+  it('rejects a wrong key and a non-Bearer scheme', async () => {
+    for (const authorization of ['Bearer wrong', 'Basic key-one']) {
+      const response = await handleApi(
+        requestWith({ authorization }),
+        KEYS_ENV
+      );
+      expect(response.status).toBe(401);
+    }
+  });
+
+  it('accepts either header', async () => {
+    const bearer = await handleApi(requestWith({ authorization: 'Bearer key-one' }), KEYS_ENV);
+    expect(bearer.status).toBe(200);
+
+    const apiKey = await handleApi(requestWith({ 'x-api-key': 'key-two' }), KEYS_ENV);
+    expect(apiKey.status).toBe(200);
+  });
+
+  it('gates before the method check and routing', async () => {
+    const post = await handleApi(
+      new Request('https://atlas.test/api/v1/explanations', { method: 'POST' }),
+      KEYS_ENV
+    );
+    expect(post.status).toBe(401);
+
+    const unknown = await handleApi(get('/api/v1/nope'), KEYS_ENV);
+    expect(unknown.status).toBe(401);
+  });
+
+  it('never gates a preflight', async () => {
+    const response = await handleApi(
+      new Request('https://atlas.test/api/v1/explanations', { method: 'OPTIONS' }),
+      KEYS_ENV
+    );
+
+    expect(response.status).toBe(204);
+  });
+
+  it('stays open when no keys are configured', async () => {
+    const response = await handleApi(get('/api/v1/explanations'), ENV);
+
+    expect(response.status).toBe(200);
+  });
+
+  it('advertises the key headers and the retry header in CORS', async () => {
+    const response = await handleApi(get('/api/v1/explanations'), ENV);
+    const allowed = response.headers.get('access-control-allow-headers') ?? '';
+
+    expect(allowed).toContain('Authorization');
+    expect(allowed).toContain('X-API-Key');
+    expect(response.headers.get('access-control-expose-headers')).toBe('Retry-After');
+  });
+
+  it('returns 429 past the limit and leaves another identity alone', async () => {
+    const limited = { ...ENV, ATLAS_API_RATE_LIMIT: '2' };
+    const headers = { 'x-forwarded-for': '10.0.0.1' };
+
+    expect((await handleApi(requestWith(headers), limited)).status).toBe(200);
+    expect((await handleApi(requestWith(headers), limited)).status).toBe(200);
+
+    const blocked = await handleApi(requestWith(headers), limited);
+    expect(blocked.status).toBe(429);
+    expect(Number(blocked.headers.get('retry-after'))).toBeGreaterThanOrEqual(1);
+    expect(blocked.headers.get('cache-control')).toBe('no-store');
+    await expect(blocked.json()).resolves.toMatchObject({ error: { code: 'rate_limited' } });
+
+    const other = await handleApi(
+      requestWith({ 'x-forwarded-for': '10.0.0.2' }),
+      limited
+    );
+    expect(other.status).toBe(200);
+  });
+
+  it('limits a valid key independently of the client IP bucket', async () => {
+    const limited = { ...ENV, ATLAS_API_KEYS: 'key-one', ATLAS_API_RATE_LIMIT: '1' };
+    const keyed = { authorization: 'Bearer key-one', 'x-forwarded-for': '10.0.0.3' };
+
+    expect((await handleApi(requestWith(keyed), limited)).status).toBe(200);
+    expect((await handleApi(requestWith(keyed), limited)).status).toBe(429);
+
+    // The same IP without a key is a different identity with its own window, so
+    // it is rejected for the missing key, not blocked by the key's bucket.
+    const unauthenticated = await handleApi(
+      requestWith({ 'x-forwarded-for': '10.0.0.3' }),
+      limited
+    );
+    expect(unauthenticated.status).toBe(401);
   });
 });

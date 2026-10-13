@@ -184,6 +184,8 @@ postcode-atlas/
 | --- | --- | --- | --- |
 | `NIPOST_PUBLISHABLE_KEY` | Yes | No | Publishable NDAPS key; the `/api/nipost` proxy attaches it to the upstream call |
 | `NIPOST_API_BASE_URL` | No | No | Gateway base URL, defaults to `https://api.postcode.gov.ng` |
+| `ATLAS_API_KEYS` | No | No | Comma-separated keys for the public `/api/v1` API; unset leaves it open |
+| `ATLAS_API_RATE_LIMIT` | No | No | Requests allowed per caller per minute on `/api/v1`, default 60 |
 | `GEMINI_API_KEY` | No¹ | No | Server-side Gemini key for the Ask Atlas chain |
 | `OPENROUTER_API_KEY` | No¹ | No | Server-side OpenRouter key (failover) |
 | `NVIDIA_API_KEY` | No¹ | No | Server-side NVIDIA key (failover) |

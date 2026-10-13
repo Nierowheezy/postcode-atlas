@@ -7,10 +7,18 @@
  *
  * One locked contract for every route: `{ data }` on success,
  * `{ error: { code, message } }` on failure, one HTTP status per error code.
- * Feature 21b adds routes here; 21c adds the access gate around them.
+ * Feature 21b adds routes here; 21e adds the access gate around them.
  */
 
 import { fetchNipostJson, type NipostFetchResult, type NipostGatewayEnv } from '../nipost/gateway';
+import {
+  checkRateLimit,
+  extractApiKey,
+  matchesApiKey,
+  rateLimitIdentity,
+  resolveApiKeys,
+  resolveRateLimit,
+} from './access';
 import { listExplanations, readExplanation } from './explain';
 import { decodePostcode, normalizePostcodeCode, toPostcodeRecord } from './postcode';
 import {
@@ -39,6 +47,8 @@ export const API_VERSION = 1;
 /** Every error code the public contract can return. */
 export type ApiErrorCode =
   | 'invalid_code'
+  | 'unauthorized'
+  | 'rate_limited'
   | 'method_not_allowed'
   | 'not_found'
   | 'unknown_route'
@@ -50,6 +60,8 @@ export type ApiErrorCode =
 /** Fixed HTTP status for each error code. */
 const ERROR_STATUS: Record<ApiErrorCode, number> = {
   invalid_code: 400,
+  unauthorized: 401,
+  rate_limited: 429,
   method_not_allowed: 405,
   not_found: 404,
   unknown_route: 404,
@@ -59,17 +71,24 @@ const ERROR_STATUS: Record<ApiErrorCode, number> = {
   upstream_error: 502,
 };
 
-/** Read-only public API: any origin may read, and only `GET` and `OPTIONS`. */
+/**
+ * Read-only public API: any origin may read, and only `GET` and `OPTIONS`.
+ * `Authorization` and `X-API-Key` must be listed or a browser's preflight would
+ * block the key before the gate ever runs; `Retry-After` is exposed so a browser
+ * client can back off after a `429`.
+ */
 const CORS_HEADERS: Record<string, string> = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'GET, OPTIONS',
-  'access-control-allow-headers': 'Content-Type',
+  'access-control-allow-headers': 'Content-Type, Authorization, X-API-Key',
+  'access-control-expose-headers': 'Retry-After',
 };
 
 function jsonResponse(
   body: unknown,
   status: number,
-  cacheControl: string
+  cacheControl: string,
+  extraHeaders: Record<string, string> = {}
 ): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -77,6 +96,7 @@ function jsonResponse(
       'content-type': 'application/json',
       'cache-control': cacheControl,
       ...CORS_HEADERS,
+      ...extraHeaders,
     },
   });
 }
@@ -98,8 +118,12 @@ function dataResponse(data: unknown, maxAgeSeconds = LOOKUP_MAX_AGE_SECONDS): Re
   return jsonResponse({ data }, 200, `public, max-age=${maxAgeSeconds}`);
 }
 
-function errorResponse(code: ApiErrorCode, message: string): Response {
-  return jsonResponse({ error: { code, message } }, ERROR_STATUS[code], 'no-store');
+function errorResponse(
+  code: ApiErrorCode,
+  message: string,
+  extraHeaders: Record<string, string> = {}
+): Response {
+  return jsonResponse({ error: { code, message } }, ERROR_STATUS[code], 'no-store', extraHeaders);
 }
 
 type NipostFailure = Extract<NipostFetchResult, { ok: false }>;
@@ -323,6 +347,37 @@ function invalidReferenceParam(level: ReferenceLevel): Response {
   return errorResponse('invalid_code', `The ${level} in the path is not well-formed.`);
 }
 
+/**
+ * The access gate for every non-preflight request. Rate limiting runs before key
+ * verification so an unauthenticated flood is throttled too, and so a caller
+ * without a valid key cannot tell a real route from an unknown one.
+ */
+function accessGate(request: Request, env: NipostGatewayEnv): Response | null {
+  const keys = resolveApiKeys(env);
+  const presented = extractApiKey(request);
+  const authenticated = presented !== undefined && matchesApiKey(presented, keys);
+
+  const limit = checkRateLimit(
+    resolveRateLimit(env),
+    rateLimitIdentity(request, authenticated ? presented : undefined)
+  );
+  if (!limit.allowed) {
+    return errorResponse('rate_limited', 'Too many requests. Slow down and retry shortly.', {
+      'retry-after': String(limit.retryAfterSeconds),
+    });
+  }
+
+  if (keys.length > 0 && !authenticated) {
+    return errorResponse(
+      'unauthorized',
+      'Provide a valid API key: Authorization: Bearer <key> or X-API-Key: <key>.',
+      { 'www-authenticate': 'Bearer' }
+    );
+  }
+
+  return null;
+}
+
 /** Route and serve one public API request. */
 export async function handleApi(
   request: Request,
@@ -331,6 +386,9 @@ export async function handleApi(
   if (request.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: CORS_HEADERS });
   }
+
+  const denied = accessGate(request, env);
+  if (denied) return denied;
 
   if (request.method !== 'GET') {
     return errorResponse('method_not_allowed', `Use GET for ${API_PREFIX} routes.`);

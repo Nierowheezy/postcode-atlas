@@ -1,5 +1,6 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
+import type { IncomingHttpHeaders } from 'http';
 import path from 'path';
 import {readFileSync, writeFileSync, mkdirSync} from 'fs';
 import {fileURLToPath} from 'url';
@@ -133,6 +134,7 @@ function apiDevMiddleware(env: Record<string, string>): Plugin {
         // connect strips the mount prefix, so `req.url` is already the API path.
         const request = new Request(`http://localhost/api/v1${req.url ?? ''}`, {
           method: req.method ?? 'GET',
+          headers: toWebHeaders(req.headers),
         });
         const response = await handleApi(request, env);
         res.statusCode = response.status;
@@ -141,6 +143,20 @@ function apiDevMiddleware(env: Record<string, string>): Plugin {
       });
     },
   };
+}
+
+/**
+ * Copy Node request headers onto a Web `Request`. The API gate reads
+ * `Authorization`, `X-API-Key`, and the proxy IP headers, so dropping them in
+ * dev would make the gate behave differently from production.
+ */
+function toWebHeaders(headers: IncomingHttpHeaders): Headers {
+  const result = new Headers();
+  for (const [key, value] of Object.entries(headers)) {
+    if (typeof value === 'string') result.set(key, value);
+    else if (Array.isArray(value)) result.set(key, value.join(', '));
+  }
+  return result;
 }
 
 export default defineConfig(({ mode }) => {
