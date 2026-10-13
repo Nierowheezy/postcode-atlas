@@ -49,10 +49,40 @@ export interface AtlasPostcodeRecord {
   source: 'nipost-ndaps';
 }
 
+/**
+ * The structural decode of a well-formed code. Load-bearing for feature 22 -
+ * keep the field names and meanings stable. Purely structural: no names,
+ * coordinates, or verified flag, so the decode never needs an upstream call.
+ */
+export interface AtlasDecodedPostcode {
+  /** Canonical dashed code, for example `LA-11-A12-AK-08`. */
+  code: string;
+  display: string;
+  compact: string;
+  segments: AtlasPostcodeSegments;
+}
+
 /** Canonicalize a dashed, spaced, or compact code, or `null` when malformed. */
 export function normalizePostcodeCode(input: string): string | null {
   const dashed = toDashedCode(input);
   return POSTCODE_PATTERN.test(dashed) ? dashed : null;
+}
+
+/**
+ * Split a well-formed postcode into its canonical code and five segments, or
+ * `null` when malformed. Structural and offline, unlike the NDAPS lookup.
+ */
+export function decodePostcode(input: string): AtlasDecodedPostcode | null {
+  const code = normalizePostcodeCode(input);
+  if (!code) return null;
+
+  const [state, lga, district, area, unit] = code.split('-');
+  return {
+    code,
+    display: code.replace(/-/g, ' '),
+    compact: code.replace(/-/g, ''),
+    segments: { state, lga, district, area, unit },
+  };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

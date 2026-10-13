@@ -407,3 +407,292 @@ describe('handleApi hierarchy routes', () => {
     await expect(response.json()).resolves.toMatchObject({ error: { code: 'unknown_route' } });
   });
 });
+
+describe('handleApi search and decode routes', () => {
+  const AUTOCOMPLETE_BODY = {
+    data: { segment: 'state', suggestions: [{ code: 'LA', label: 'Lagos' }] },
+  };
+
+  it('answers an autocomplete query with the mapped suggestions and a five-minute cache', async () => {
+    const fetchMock = stubLookup(jsonResponse(AUTOCOMPLETE_BODY));
+
+    const response = await handleApi(get('/api/v1/search/autocomplete?q=lag'), ENV);
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.postcode.gov.ng/v1/search/autocomplete?q=lag',
+      { headers: { 'X-API-Key': 'nipost_pk_test' } }
+    );
+    expect(response.headers.get('cache-control')).toContain('max-age=300');
+    await expect(response.json()).resolves.toEqual({
+      data: { segment: 'state', suggestions: [{ code: 'LA', label: 'Lagos' }] },
+    });
+  });
+
+  it('trims the autocomplete query before the upstream call', async () => {
+    const fetchMock = stubLookup(jsonResponse(AUTOCOMPLETE_BODY));
+
+    await handleApi(get('/api/v1/search/autocomplete?q=%20lag%20'), ENV);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.postcode.gov.ng/v1/search/autocomplete?q=lag',
+      { headers: { 'X-API-Key': 'nipost_pk_test' } }
+    );
+  });
+
+  it('serves the Vercel carried-path form with its query string', async () => {
+    const fetchMock = stubLookup(jsonResponse(AUTOCOMPLETE_BODY));
+
+    const response = await handleApi(
+      new Request('https://atlas.test/api/v1/%5B...path%5D?path=%2Fsearch%2Fautocomplete&q=lag'),
+      ENV
+    );
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.postcode.gov.ng/v1/search/autocomplete?q=lag',
+      { headers: { 'X-API-Key': 'nipost_pk_test' } }
+    );
+  });
+
+  it('rejects an empty or missing autocomplete query without calling upstream', async () => {
+    const fetchMock = stubLookup(jsonResponse(AUTOCOMPLETE_BODY));
+
+    const empty = await handleApi(get('/api/v1/search/autocomplete?q='), ENV);
+    const missing = await handleApi(get('/api/v1/search/autocomplete'), ENV);
+
+    expect(empty.status).toBe(400);
+    expect(missing.status).toBe(400);
+    await expect(empty.json()).resolves.toMatchObject({ error: { code: 'invalid_code' } });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('maps an upstream failure on autocomplete to upstream_error', async () => {
+    stubLookup(new Response('boom', { status: 503 }));
+
+    const response = await handleApi(get('/api/v1/search/autocomplete?q=lag'), ENV);
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toMatchObject({ error: { code: 'upstream_error' } });
+  });
+
+  it('maps an unreachable gateway on autocomplete to upstream_unreachable', async () => {
+    stubLookup(new Error('offline'));
+
+    const response = await handleApi(get('/api/v1/search/autocomplete?q=lag'), ENV);
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: 'upstream_unreachable' },
+    });
+  });
+
+  it('reports not_configured on autocomplete when the server holds no key', async () => {
+    const response = await handleApi(get('/api/v1/search/autocomplete?q=lag'), {});
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toMatchObject({ error: { code: 'not_configured' } });
+  });
+
+  it('decodes a compact code locally with no upstream call and an hour cache', async () => {
+    const fetchMock = stubLookup(jsonResponse({ data: {} }));
+
+    const response = await handleApi(get('/api/v1/postcodes/LA11A12AK08/segments'), ENV);
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(response.headers.get('cache-control')).toContain('max-age=3600');
+    await expect(response.json()).resolves.toEqual({
+      data: {
+        code: 'LA-11-A12-AK-08',
+        display: 'LA 11 A12 AK 08',
+        compact: 'LA11A12AK08',
+        segments: { state: 'LA', lga: '11', district: 'A12', area: 'AK', unit: '08' },
+      },
+    });
+  });
+
+  it('decodes even when the server holds no gateway key', async () => {
+    const response = await handleApi(get('/api/v1/postcodes/LA11A12AK08/segments'), {});
+
+    expect(response.status).toBe(200);
+  });
+
+  it('rejects a malformed decode code with invalid_code and no upstream call', async () => {
+    const fetchMock = stubLookup(jsonResponse({ data: {} }));
+
+    const response = await handleApi(get('/api/v1/postcodes/not-a-code/segments'), ENV);
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ error: { code: 'invalid_code' } });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('handleApi nearby and reverse routes', () => {
+  const NEARBY_BODY = {
+    data: [
+      {
+        postcode: 'LA-11-A12-AK-08',
+        point_geometry: { coordinates: [3.349, 6.6018] },
+        distance_m: 12.5,
+      },
+    ],
+  };
+
+  it('answers a nearby search with the mapped units and the default radius', async () => {
+    const fetchMock = stubLookup(jsonResponse(NEARBY_BODY));
+
+    const response = await handleApi(get('/api/v1/search/nearby?lat=6.6018&lng=3.349'), ENV);
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.postcode.gov.ng/v1/search/nearby?lat=6.6018&lng=3.349&radius=300',
+      { headers: { 'X-API-Key': 'nipost_pk_test' } }
+    );
+    expect(response.headers.get('cache-control')).toContain('max-age=300');
+    await expect(response.json()).resolves.toEqual({
+      data: [
+        {
+          code: 'LA-11-A12-AK-08',
+          display: 'LA 11 A12 AK 08',
+          compact: 'LA11A12AK08',
+          coordinates: { lat: 6.6018, lng: 3.349 },
+          distanceMetres: 12.5,
+        },
+      ],
+    });
+  });
+
+  it('passes an explicit radius through', async () => {
+    const fetchMock = stubLookup(jsonResponse(NEARBY_BODY));
+
+    await handleApi(get('/api/v1/search/nearby?lat=6.5&lng=3.3&radius=50'), ENV);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.postcode.gov.ng/v1/search/nearby?lat=6.5&lng=3.3&radius=50',
+      { headers: { 'X-API-Key': 'nipost_pk_test' } }
+    );
+  });
+
+  it('keeps an empty nearby list a 200 with an empty array', async () => {
+    stubLookup(jsonResponse({ data: [] }));
+
+    const response = await handleApi(get('/api/v1/search/nearby?lat=6.5&lng=3.3'), ENV);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ data: [] });
+  });
+
+  it('rejects a missing or out-of-range coordinate without calling upstream', async () => {
+    const fetchMock = stubLookup(jsonResponse(NEARBY_BODY));
+
+    const missing = await handleApi(get('/api/v1/search/nearby?lat=abc&lng=3.3'), ENV);
+    const range = await handleApi(get('/api/v1/search/nearby?lat=91&lng=3.3'), ENV);
+
+    expect(missing.status).toBe(400);
+    expect(range.status).toBe(400);
+    await expect(missing.json()).resolves.toMatchObject({ error: { code: 'invalid_code' } });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects an out-of-range radius without calling upstream', async () => {
+    const fetchMock = stubLookup(jsonResponse(NEARBY_BODY));
+
+    const response = await handleApi(get('/api/v1/search/nearby?lat=6.5&lng=3.3&radius=0'), ENV);
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ error: { code: 'invalid_code' } });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('maps a non-2xx nearby failure to upstream_error', async () => {
+    stubLookup(new Response('boom', { status: 503 }));
+
+    const response = await handleApi(get('/api/v1/search/nearby?lat=6.5&lng=3.3'), ENV);
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toMatchObject({ error: { code: 'upstream_error' } });
+  });
+
+  it('maps an unreachable gateway on nearby to upstream_unreachable', async () => {
+    stubLookup(new Error('offline'));
+
+    const response = await handleApi(get('/api/v1/search/nearby?lat=6.5&lng=3.3'), ENV);
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: 'upstream_unreachable' },
+    });
+  });
+
+  it('reports not_configured on nearby when the server holds no key', async () => {
+    const response = await handleApi(get('/api/v1/search/nearby?lat=6.5&lng=3.3'), {});
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toMatchObject({ error: { code: 'not_configured' } });
+  });
+
+  it('reverse-geocodes a hit, echoing the query point and the fixed search radius', async () => {
+    const fetchMock = stubLookup(
+      jsonResponse({
+        data: {
+          found: true,
+          state: 'LA',
+          district: 'A12',
+          area: 'AK',
+          unit: { postcode: 'LA-11-A12-AK-08', display: 'LA 11 A12 AK 08', distance_m: 42 },
+        },
+      })
+    );
+
+    const response = await handleApi(get('/api/v1/search/reverse?lat=6.5&lng=3.3'), ENV);
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.postcode.gov.ng/v1/search/reverse?lat=6.5&lng=3.3&max_distance_m=250',
+      { headers: { 'X-API-Key': 'nipost_pk_test' } }
+    );
+    expect(response.headers.get('cache-control')).toContain('max-age=300');
+    await expect(response.json()).resolves.toEqual({
+      data: {
+        code: 'LA-11-A12-AK-08',
+        display: 'LA 11 A12 AK 08',
+        compact: 'LA11A12AK08',
+        coordinates: { lat: 6.5, lng: 3.3 },
+        state: 'LA',
+        district: 'A12',
+        area: 'AK',
+        distanceMetres: 42,
+      },
+    });
+  });
+
+  it('maps a reverse miss to 404 not_found', async () => {
+    stubLookup(jsonResponse({ data: { found: false, radius_m: 25 } }));
+
+    const response = await handleApi(get('/api/v1/search/reverse?lat=6.5&lng=3.3'), ENV);
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toMatchObject({ error: { code: 'not_found' } });
+  });
+
+  it('rejects a malformed reverse coordinate without calling upstream', async () => {
+    const fetchMock = stubLookup(jsonResponse({ data: { found: false } }));
+
+    const response = await handleApi(get('/api/v1/search/reverse?lat=6.5'), ENV);
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ error: { code: 'invalid_code' } });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('maps a non-2xx reverse failure to upstream_error', async () => {
+    stubLookup(new Response('boom', { status: 500 }));
+
+    const response = await handleApi(get('/api/v1/search/reverse?lat=6.5&lng=3.3'), ENV);
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toMatchObject({ error: { code: 'upstream_error' } });
+  });
+});

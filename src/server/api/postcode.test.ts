@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizePostcodeCode, toPostcodeRecord } from './postcode';
+import { decodePostcode, normalizePostcodeCode, toPostcodeRecord } from './postcode';
 
 describe('normalizePostcodeCode', () => {
   it('accepts the dashed, spaced, and compact forms', () => {
@@ -74,5 +74,25 @@ describe('toPostcodeRecord', () => {
   it('survives a non-object body', () => {
     expect(toPostcodeRecord('FC-02-D43-LG-01', null).valid).toBe(true);
     expect(toPostcodeRecord('FC-02-D43-LG-01', 'nope').code).toBe('FC-02-D43-LG-01');
+  });
+});
+
+describe('decodePostcode', () => {
+  it('decodes the dashed, spaced, and compact forms to the same answer', () => {
+    const expected = {
+      code: 'LA-11-A12-AK-08',
+      display: 'LA 11 A12 AK 08',
+      compact: 'LA11A12AK08',
+      segments: { state: 'LA', lga: '11', district: 'A12', area: 'AK', unit: '08' },
+    };
+    expect(decodePostcode('LA-11-A12-AK-08')).toEqual(expected);
+    expect(decodePostcode('LA 11 A12 AK 08')).toEqual(expected);
+    expect(decodePostcode('la11a12ak08')).toEqual(expected);
+  });
+
+  it('returns null for a malformed code', () => {
+    expect(decodePostcode('')).toBeNull();
+    expect(decodePostcode('Ikeja')).toBeNull();
+    expect(decodePostcode('LA-11')).toBeNull();
   });
 });

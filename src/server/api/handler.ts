@@ -11,7 +11,16 @@
  */
 
 import { fetchNipostJson, type NipostFetchResult, type NipostGatewayEnv } from '../nipost/gateway';
-import { normalizePostcodeCode, toPostcodeRecord } from './postcode';
+import { decodePostcode, normalizePostcodeCode, toPostcodeRecord } from './postcode';
+import {
+  NEARBY_MAX_RADIUS_M,
+  normalizeCoordinate,
+  normalizeRadius,
+  normalizeSearchQuery,
+  toAutocomplete,
+  toNearbyUnits,
+  toReverseUnit,
+} from './search';
 import {
   REFERENCE_LIST_KEY,
   REFERENCE_PATH,
@@ -77,6 +86,9 @@ const LOOKUP_MAX_AGE_SECONDS = 300;
 /** The hierarchy changes only when NIPOST updates it, so it caches for an hour. */
 const REFERENCE_MAX_AGE_SECONDS = 3600;
 
+/** A decoded postcode is pure structure that never changes; cache it the same. */
+const DECODE_MAX_AGE_SECONDS = 3600;
+
 /** A `{ data }` success body. NDAPS records are cacheable at the edge. */
 function dataResponse(data: unknown, maxAgeSeconds = LOOKUP_MAX_AGE_SECONDS): Response {
   return jsonResponse({ data }, 200, `public, max-age=${maxAgeSeconds}`);
@@ -91,12 +103,13 @@ type NipostFailure = Extract<NipostFetchResult, { ok: false }>;
 /**
  * Map a failed gateway call onto the public error contract. `notFoundStatuses`
  * are the upstream HTTP statuses that mean "the resource is not there" for the
- * calling route; any other upstream status becomes `upstream_error`.
+ * calling route; any other upstream status becomes `upstream_error`. A route
+ * with no not-found status (the search routes) omits both arguments.
  */
 function upstreamErrorResponse(
   result: NipostFailure,
-  notFoundStatuses: readonly number[],
-  notFoundMessage: string
+  notFoundStatuses: readonly number[] = [],
+  notFoundMessage = ''
 ): Response {
   switch (result.reason) {
     case 'not_configured':
@@ -168,6 +181,93 @@ async function handlePostcode(rawCode: string, env: NipostGatewayEnv): Promise<R
 }
 
 /**
+ * Decode a well-formed postcode into its five segments. Purely structural, so it
+ * never calls the gateway and works even when NIPOST is unreachable.
+ */
+function handleDecode(rawCode: string): Response {
+  const decoded = decodePostcode(rawCode);
+  if (!decoded) {
+    return errorResponse('invalid_code', 'The postcode in the path is not well-formed.');
+  }
+  return dataResponse(decoded, DECODE_MAX_AGE_SECONDS);
+}
+
+/**
+ * Answer one autocomplete query. NDAPS infers which level the query names and
+ * returns its suggestions; an empty list is a valid answer.
+ */
+async function handleAutocomplete(url: URL, env: NipostGatewayEnv): Promise<Response> {
+  const q = normalizeSearchQuery(url.searchParams.get('q'));
+  if (!q) {
+    return errorResponse(
+      'invalid_code',
+      'Provide a non-empty q query parameter (at most 64 characters).'
+    );
+  }
+
+  const result = await fetchNipostJson('/v1/search/autocomplete', { q }, env);
+  if (!result.ok) {
+    return upstreamErrorResponse(result);
+  }
+  return dataResponse(toAutocomplete(result.data));
+}
+
+/**
+ * Answer a nearby search. The radius is bounded before the call; an empty list
+ * is a valid answer, not an error.
+ */
+async function handleNearby(url: URL, env: NipostGatewayEnv): Promise<Response> {
+  const point = normalizeCoordinate(url.searchParams.get('lat'), url.searchParams.get('lng'));
+  if (!point) {
+    return errorResponse('invalid_code', 'Provide numeric lat and lng query parameters in range.');
+  }
+  const radius = normalizeRadius(url.searchParams.get('radius'));
+  if (radius === null) {
+    return errorResponse(
+      'invalid_code',
+      `Provide a radius in metres between 1 and ${NEARBY_MAX_RADIUS_M}.`
+    );
+  }
+
+  const result = await fetchNipostJson(
+    '/v1/search/nearby',
+    { lat: String(point.lat), lng: String(point.lng), radius: String(radius) },
+    env
+  );
+  if (!result.ok) {
+    return upstreamErrorResponse(result);
+  }
+  return dataResponse(toNearbyUnits(result.data));
+}
+
+/**
+ * Answer a reverse-geocode query. A miss (`found` is not `true`) is a 404,
+ * matching the lookup route; the returned unit echoes the queried point. The
+ * fixed 250 m search radius mirrors the browser client.
+ */
+async function handleReverse(url: URL, env: NipostGatewayEnv): Promise<Response> {
+  const point = normalizeCoordinate(url.searchParams.get('lat'), url.searchParams.get('lng'));
+  if (!point) {
+    return errorResponse('invalid_code', 'Provide numeric lat and lng query parameters in range.');
+  }
+
+  const result = await fetchNipostJson(
+    '/v1/search/reverse',
+    { lat: String(point.lat), lng: String(point.lng), max_distance_m: '250' },
+    env
+  );
+  if (!result.ok) {
+    return upstreamErrorResponse(result);
+  }
+
+  const unit = toReverseUnit(result.data, point);
+  if (!unit) {
+    return errorResponse('not_found', 'No postcode was found near that point.');
+  }
+  return dataResponse(unit);
+}
+
+/**
  * Answer one hierarchy reference route. The NDAPS path and list field come from
  * the level; `params` are the already-validated parent codes.
  */
@@ -212,7 +312,8 @@ export async function handleApi(
     return errorResponse('method_not_allowed', `Use GET for ${API_PREFIX} routes.`);
   }
 
-  const path = resolveApiPath(new URL(request.url));
+  const url = new URL(request.url);
+  const path = resolveApiPath(url);
 
   if (path === '/') {
     return dataResponse({ name: 'Postcode Atlas API', version: API_VERSION });
@@ -222,9 +323,26 @@ export async function handleApi(
     return errorResponse('invalid_code', 'Provide a postcode in the path: /postcodes/{code}.');
   }
 
+  const segmentsMatch = path.match(/^\/postcodes\/([^/]+)\/segments$/);
+  if (segmentsMatch) {
+    return handleDecode(safeDecode(segmentsMatch[1]));
+  }
+
   const postcodeMatch = path.match(/^\/postcodes\/([^/]+)$/);
   if (postcodeMatch) {
     return handlePostcode(safeDecode(postcodeMatch[1]), env);
+  }
+
+  if (path === '/search/autocomplete') {
+    return handleAutocomplete(url, env);
+  }
+
+  if (path === '/search/nearby') {
+    return handleNearby(url, env);
+  }
+
+  if (path === '/search/reverse') {
+    return handleReverse(url, env);
   }
 
   if (path === '/states') {
