@@ -80,12 +80,18 @@ async function resolveLgaCode(stateCode: string, wanted: string): Promise<string
 /**
  * Find an LGA by the name a user (or the model) gave, across all states. Used
  * when a request names an LGA but labels it a state ("show me Ikeja on the
- * map", "what districts are in Ikeja?") so the request still resolves.
+ * map", "what districts are in Ikeja?") so the request still resolves. A name
+ * that is itself a state name is refused: "Lagos" is a state, and its prefix
+ * also matches the Lagos Island LGA, so treating it as an LGA would quietly
+ * answer about the wrong parent.
  */
 async function findLgaByName(
   wanted: string,
 ): Promise<{ stateCode: string; stateName: string; code: string; name: string } | null> {
-  const candidates = await atlasStore.searchLocations(wanted.trim());
+  const name = wanted.trim();
+  if (!name) return null;
+  if (matchStateName(await atlasStore.getStates(), name)) return null;
+  const candidates = await atlasStore.searchLocations(name);
   const hit = candidates.find((candidate) => candidate.type === 'lga' && candidate.state);
   if (!hit || !hit.state) return null;
   const state = await resolveState(hit.state);
@@ -95,20 +101,24 @@ async function findLgaByName(
 /**
  * Resolve a `(state, LGA)` pair for a hierarchy query. The model sometimes
  * treats the LGA as the state ("what districts are in Ikeja?"), so when the
- * state does not resolve, look the name up as a place and use its parent.
+ * state does not resolve, look the name up as a place and use its parent. The
+ * fallback stays out of the way once the state resolves: "Nowhereville, Lagos"
+ * names a real state and an unknown LGA, so it must answer not-found rather
+ * than list the districts of an LGA that merely starts with "Lagos".
  */
 async function resolveStateAndLga(
   stateArg: string,
   lgaArg: string,
 ): Promise<{ stateCode: string; lgaCode: string }> {
+  let state: AtlasState;
   try {
-    const state = await resolveState(stateArg);
-    return { stateCode: state.code, lgaCode: await resolveLgaCode(state.code, lgaArg) };
+    state = await resolveState(stateArg);
   } catch (error) {
     const hit = (await findLgaByName(stateArg)) ?? (await findLgaByName(lgaArg));
     if (hit) return { stateCode: hit.stateCode, lgaCode: hit.code };
     throw error;
   }
+  return { stateCode: state.code, lgaCode: await resolveLgaCode(state.code, lgaArg) };
 }
 
 /** List every state in the catalogue. */

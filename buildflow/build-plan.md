@@ -103,7 +103,7 @@ and deployment readiness. Adapt it to the project as implementation progresses.
 
 - [x] 22. **Developer documentation** - provide integration documentation and examples for the Atlas API
 
-- [ ] 23. **Advanced evaluation** - expand testing across languages, regional terminology, ambiguity, and tool accuracy
+- [x] 23. **Advanced evaluation** - expand testing across languages, regional terminology, ambiguity, and tool accuracy
 
 - [ ] 24. **Mobile responsiveness** - make the existing Atlas and the Ask Atlas panel work well on phones and tablets
   - [x] 24a. **Phone viewport and safe areas** - move the app to dynamic viewport height (`dvh`) and apply the existing safe-area insets to the header, bottom sheet, drawers, and overlays; retire the unused `.drawer-content` helper

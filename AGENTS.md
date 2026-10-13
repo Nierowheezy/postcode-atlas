@@ -210,7 +210,7 @@ checks do not make the BuildFlow unusable.
 - Typecheck: `npm run lint` (`tsc --noEmit`)
 - Unit tests: `npm run test` (`vitest run`); watch with `npm run test:watch`
 - Dataset snapshot: `npm run dataset` (regenerates `public/atlas-data.json` from NDAPS)
-- Browser benchmark: `npm run eval` (drives the real chat UI in system Chrome; writes `scripts/eval-report.md`)
+- Browser benchmark: `npm run eval` (drives the real chat UI in system Chrome; writes `scripts/eval-report.md`; `CASE=1,4` or `GROUP=languages` filters a run)
 
 Verify before merging: `npm run test && npm run lint && npm run build`.
 
