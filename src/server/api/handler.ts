@@ -57,8 +57,8 @@ export type ApiErrorCode =
   | 'upstream_unreachable'
   | 'upstream_error';
 
-/** Fixed HTTP status for each error code. */
-const ERROR_STATUS: Record<ApiErrorCode, number> = {
+/** Fixed HTTP status for each error code. Exported for the docs drift guard. */
+export const API_ERROR_STATUS: Record<ApiErrorCode, number> = {
   invalid_code: 400,
   unauthorized: 401,
   rate_limited: 429,
@@ -123,7 +123,7 @@ function errorResponse(
   message: string,
   extraHeaders: Record<string, string> = {}
 ): Response {
-  return jsonResponse({ error: { code, message } }, ERROR_STATUS[code], 'no-store', extraHeaders);
+  return jsonResponse({ error: { code, message } }, API_ERROR_STATUS[code], 'no-store', extraHeaders);
 }
 
 type NipostFailure = Extract<NipostFetchResult, { ok: false }>;

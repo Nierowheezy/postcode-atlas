@@ -101,7 +101,7 @@ and deployment readiness. Adapt it to the project as implementation progresses.
   - [x] 21d. **Editorial explanations endpoint** - the curated feature 19 Atlas copy as read-only API content, labelled as editorial rather than verified NIPOST data
   - [x] 21e. **Access control and usage limits** - API-key verification plus rate limiting with standard 401 and 429 responses
 
-- [ ] 22. **Developer documentation** - provide integration documentation and examples for the Atlas API
+- [x] 22. **Developer documentation** - provide integration documentation and examples for the Atlas API
 
 - [ ] 23. **Advanced evaluation** - expand testing across languages, regional terminology, ambiguity, and tool accuracy
 

@@ -15,6 +15,7 @@ Instead of a postcode as an opaque string, NDAPS encodes a full administrative h
 - [Project structure](#project-structure)
 - [Getting started](#getting-started)
 - [Environment variables](#environment-variables)
+- [Developer API](#developer-api)
 - [Deployment to Vercel](#deployment-to-vercel)
 - [Local inference (N-ATLAS)](docs/local-inference.md)
 - [Architecture notes](#architecture-notes)
@@ -198,6 +199,17 @@ postcode-atlas/
 Variables prefixed `VITE_` are inlined into the client bundle at build time and are therefore readable by anyone who opens the deployed site. Only publishable values belong in them. The NIPOST key and the Ask Atlas provider keys are server-only: `/api/nipost` and `/api/ask` read them from `process.env` and never ship them to the browser.
 
 The NIPOST gateway is reached through the `/api/nipost` proxy, not from the browser. The publishable key is locked to an origin allowlist, so a direct browser call is rejected with `origin_not_allowed`, while a server-side call carries no browser `Origin` and is served. That is also why the NIPOST variables are server-only rather than `VITE_`.
+
+---
+
+## Developer API
+
+Alongside the app, `/api/v1` publishes a read-only JSON API for external applications: postcode lookups and decodes, the state-to-area reference lists, editorial explanations, and coordinate search. It is open by default and needs no key; set `ATLAS_API_KEYS` to require one and `ATLAS_API_RATE_LIMIT` to change the per-caller budget (see [Environment variables](#environment-variables)).
+
+- [API reference](docs/api-reference.md) - the contract: authentication, rate limits, envelopes, every route and error code
+- [API examples](docs/api-examples.md) - copy-pasteable curl and a typed `fetch` client
+
+The API reads NDAPS server-side through the same gateway as the app, so it stays read-only and the publishable NIPOST key never reaches a browser.
 
 ---
 
