@@ -14,6 +14,7 @@ import { z } from 'zod';
 import {
   TOOL_DESCRIPTIONS,
   decodePostcodeSchema,
+  explainAtlasSchema,
   getAreasSchema,
   getDistrictsSchema,
   getLgasSchema,
@@ -50,6 +51,7 @@ const SCHEMAS: Record<ToolName, z.ZodType> = {
   getNearby: getNearbySchema,
   navigateMap: navigateMapSchema,
   interpretAddress: interpretAddressSchema,
+  explainAtlas: explainAtlasSchema,
 };
 
 function buildProviderTools(): ProviderTool[] {

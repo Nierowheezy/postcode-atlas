@@ -12,6 +12,7 @@ import { AskAtlasResultsList } from './AskAtlasResultsList';
 import { AskAtlasDecodedCard } from './AskAtlasDecodedCard';
 import { AskAtlasNearbyList } from './AskAtlasNearbyList';
 import { AskAtlasAddress } from './AskAtlasAddress';
+import { AskAtlasExplanationCard } from './AskAtlasExplanationCard';
 import type { AskAtlasViewLocation } from './AskAtlasPanel';
 
 /** Human label per reply language, for the Auto footer. */
@@ -98,6 +99,7 @@ export const AskAtlasMessageBubble: React.FC<AskAtlasMessageBubbleProps> = ({ me
         {message.decoded && <AskAtlasDecodedCard decoded={message.decoded} />}
         {message.nearby && <AskAtlasNearbyList list={message.nearby} />}
         {message.address && <AskAtlasAddress address={message.address} onMapAction={onMapAction} />}
+        {message.explanation && <AskAtlasExplanationCard explanation={message.explanation} />}
 
         {message.location && (
           <button

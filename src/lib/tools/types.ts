@@ -26,9 +26,19 @@ export const TOOL_NAMES = [
   'getNearby',
   'navigateMap',
   'interpretAddress',
+  'explainAtlas',
 ] as const;
 
 export type ToolName = (typeof TOOL_NAMES)[number];
+
+/**
+ * Curated explanation topics for the `explainAtlas` tool (feature 19). The enum
+ * lives here, next to `TOOL_NAMES`, because the tool schema and the content
+ * module both read it as a value; keep the two in step.
+ */
+export const EXPLAIN_TOPICS = ['hierarchy', 'postcode_parts', 'single_postcode', 'ndaps'] as const;
+
+export type ExplainTopic = (typeof EXPLAIN_TOPICS)[number];
 
 export type ToolErrorCode = 'invalid_args' | 'unknown_tool' | 'not_found' | 'internal_error';
 
@@ -84,6 +94,21 @@ export interface DecodedPostcode {
   lgaName?: string;
   coordinates?: [number, number];
   verified?: boolean;
+}
+
+/**
+ * A curated explanation of Nigeria's addressing system (feature 19). Editorial
+ * Atlas copy, distinct from NIPOST records, so it is rendered and labelled
+ * rather than claimed as verified data. Load-bearing for the developer API
+ * (feature 21); keep the shape stable.
+ */
+export interface AtlasExplanation {
+  topic: ExplainTopic;
+  title: string;
+  summary: string;
+  points: string[];
+  /** A worked postcode for the topic, in the dashed form. */
+  example?: string;
 }
 
 /**

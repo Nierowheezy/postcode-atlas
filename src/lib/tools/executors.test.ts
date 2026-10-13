@@ -93,3 +93,32 @@ describe('interpretAddress', () => {
     });
   });
 });
+
+describe('explainAtlas', () => {
+  it('returns the curated copy for a known topic', async () => {
+    const result = await runTool('explainAtlas', { topic: 'postcode_parts' });
+    expect(result).toMatchObject({
+      ok: true,
+      data: { topic: 'postcode_parts' },
+    });
+    if (result.ok) {
+      const explanation = result.data as { title: string; points: string[] };
+      expect(explanation.title.length).toBeGreaterThan(0);
+      expect(explanation.points.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('rejects an unknown topic at the schema boundary', async () => {
+    await expect(runTool('explainAtlas', { topic: 'made_up' })).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'invalid_args' },
+    });
+  });
+
+  it('rejects a missing topic', async () => {
+    await expect(runTool('explainAtlas', {})).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'invalid_args' },
+    });
+  });
+});

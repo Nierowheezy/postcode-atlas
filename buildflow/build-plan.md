@@ -90,7 +90,7 @@ and deployment readiness. Adapt it to the project as implementation progresses.
 
 - [x] 18. **Multilingual queries** - support Yoruba, Hausa, Igbo, and Nigerian Pidgin queries where N-ATLAS supports them reliably
 
-- [ ] 19. **Atlas explanations** - provide richer explanations of Nigeria's digital addressing and postcode system
+- [x] 19. **Atlas explanations** - provide richer explanations of Nigeria's digital addressing and postcode system
 
 - [ ] 20. **Saved discoveries** - save and share postcode results, locations, and Atlas discoveries
 

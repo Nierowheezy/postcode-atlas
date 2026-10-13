@@ -21,8 +21,10 @@ import type { AtlasArea, AtlasDistrict, AtlasLga, AtlasState, LocationCandidate 
 import { matchLgaName, matchStateName } from '../atlas/names';
 import { POSTCODE_PATTERN, toDashedCode } from '../atlas/postcodeCode';
 import { NIGERIA_CENTER, NIGERIA_DEFAULT_ZOOM, NIGERIA_STATES } from '../geo/nigeriaData';
+import { getExplanation } from '../explain/topics';
 import type {
   DecodePostcodeArgs,
+  ExplainAtlasArgs,
   GetAreasArgs,
   GetDistrictsArgs,
   GetLgasArgs,
@@ -33,7 +35,7 @@ import type {
   NavigateMapArgs,
   SearchLocationArgs,
 } from './schemas';
-import { ToolFault, type DecodedPostcode, type HierarchyPage, type MapAction, type NearbyUnit, type StateSummary } from './types';
+import { ToolFault, type AtlasExplanation, type DecodedPostcode, type HierarchyPage, type MapAction, type NearbyUnit, type StateSummary } from './types';
 
 const NEARBY_RADIUS_CAP = 300;
 
@@ -220,6 +222,19 @@ export async function decodePostcode(args: DecodePostcodeArgs): Promise<DecodedP
     // flag (bundled landmarks) counts as confirmed, matching feature 4.
     verified: lookup ? lookup.verified !== false : false,
   };
+}
+
+/**
+ * Return curated Atlas copy for a topic (feature 19). No I/O and no model: the
+ * content is fixed, so the same topic always explains the same way. A topic the
+ * schema allows but the content module lacks is a real fault, not a data gap.
+ */
+export function explainAtlas(args: ExplainAtlasArgs): Promise<AtlasExplanation> {
+  const explanation = getExplanation(args.topic);
+  if (!explanation) {
+    throw new ToolFault('not_found', `No Atlas explanation is registered for "${args.topic}".`);
+  }
+  return Promise.resolve(explanation);
 }
 
 /**

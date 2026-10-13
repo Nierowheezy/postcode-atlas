@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { groundingBasis } from './grounding';
+import { groundingBasis, GROUNDING_FOOTER } from './grounding';
 import type { AskAtlasMessage } from './types';
 
 function assistant(overrides: Partial<AskAtlasMessage> = {}): AskAtlasMessage {
@@ -115,5 +115,41 @@ describe('groundingBasis', () => {
     // Persisted conversations from before the `question` field have no marker;
     // the unverified line is the honest fallback for those replies.
     expect(groundingBasis(assistant({ grounding: 'unverified' }))).toBe('none');
+  });
+
+  it('labels a curated explanation as an explanation, not verified data', () => {
+    expect(
+      groundingBasis(
+        assistant({
+          explanation: {
+            topic: 'hierarchy',
+            title: 'How the hierarchy works',
+            summary: 'Five levels.',
+            points: ['State, LGA, district, area, unit.'],
+          },
+          grounding: 'atlas',
+        }),
+      ),
+    ).toBe('explanation');
+    expect(GROUNDING_FOOTER.explanation).toBe('Atlas explanation, not NIPOST data');
+  });
+
+  it('prefers the verified payload label when an explanation also carries data', () => {
+    // One reply can decode a code and explain the system in the same turn. The
+    // decoded record is verified, so it wins the single footer line.
+    expect(
+      groundingBasis(
+        assistant({
+          decoded: {
+            postcode: 'FC-02-D43-LG-01',
+            compact: 'FC02D43LG01',
+            display: 'FC 02 D43 LG 01',
+            valid: true,
+            segments: { state: 'FC', lga: '02', district: 'D43', area: 'LG', unit: '01' },
+          },
+          explanation: { topic: 'ndaps', title: 'What NDAPS is', summary: 'x', points: ['y'] },
+        }),
+      ),
+    ).toBe('payload');
   });
 });

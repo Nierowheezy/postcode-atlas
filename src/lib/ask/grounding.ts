@@ -23,7 +23,7 @@
 import type { AskAtlasMessage } from './types';
 import { isSmallTalk } from './smalltalk';
 
-export type GroundingBasis = 'payload' | 'map' | 'tools' | 'chat' | 'none';
+export type GroundingBasis = 'payload' | 'explanation' | 'map' | 'tools' | 'chat' | 'none';
 
 /**
  * What the grounding footer may claim. A reply is only labelled verified when
@@ -45,6 +45,10 @@ export function groundingBasis(message: AskAtlasMessage): GroundingBasis {
     (message.address && message.address.resolvedTo !== 'none')
   )
     return 'payload';
+  // A curated explanation is editorial Atlas copy, not a NIPOST record, so it
+  // gets its own label instead of claiming verification. It sits below the
+  // payload check: a reply that also returned real data shows the data label.
+  if (message.explanation) return 'explanation';
   // A map move shows no postcode data, so it is labelled for what it is rather
   // than claiming postcode verification.
   if (message.mapAction) return 'map';
@@ -57,6 +61,7 @@ export function groundingBasis(message: AskAtlasMessage): GroundingBasis {
 /** Footer text per basis; `'chat'` renders no data-grounding line at all. */
 export const GROUNDING_FOOTER: Record<Exclude<GroundingBasis, 'chat'>, string> = {
   payload: 'Verified against NIPOST postcode data',
+  explanation: 'Atlas explanation, not NIPOST data',
   map: 'Map moved using NIPOST location data',
   tools: 'Answered from NIPOST tool results',
   none: 'Not verified against NIPOST data',

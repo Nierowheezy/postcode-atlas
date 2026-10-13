@@ -10,6 +10,7 @@
  */
 
 import type { DecodedPostcode, MapAction, NearbyUnit, ToolError } from '../tools/types';
+import type { AtlasExplanation } from '../tools/types';
 import type { InterpretedAddress } from '../address/types';
 
 export interface AtlasContextSnapshot {
@@ -113,6 +114,12 @@ export interface AskAtlasResponse {
    */
   address?: InterpretedAddress;
   /**
+   * Curated explanation of the addressing system (feature 19). Derived on the
+   * client from an executed `explainAtlas` result; absent when the reply did not
+   * explain one. Editorial Atlas copy, not a NIPOST record.
+   */
+  explanation?: AtlasExplanation;
+  /**
    * Present when the model asked for tool calls instead of answering.
    * `text` is empty then; the client executes the calls and feeds the
    * results back via the next request's `toolTurns`.
@@ -156,6 +163,8 @@ export interface AskAtlasMessage {
   referent?: AtlasReferent;
   /** Address interpretation rendered as the feature 17 card. */
   address?: InterpretedAddress;
+  /** Curated explanation rendered as the feature 19 card. */
+  explanation?: AtlasExplanation;
   timestamp: number;
 }
 

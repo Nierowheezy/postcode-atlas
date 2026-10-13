@@ -10,7 +10,7 @@
  */
 
 import { z } from 'zod';
-import type { ToolName } from './types';
+import { EXPLAIN_TOPICS, type ToolName } from './types';
 
 export const searchLocationSchema = z.object({
   query: z.string().trim().min(1).max(120),
@@ -87,6 +87,15 @@ export const interpretAddressSchema = z.object({
 });
 export type InterpretAddressArgs = z.infer<typeof interpretAddressSchema>;
 
+/**
+ * One curated explanation topic. The enum is the whole argument: the model
+ * picks a topic and the executor returns the matching curated copy.
+ */
+export const explainAtlasSchema = z.object({
+  topic: z.enum(EXPLAIN_TOPICS),
+});
+export type ExplainAtlasArgs = z.infer<typeof explainAtlasSchema>;
+
 export const TOOL_DESCRIPTIONS = {
   searchLocation: 'Find Nigerian states, LGAs, districts, areas, and landmark postcodes by name or code.',
   getState: 'Get one Nigerian state with its capital, geopolitical zone, center, and LGA count.',
@@ -101,4 +110,6 @@ export const TOOL_DESCRIPTIONS = {
     'Move the map to a Nigerian place: a state, an LGA, a full postcode, or back to the national view.',
   interpretAddress:
     'Resolve a pasted Nigerian address into its state, LGA, district, area, and postcode where the dataset supports it, and report the parts it could not place. Never states a code the data did not return.',
+  explainAtlas:
+    "Explain how Nigeria's digital addressing and postcode system works. Topics: hierarchy (the five levels), postcode_parts (what each segment means), single_postcode (why an area has no single postcode), ndaps (what the NDAPS system is).",
 } as const satisfies Record<ToolName, string>;

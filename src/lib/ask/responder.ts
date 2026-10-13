@@ -26,7 +26,7 @@ import { runTool } from '../tools/registry';
 import { atlasStore } from '../atlas/store';
 import type { InterpretedAddress } from '../address/types';
 import type { PostcodeLocation } from '../../types/postcode';
-import type { DecodedPostcode, MapAction, NearbyUnit, StateSummary } from '../tools/types';
+import type { AtlasExplanation, DecodedPostcode, MapAction, NearbyUnit, StateSummary } from '../tools/types';
 import type { AtlasArea, AtlasDistrict, AtlasLga, AtlasState, LocationCandidate } from '../atlas/dataset';
 
 const RESPONSE_DELAY_MS = 400;
@@ -578,6 +578,42 @@ export function deriveAddress(toolTurns: AskToolTurn[]): InterpretedAddress | un
   return address;
 }
 
+/**
+ * Narrow executed data to a curated explanation. `topic`, `title`, `summary`,
+ * and a `points` array are the fields the card needs, so a payload missing any
+ * of them is rejected rather than cast.
+ */
+function asAtlasExplanation(value: unknown): AtlasExplanation | undefined {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const explanation = value as Record<string, unknown>;
+  return typeof explanation.topic === 'string' &&
+    typeof explanation.title === 'string' &&
+    typeof explanation.summary === 'string' &&
+    Array.isArray(explanation.points)
+    ? (value as AtlasExplanation)
+    : undefined;
+}
+
+/**
+ * Derive the curated explanation (feature 19) from the executed tool results.
+ * Deterministic: the last successful `explainAtlas` result wins. A failed result
+ * or a reply that never explained a topic leaves it unset, so the card only ever
+ * shows copy a curated topic actually provided.
+ */
+export function deriveExplanation(toolTurns: AskToolTurn[]): AtlasExplanation | undefined {
+  let explanation: AtlasExplanation | undefined;
+
+  for (const turn of toolTurns) {
+    for (const result of turn.toolResults) {
+      if (!result.ok || result.name !== 'explainAtlas') continue;
+      const payload = asAtlasExplanation(result.data);
+      if (payload) explanation = payload;
+    }
+  }
+
+  return explanation;
+}
+
 /** A finite coordinate pair, or undefined for anything malformed. */
 function asMapCenter(value: unknown): [number, number] | undefined {
   if (!Array.isArray(value) || value.length < 2) return undefined;
@@ -763,11 +799,14 @@ async function attachDerived(
   const address = deriveAddress(toolTurns);
   if (address) next = { ...next, address };
 
+  const explanation = deriveExplanation(toolTurns);
+  if (explanation) next = { ...next, explanation };
+
   // A pure map move carries no rows to quote, so the model tends to pad the
   // reply with remembered facts (population, area, capital) that no tool
   // returned. Use a short deterministic line instead, so a map action makes no
   // unverified claim. When a data payload exists the model's prose is kept.
-  const hasData = Boolean(next.lookup || next.results || next.decoded || next.nearby || next.address);
+  const hasData = Boolean(next.lookup || next.results || next.decoded || next.nearby || next.address || next.explanation);
   if (mapAction && !hasData) {
     return { ...next, text: mapActionCopy(mapAction) };
   }
@@ -775,7 +814,7 @@ async function attachDerived(
   // A successful but empty getDistricts/getAreas means the offline dataset has no
   // such rows (NDAPS stores them code-only), not that none exist. Never let a
   // "there are no districts" style reply stand.
-  if (!next.lookup && !next.decoded && !next.results && !next.address && hasEmptyScopeList(toolTurns)) {
+  if (!next.lookup && !next.decoded && !next.results && !next.address && !next.explanation && hasEmptyScopeList(toolTurns)) {
     return { ...next, text: SCOPE_UNAVAILABLE_COPY };
   }
 

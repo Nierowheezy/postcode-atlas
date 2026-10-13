@@ -192,6 +192,7 @@ export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({
         nearby: res.nearby,
         mapAction: res.mapAction,
         address: res.address,
+        explanation: res.explanation,
         referent: res.referent,
         replyLanguage,
         autoDetected: auto,

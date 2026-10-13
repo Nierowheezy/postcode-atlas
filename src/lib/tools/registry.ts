@@ -11,6 +11,7 @@
 
 import {
   decodePostcode,
+  explainAtlas,
   getAreas,
   getDistricts,
   getLgas,
@@ -25,6 +26,7 @@ import {
 import {
   TOOL_DESCRIPTIONS,
   decodePostcodeSchema,
+  explainAtlasSchema,
   getAreasSchema,
   getDistrictsSchema,
   getLgasSchema,
@@ -121,6 +123,12 @@ export const TOOL_REGISTRY: Record<ToolName, RegisteredTool> = {
     description: TOOL_DESCRIPTIONS.interpretAddress,
     schema: interpretAddressSchema,
     execute: interpretAddress,
+  }),
+  explainAtlas: register({
+    name: 'explainAtlas',
+    description: TOOL_DESCRIPTIONS.explainAtlas,
+    schema: explainAtlasSchema,
+    execute: explainAtlas,
   }),
 };
 

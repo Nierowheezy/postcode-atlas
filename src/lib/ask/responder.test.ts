@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deriveAddress, deriveMapAction, deriveReferent, hasEmptyScopeList, asksForPostcode, postcodeScopeCopy } from './responder';
+import { deriveAddress, deriveExplanation, deriveMapAction, deriveReferent, hasEmptyScopeList, asksForPostcode, postcodeScopeCopy } from './responder';
 import type { AskToolResult, AskToolTurn, AtlasResultList } from './types';
 
 function turn(...toolResults: AskToolResult[]): AskToolTurn {
@@ -130,6 +130,34 @@ describe('deriveAddress', () => {
 
   it('rejects a shape that is not an interpreted address', () => {
     expect(deriveAddress([turn(ok('interpretAddress', { input: 'x', resolvedTo: 'none' }))])).toBeUndefined();
+  });
+});
+
+describe('deriveExplanation', () => {
+  const payload = {
+    topic: 'postcode_parts',
+    title: 'What each part of a postcode means',
+    summary: 'Five dashed groups.',
+    points: ['State: 2 letters.'],
+  };
+
+  it('reads an explainAtlas result as the delivered explanation', () => {
+    expect(deriveExplanation([turn(ok('explainAtlas', payload))])).toEqual(payload);
+  });
+
+  it('keeps the last explanation when more than one ran', () => {
+    const later = { ...payload, topic: 'ndaps' };
+    expect(deriveExplanation([turn(ok('explainAtlas', payload), ok('explainAtlas', later))])).toEqual(later);
+  });
+
+  it('returns nothing for a failed or unrelated tool turn', () => {
+    expect(deriveExplanation([turn({ tool_call_id: 'c1', name: 'explainAtlas', ok: false })])).toBeUndefined();
+    expect(deriveExplanation([turn(ok('getState', { code: 'KN', name: 'Kano' }))])).toBeUndefined();
+    expect(deriveExplanation([])).toBeUndefined();
+  });
+
+  it('rejects a shape that is not an explanation', () => {
+    expect(deriveExplanation([turn(ok('explainAtlas', { topic: 'hierarchy', title: 'x' }))])).toBeUndefined();
   });
 });
 
