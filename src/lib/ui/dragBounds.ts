@@ -56,3 +56,24 @@ export function dragBounds(card: Rect, container: Rect, offset: DragOffset): Dra
     bottom: Math.round(container.bottom - (restingTop + height)),
   };
 }
+
+/** Clamps into a range whose ends may arrive in either order. */
+function clampInto(value: number, a: number, b: number): number {
+  return Math.min(Math.max(value, Math.min(a, b)), Math.max(a, b));
+}
+
+/**
+ * Pulls an existing drag translation back inside fresh bounds.
+ *
+ * Used when the container shrinks under a card that is already out at an edge:
+ * the bounds above are re-measured correctly but the offset the card carries is
+ * not, so without this the card can sit outside the map area until the next
+ * drag. The ends of a range are treated as unordered so a card wider than the
+ * container pins to an edge instead of flipping out the far side.
+ */
+export function clampOffset(bounds: DragBounds, offset: DragOffset): DragOffset {
+  return {
+    x: clampInto(offset.x, bounds.left, bounds.right),
+    y: clampInto(offset.y, bounds.top, bounds.bottom),
+  };
+}

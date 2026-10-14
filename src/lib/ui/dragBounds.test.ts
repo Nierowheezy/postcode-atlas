@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dragBounds } from './dragBounds';
+import { clampOffset, dragBounds } from './dragBounds';
 
 /** A 1280x900 map area with a 420x624 card anchored 24px off its bottom right. */
 const container = { left: 0, top: 0, right: 1280, bottom: 900 };
@@ -64,6 +64,34 @@ describe('dragBounds', () => {
       top: -252,
       right: 17,
       bottom: 25,
+    });
+  });
+});
+
+describe('clampOffset', () => {
+  const bounds = { left: -844, top: -252, right: 16, bottom: 24 };
+
+  it('leaves an offset that already fits alone', () => {
+    expect(clampOffset(bounds, { x: 0, y: 0 })).toEqual({ x: 0, y: 0 });
+  });
+
+  it('pulls an offset stranded past an edge back inside', () => {
+    // The map area shrank after the drag, so the offset the card still carries
+    // no longer fits the smaller room.
+    const shrunken = { left: -300, top: -100, right: 16, bottom: 24 };
+    expect(clampOffset(shrunken, { x: -844, y: -252 })).toEqual({ x: -300, y: -100 });
+  });
+
+  it('clamps each axis to its own bounds', () => {
+    expect(clampOffset(bounds, { x: 999, y: -999 })).toEqual({ x: 16, y: -252 });
+  });
+
+  it('pins into an inverted range when the card is larger than the container', () => {
+    // A 140px card in a 100px container gives a left bound of 0 and a right
+    // bound of -40; the range must still resolve to a real position.
+    expect(clampOffset({ left: 0, top: 0, right: -40, bottom: -10 }, { x: 50, y: 50 })).toEqual({
+      x: 0,
+      y: 0,
     });
   });
 });

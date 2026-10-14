@@ -101,7 +101,7 @@ export const PostcodeInspector: React.FC<PostcodeInspectorProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-0.5">
+        <div className="flex items-center gap-0.5 touch-spaced">
           <button
             type="button"
             onClick={() => onToggleSave?.(location)}
@@ -109,7 +109,7 @@ export const PostcodeInspector: React.FC<PostcodeInspectorProps> = ({
             aria-pressed={isSaved}
             aria-label={isSaved ? 'Remove from saved discoveries' : 'Save this discovery'}
             title={isSaved ? 'Remove from saved discoveries' : 'Save this discovery'}
-            className="p-1 rounded transition-colors text-[#9CA3AF] hover:text-[#0F7B4D] dark:hover:text-[#10B981] disabled:cursor-not-allowed disabled:opacity-60"
+            className="p-1 touch-target rounded transition-colors text-[#9CA3AF] hover:text-[#0F7B4D] dark:hover:text-[#10B981] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isSaved ? (
               <BookmarkCheck className="w-4 h-4 text-[#0F7B4D] dark:text-[#10B981]" />
@@ -119,7 +119,7 @@ export const PostcodeInspector: React.FC<PostcodeInspectorProps> = ({
           </button>
           <button
             onClick={onClose}
-            className="p-1 text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white rounded transition-colors cursor-pointer"
+            className="p-1 touch-target text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white rounded transition-colors cursor-pointer"
             aria-label="Close inspector"
           >
             <X className="w-4 h-4" />
@@ -188,7 +188,7 @@ export const PostcodeInspector: React.FC<PostcodeInspectorProps> = ({
           {onFlyTo && (
             <button
               onClick={() => onFlyTo([location.lat!, location.lng!])}
-              className="text-[#0F7B4D] dark:text-[#10B981] hover:underline flex items-center gap-1 font-sans cursor-pointer text-[10px]"
+              className="touch-target text-[#0F7B4D] dark:text-[#10B981] hover:underline flex items-center gap-1 font-sans cursor-pointer text-[10px]"
             >
               <Navigation2 className="w-2.5 h-2.5" />
               <span>Center</span>

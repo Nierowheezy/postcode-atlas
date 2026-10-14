@@ -63,10 +63,25 @@ export const AskAtlasHeader: React.FC<AskAtlasHeaderProps> = ({
       </span>
     </div>
 
-    {/* Controls must not start a panel drag when clicked. */}
-    <div className="flex items-center gap-1" onPointerDown={(event) => event.stopPropagation()}>
+    {/* Controls must not start a panel drag when clicked, and the hidden
+        compact targets need a wider gap than the default so their hit areas
+        meet instead of overlapping. */}
+    <div
+      className="flex items-center gap-1 touch-spaced"
+      onPointerDown={(event) => event.stopPropagation()}
+    >
       {/* appearance-none + fixed chevron keeps the arrow clear of the value */}
-      <div className="relative inline-flex">
+      {/* The wrapper carries the hit-area overlay: a replaced element like the
+          select cannot. A tap that lands on the wrapper is forwarded to the
+          select's picker; a tap on the select itself already opened it. */}
+      <div
+        className="relative inline-flex touch-target"
+        onClick={(event) => {
+          if (event.target !== event.currentTarget) return;
+          const select = event.currentTarget.querySelector('select');
+          if (select instanceof HTMLSelectElement) select.showPicker();
+        }}
+      >
         <select
           value={language}
           onChange={(event) => onLanguageChange(event.target.value as LanguageMode)}
@@ -88,7 +103,7 @@ export const AskAtlasHeader: React.FC<AskAtlasHeaderProps> = ({
       {hasMessages && (
         <button
           onClick={onClear}
-          className="rounded-full p-1.5 text-[#6B7280] transition-colors hover:bg-red-50 hover:text-red-600 dark:text-[#9CA3AF] dark:hover:bg-red-500/10 dark:hover:text-red-400"
+          className="rounded-full p-1.5 touch-target text-[#6B7280] transition-colors hover:bg-red-50 hover:text-red-600 dark:text-[#9CA3AF] dark:hover:bg-red-500/10 dark:hover:text-red-400"
           aria-label="Clear conversation"
           title="Clear conversation"
         >
@@ -97,7 +112,7 @@ export const AskAtlasHeader: React.FC<AskAtlasHeaderProps> = ({
       )}
       <button
         onClick={onClose}
-        className="rounded-full p-1.5 text-[#6B7280] transition-colors hover:bg-[#F3F4F6] hover:text-[#111827] dark:text-[#9CA3AF] dark:hover:bg-[#1F2937] dark:hover:text-white"
+        className="rounded-full p-1.5 touch-target text-[#6B7280] transition-colors hover:bg-[#F3F4F6] hover:text-[#111827] dark:text-[#9CA3AF] dark:hover:bg-[#1F2937] dark:hover:text-white"
         aria-label="Close Ask Atlas"
         title="Close"
       >

@@ -219,7 +219,7 @@ export const MapSearch: React.FC<MapSearchProps> = ({
               setIsOpen(false);
               inputRef.current?.focus();
             }}
-            className="p-1 text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white transition-colors cursor-pointer"
+            className="p-1 touch-target text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white transition-colors cursor-pointer"
             aria-label="Clear input"
           >
             <X className="w-3.5 h-3.5" />
@@ -231,11 +231,11 @@ export const MapSearch: React.FC<MapSearchProps> = ({
         )}
 
         {/* Locate me quick action */}
-        <div className="pl-1.5 ml-1.5 border-l border-[#E5E7EB] dark:border-[#374151] shrink-0">
+        <div className="pl-1.5 ml-1.5 border-l border-[#E5E7EB] dark:border-[#374151] shrink-0 touch-divider">
           <button
             onClick={onLocateUser}
             disabled={isLocating}
-            className={`p-1 text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white transition-colors rounded cursor-pointer ${
+            className={`p-1 touch-target text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white transition-colors rounded cursor-pointer ${
               isLocating ? 'animate-pulse text-[#0F7B4D]' : ''
             }`}
             title="Locate my position (GPS)"

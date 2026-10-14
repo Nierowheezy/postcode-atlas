@@ -548,8 +548,8 @@ function PostcodeAtlasContent() {
         {/* Postcode Hunt Active Draggable Objective Bar */}
         {huntTarget && !hasFoundHunt && (
           <div className="absolute top-4 right-16 sm:right-20 z-30 pointer-events-auto safe-right">
-            <DraggableCard dragHandleText="Hunt Target">
-              <div className="bg-[#111827]/95 text-white backdrop-blur-md px-3 py-1.5 rounded-lg border border-[#374151] shadow-md flex items-center gap-2.5 text-xs">
+            <DraggableCard dragHandleText="Hunt Target" dragConstraintsRef={mainRef}>
+              <div className="bg-[#111827]/95 text-white backdrop-blur-md px-3 py-1.5 rounded-lg border border-[#374151] shadow-md flex items-center gap-2.5 touch-spaced touch-edge-room text-xs">
                 <div>
                   <span className="text-[9px] uppercase font-mono text-[#10B981] block tracking-wider font-bold">
                     Objective
@@ -559,13 +559,13 @@ function PostcodeAtlasContent() {
                 </div>
                 <button
                   onClick={() => setIsHuntModalOpen(true)}
-                  className="text-[#D1D5DB] hover:text-white underline text-[11px] cursor-pointer"
+                  className="touch-target text-[#D1D5DB] hover:text-white underline text-[11px] cursor-pointer"
                 >
                   Details
                 </button>
                 <button
                   onClick={() => setHuntTarget(null)}
-                  className="text-[#9CA3AF] hover:text-white text-xs ml-1 cursor-pointer"
+                  className="touch-target text-[#9CA3AF] hover:text-white text-xs ml-1 cursor-pointer"
                   aria-label="Cancel hunt"
                 >
                   ✕
@@ -594,7 +594,7 @@ function PostcodeAtlasContent() {
         {/* Mapbox/Linear Draggable Location Inspector Panel */}
         {selectedLocation && (
           <div className="absolute bottom-6 left-4 sm:left-6 z-30 pointer-events-auto safe-bottom safe-left">
-            <DraggableCard dragHandleText="Postcode Inspector">
+            <DraggableCard dragHandleText="Postcode Inspector" dragConstraintsRef={mainRef}>
               <PostcodeInspector
                 location={selectedLocation}
                 isSaved={isDiscoverySaved(postcodeSavedId(selectedLocation.postcode))}
@@ -615,7 +615,7 @@ function PostcodeAtlasContent() {
         {/* Data Mode Draggable HUD (Top Right) */}
         {currentMode === 'data' && (
           <div className="absolute top-14 sm:top-16 right-4 z-30 pointer-events-auto safe-right">
-            <DraggableCard dragHandleText="Drag Telemetry">
+            <DraggableCard dragHandleText="Drag Telemetry" dragConstraintsRef={mainRef}>
               <DataModeOverlay
                 visibleCount={visibleCount}
                 centerCoords={mapCenter}

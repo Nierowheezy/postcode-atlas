@@ -122,7 +122,7 @@ export const AskAtlasMessageBubble: React.FC<AskAtlasMessageBubbleProps> = ({ me
                     ? `Show ${message.location.label} on the map`
                     : 'Map control is not connected in this view'
                 }
-                className="font-medium text-[#0F7B4D] enabled:hover:underline disabled:cursor-not-allowed disabled:opacity-60 dark:text-[#10B981]"
+                className="touch-target font-medium text-[#0F7B4D] enabled:hover:underline disabled:cursor-not-allowed disabled:opacity-60 dark:text-[#10B981]"
               >
                 [View on map]
               </button>
@@ -133,7 +133,7 @@ export const AskAtlasMessageBubble: React.FC<AskAtlasMessageBubbleProps> = ({ me
                 onClick={() => onToggleSave(savedDraft)}
                 aria-pressed={isSaved}
                 title={isSaved ? 'Remove from saved discoveries' : 'Save this discovery'}
-                className="font-medium text-[#0F7B4D] hover:underline dark:text-[#10B981]"
+                className="touch-target font-medium text-[#0F7B4D] hover:underline dark:text-[#10B981]"
               >
                 {isSaved ? '[Saved]' : '[Save]'}
               </button>

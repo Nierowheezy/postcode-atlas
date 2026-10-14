@@ -108,5 +108,5 @@ and deployment readiness. Adapt it to the project as implementation progresses.
 - [ ] 24. **Mobile responsiveness** - make the existing Atlas and the Ask Atlas panel work well on phones and tablets
   - [x] 24a. **Phone viewport and safe areas** - move the app to dynamic viewport height (`dvh`) and apply the existing safe-area insets to the header, bottom sheet, drawers, and overlays; retire the unused `.drawer-content` helper
   - [x] 24b. **Ask Atlas on phones** - give the chat panel a phone layout that fits small and landscape screens, clamp dragging so it cannot leave the viewport, and keep the composer clear of the home indicator
-  - [ ] 24c. **Overlay bounds and touch targets** - constrain the draggable cards to the viewport and reconcile the coarse-pointer 44px rule so compact controls stay compact while small targets grow
+  - [x] 24c. **Overlay bounds and touch targets** - constrain the draggable cards to the viewport and reconcile the coarse-pointer 44px rule so compact controls stay compact while small targets grow
   - [ ] 24d. **Drawers and modals on phones** - one consistent phone presentation for the state explorer, assembly, changelog, story, and clear dialogs, with a scroll region and a clear close affordance

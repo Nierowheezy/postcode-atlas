@@ -215,6 +215,77 @@
   }
 }
 
+/* Controls too compact to take the 44px box above: they keep their painted size
+   and grow a transparent, out-of-flow hit area instead, so the row they sit in
+   does not stretch. Declared after the blanket rule so the opt-out wins for the
+   element selectors and for `a[href]`; a bare class would otherwise lose to
+   `a[href]` on specificity. A replaced element (native select, input) cannot
+   carry a pseudo-element, so put the class on a wrapper and forward the tap. */
+@media (pointer: coarse) {
+  .touch-target,
+  button.touch-target,
+  [role="button"].touch-target,
+  a.touch-target {
+    /* `auto`, not `0`: the blanket rule's 44px must go, but a flex item's
+       automatic minimum has to stay, or the control shrinks under its content
+       on a coarse pointer. */
+    min-width: auto;
+    min-height: auto;
+    position: relative;
+  }
+
+  .touch-target::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
+
+  /* Expanded hit areas overlap when a cluster's gap is under half the shortfall
+     on each side. Widen the gap, and tune per cluster with --touch-gap. */
+  .touch-spaced {
+    gap: var(--touch-gap, 1.5rem);
+  }
+
+  /* A dense vertical stack of icon buttons: neighbouring hit areas would
+     overlap across the 1px dividers and the ends would be clipped by the
+     container, so the column opens to a 44px pitch, drops the dividers, and
+     stops clipping. */
+  .touch-column {
+    --touch-gap: 0.75rem;
+    overflow: visible;
+  }
+
+  .touch-column .touch-column-divider {
+    display: none;
+  }
+
+  /* The search pill's clear button and the locate action sit about 13px apart,
+     under the 25px their expanded targets need, so the divider between them
+     opens to the standard gap. */
+  .touch-divider {
+    margin-left: var(--touch-gap, 1.5rem);
+  }
+
+  /* A cluster whose last control sits against the card's clipped edge only
+     needs a few px more trailing room before its centred overlay fits. Trade
+     gap for padding so the cluster keeps the width it already had. */
+  .touch-edge-room {
+    --touch-gap: 1.25rem;
+    padding-right: 1.25rem;
+  }
+
+  /* The drag bar is a card's only drag affordance and paints about 26px tall.
+     It grows for real rather than through an overlay: the card root clips its
+     own overflow, so an overlay above the bar would be cut off. */
+  .touch-bar {
+    min-height: 44px;
+  }
+}
+
 /* Reduce motion */
 @media (prefers-reduced-motion: reduce) {
   *,

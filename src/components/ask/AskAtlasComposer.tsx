@@ -49,7 +49,7 @@ export const AskAtlasComposer: React.FC<AskAtlasComposerProps> = ({
       type="submit"
       disabled={!canSend}
       aria-label="Send message"
-      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#008751] text-white transition-colors enabled:hover:bg-[#0F7B4D] disabled:cursor-not-allowed disabled:opacity-40"
+      className="flex h-9 w-9 shrink-0 touch-target items-center justify-center rounded-full bg-[#008751] text-white transition-colors enabled:hover:bg-[#0F7B4D] disabled:cursor-not-allowed disabled:opacity-40"
     >
       <SendHorizonal className="h-4 w-4" />
     </button>

@@ -1,7 +1,7 @@
-import React, { useLayoutEffect, useRef, useState } from 'react';
+import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { motion, useDragControls, useMotionValue } from 'motion/react';
 import { GripHorizontal } from 'lucide-react';
-import { dragBounds } from '../../lib/ui/dragBounds';
+import { clampOffset, dragBounds } from '../../lib/ui/dragBounds';
 import type { DragBounds } from '../../lib/ui/dragBounds';
 
 interface DraggableCardProps {
@@ -46,6 +46,28 @@ export const DraggableCard: React.FC<DraggableCardProps> = ({
   const x = useMotionValue(initialX);
   const y = useMotionValue(initialY);
   const [bounds, setBounds] = useState<DragBounds | null>(null);
+  // Motion owns the offset while a drag is live, so a resize must not re-clamp
+  // underneath the gesture.
+  const draggingRef = useRef(false);
+  // A resize that lands mid-drag is remembered and applied once the gesture
+  // ends, so a live drag is never interrupted but the card cannot settle
+  // outside a map area that shrank while it was being moved.
+  const pendingReClampRef = useRef(false);
+
+  /** Pull the offset back into the bounds the card and container imply now. */
+  const reClamp = useCallback(() => {
+    if (!dragConstraintsRef) return;
+    const card = cardRef.current;
+    const container = dragConstraintsRef.current;
+    if (!card || !container) return;
+    const offset = { x: x.get(), y: y.get() };
+    const next = clampOffset(
+      dragBounds(card.getBoundingClientRect(), container.getBoundingClientRect(), offset),
+      offset,
+    );
+    if (next.x !== offset.x) x.set(next.x);
+    if (next.y !== offset.y) y.set(next.y);
+  }, [dragConstraintsRef, x, y]);
 
   /**
    * Keep the bounds in step with the card and the element confining it. They
@@ -73,6 +95,27 @@ export const DraggableCard: React.FC<DraggableCardProps> = ({
     return () => observer.disconnect();
   }, [dragConstraintsRef, x, y]);
 
+  /**
+   * Pull the card back inside when the map area shrinks under it, such as a
+   * phone rotating after the card was dragged out to an edge. This watches the
+   * container only: the card's own resizes are the grip growing the panel, and
+   * re-projecting on those is exactly what the effect above exists to avoid.
+   */
+  useLayoutEffect(() => {
+    if (!dragConstraintsRef) return;
+    const container = dragConstraintsRef.current;
+    if (!container) return;
+    const observer = new ResizeObserver(() => {
+      if (draggingRef.current) {
+        pendingReClampRef.current = true;
+        return;
+      }
+      reClamp();
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [dragConstraintsRef, reClamp]);
+
   return (
     <motion.div
       ref={cardRef}
@@ -82,6 +125,16 @@ export const DraggableCard: React.FC<DraggableCardProps> = ({
       dragMomentum={false}
       dragElastic={dragConstraintsRef ? 0 : 0.08}
       dragConstraints={bounds ?? undefined}
+      onDragStart={() => {
+        draggingRef.current = true;
+      }}
+      onDragEnd={() => {
+        draggingRef.current = false;
+        if (pendingReClampRef.current) {
+          pendingReClampRef.current = false;
+          reClamp();
+        }
+      }}
       style={{ x, y }}
       whileDrag={{ scale: 1.01, cursor: 'grabbing', zIndex: 60 }}
       // select-text overrides the app root's inherited select-none so card
@@ -94,7 +147,7 @@ export const DraggableCard: React.FC<DraggableCardProps> = ({
         /* High-Contrast, Clearly Visible Drag Header Handle */
         <div
           onPointerDown={(event) => dragControls.start(event)}
-          className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-mono font-semibold text-zinc-900 dark:text-zinc-50 bg-zinc-100 dark:bg-zinc-800/90 border-b border-zinc-200 dark:border-zinc-700 cursor-grab active:cursor-grabbing hover:bg-zinc-200/80 dark:hover:bg-zinc-700 transition-colors select-none"
+          className="w-full flex items-center justify-between px-3 py-1.5 touch-bar text-xs font-mono font-semibold text-zinc-900 dark:text-zinc-50 bg-zinc-100 dark:bg-zinc-800/90 border-b border-zinc-200 dark:border-zinc-700 cursor-grab active:cursor-grabbing hover:bg-zinc-200/80 dark:hover:bg-zinc-700 transition-colors select-none"
           title="Click and drag anywhere on this bar to move this card"
         >
           <div className="flex items-center gap-2 min-w-0">
