@@ -13,6 +13,14 @@ const LANGUAGE_NAMES: Record<AskLanguage, string> = {
   ig: 'Igbo',
 };
 
+/** What the message leans on, so the prompt offers a place only when it is used. */
+export interface PromptAnchor {
+  /** The message refers to a place named earlier ("it", "that place"). */
+  followUp?: boolean;
+  /** The message points at the map ("here", "near me"). */
+  spatial?: boolean;
+}
+
 /**
  * Build the system prompt for one request.
  *
@@ -26,14 +34,15 @@ const LANGUAGE_NAMES: Record<AskLanguage, string> = {
 export function buildSystemPrompt(
   context: AtlasContextSnapshot,
   language: AskLanguage | undefined,
-  followUp = false,
+  anchor: PromptAnchor = {},
 ): string {
   const replyLanguage = LANGUAGE_NAMES[language ?? 'en'];
+  const anchored = anchoredPhrase(context, anchor);
   return [
     'You are Ask Atlas, the Nigerian postcode assistant built on N-ATLAS.',
     'Answer briefly and factually, in plain language.',
     `Reply in ${replyLanguage}.`,
-    `Current map scope: ${describeSelection(context)}.`,
+    `Current map center: ${formatCenter(context.mapCenter)}.`,
     '',
     'Call exactly one Atlas tool when the user asks about a Nigerian place or postcode, then answer from the tool result:',
     '- searchLocation: find a place, landmark, LGA, district, or area by name. Use this FIRST whenever the user names a place, for example "postcode for Ikeja" or "where is the Infrastructure Bank".',
@@ -60,24 +69,46 @@ export function buildSystemPrompt(
     '- If a tool returns nothing or an error, say so plainly and ask to narrow.',
     '- Only answer questions about Nigerian postcodes, places, and the Atlas platform; for anything else, say you cannot help with that and offer a Nigerian place or postcode instead.',
     '- Move the map only when the user asks to see, show, go to, or zoom into a Nigerian place. Use the reset target only when the user explicitly asks to reset, clear, or show all of Nigeria; never reset the map to answer a question about a place.',
-    ...(followUp ? referentBlock(context) : []),
+    ...(anchored ? anchoredBlock(anchored) : []),
     '',
     'A greeting or chat ("hi", "hello", "good morning", "thank you", "how are you") is NOT a request: reply with one friendly sentence inviting a Nigerian postcode or place question. Never call a tool for a greeting.',
   ].join('\n');
 }
 
 /**
- * Follow-up guidance (feature 10). Only emitted when there is something to
- * resolve against, so a first question carries no instructions about "it".
+ * The place the prompt may offer, or undefined when the message does not lean on
+ * one. Offering a place on every request is what let a weak model answer an
+ * unrelated question with the last place it saw, so a self-contained question
+ * gets no place at all.
+ *
+ * An anaphoric message resolves to the referent the last turn stored. A spatial
+ * message ("here", "near me") resolves to the current map selection, because the
+ * user is pointing at what is on screen, not at the last thing answered.
  */
-function referentBlock(context: AtlasContextSnapshot): string[] {
+function anchoredPhrase(
+  context: AtlasContextSnapshot,
+  anchor: PromptAnchor,
+): string | undefined {
   const referent = context.referent;
-  const scope = referent ? referentPhrase(referent) : selectionPhrase(context);
-  if (!scope) return [];
+  const selection = selectionPhrase(context);
+  if (anchor.followUp) {
+    return referent ? referentPhrase(referent) : selection;
+  }
+  if (anchor.spatial) {
+    return selection ?? (referent ? referentPhrase(referent) : undefined);
+  }
+  return undefined;
+}
 
+/**
+ * The anchored block. It leads with the condition ("if the user refers to a
+ * place without naming it") rather than stating a topic, so a weak model does
+ * not read "the conversation is about X" as an instruction to answer X.
+ */
+function anchoredBlock(scope: string): string[] {
   return [
     '',
-    `The conversation is currently about ${scope}. When the user refers to a place without naming it ("it", "that place", "there", "its"), that is what they mean: resolve it to this place and answer from real tool results, using its state and LGA codes as arguments where the tool needs them. If the user names a different place, that new place wins. Never treat an earlier postcode, district, or area as a place of its own.`,
+    `If the user refers to a place without naming it ("it", "that place", "there", "its", "here"), that is ${scope}: resolve it to this place and answer from real tool results, using its state and LGA codes as arguments where the tool needs them. If the user names a different place, that new place wins. Never treat an earlier postcode, district, or area as a place of its own.`,
   ];
 }
 
@@ -91,6 +122,8 @@ function referentPhrase(referent: NonNullable<AtlasContextSnapshot['referent']>)
 /** Human phrase for the map selection, used when no reply resolved a place. */
 function selectionPhrase(context: AtlasContextSnapshot): string | undefined {
   if (context.selectedPostcode) return `postcode ${context.selectedPostcode}`;
+  if (context.selectedArea) return `the area ${context.selectedArea}`;
+  if (context.selectedDistrict) return `the district ${context.selectedDistrict}`;
   if (context.selectedLga) return `LGA ${context.selectedLga.name} in ${context.selectedState?.name ?? 'its state'}`;
   if (context.selectedState) return `the state ${context.selectedState.name}`;
   return undefined;
@@ -99,16 +132,5 @@ function selectionPhrase(context: AtlasContextSnapshot): string | undefined {
 /** The map center as prompt text, so a "near me" question has a real origin. */
 function formatCenter(mapCenter: [number, number]): string {
   const [lat, lng] = mapCenter;
-  return Number.isFinite(lat) && Number.isFinite(lng) ? `map center ${lat}, ${lng}` : 'map center unknown';
-}
-
-/** Compact, prompt-safe description of what the map is showing right now. */
-function describeSelection(context: AtlasContextSnapshot): string {
-  const parts: string[] = [formatCenter(context.mapCenter)];
-  if (context.selectedState) parts.push(`state ${context.selectedState.name}`);
-  if (context.selectedLga) parts.push(`LGA ${context.selectedLga.name}`);
-  if (context.selectedDistrict) parts.push(`district ${context.selectedDistrict}`);
-  if (context.selectedArea) parts.push(`area ${context.selectedArea}`);
-  if (context.selectedPostcode) parts.push(`postcode ${context.selectedPostcode}`);
-  return parts.length > 0 ? parts.join(', ') : 'Nigeria (no state selected)';
+  return Number.isFinite(lat) && Number.isFinite(lng) ? `${lat}, ${lng}` : 'unknown';
 }

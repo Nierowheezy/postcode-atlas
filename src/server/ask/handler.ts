@@ -16,7 +16,7 @@ import { ATLAS_PROVIDER_TOOLS } from '../../lib/tools/provider.js';
 import { isRefusalText } from '../../lib/ask/refusal.js';
 import { hasUnbackedPostcode, postcodesIn } from '../../lib/ask/postcode.js';
 import { isSmallTalk } from '../../lib/ask/smalltalk.js';
-import { isFollowUp } from '../../lib/ask/followup.js';
+import { isFollowUp, isSpatialQuestion } from '../../lib/ask/followup.js';
 import { buildSystemPrompt } from './prompt.js';
 import { resolveProviders, type AskChatMessage, type ProviderToolCall } from './providers.js';
 import { ChainExhaustedError, runChain } from './chain.js';
@@ -395,7 +395,10 @@ export async function handleAsk(request: Request, env: AskServerEnv): Promise<Re
   }
 
   // --- build the prompt and run the failover chain --------------------------
-  const systemPrompt = buildSystemPrompt(context, replyLanguage, isFollowUp(text));
+  const systemPrompt = buildSystemPrompt(context, replyLanguage, {
+    followUp: isFollowUp(text),
+    spatial: isSpatialQuestion(text),
+  });
   // Prior turns are intentionally NOT forwarded to the model. N-ATLAS (an 8B
   // model) degrades sharply once earlier turns are in context: it echoes a
   // previous assistant answer, invents postcodes, or refuses an in-scope

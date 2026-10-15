@@ -22,3 +22,17 @@ const FOLLOW_UP =
 export function isFollowUp(text: string): boolean {
   return FOLLOW_UP.test(text);
 }
+
+/**
+ * Spatial deixis: a message that points at what the map shows right now ("here",
+ * "near me") rather than naming a place. A phrase that names its own place or
+ * asks to move the map is deliberately excluded, so "show me Lagos on the map"
+ * never inherits an earlier place.
+ */
+const SPATIAL =
+  /\b(here|near me|nearby|near this|around here|this area|current location)\b/i;
+
+/** True when the message points at the map rather than naming a place. */
+export function isSpatialQuestion(text: string): boolean {
+  return SPATIAL.test(text);
+}
