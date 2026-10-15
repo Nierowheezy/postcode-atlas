@@ -19,6 +19,8 @@ import { AskAtlasComposer } from './AskAtlasComposer';
 import { AskAtlasResizeHandle } from './AskAtlasResizeHandle';
 import { AskAtlasClearDialog } from './AskAtlasClearDialog';
 import { maxListHeight } from '../../lib/ask/panelLayout';
+import { composeDictation } from '../../lib/ask/speech';
+import { useSpeechRecognition, type SpeechError } from '@/src/hooks/useSpeechRecognition';
 
 /**
  * An Ask Atlas panel: owns conversation state and delegates the actual send
@@ -110,6 +112,22 @@ function readPersistedConversation(): { messages: AskAtlasMessage[]; language: L
   return { messages: saved.messages, language: saved.language };
 }
 
+function getSpeechErrorCopy(error: SpeechError | null): string | null {
+  if (error === 'permission') {
+    return 'Microphone access was blocked. Allow microphone access to use voice input.';
+  }
+  if (error === 'no-speech') {
+    return 'No speech heard. Try speaking again.';
+  }
+  if (error === 'network') {
+    return 'Voice input is unavailable right now. Check your connection and try again.';
+  }
+  if (error === 'other') {
+    return 'Voice input is unavailable right now.';
+  }
+  return null;
+}
+
 export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({
   responder,
   getContext,
@@ -123,39 +141,37 @@ export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({
   const [initial] = useState(readPersistedConversation);
   const [messages, setMessages] = useState<AskAtlasMessage[]>(initial.messages);
   const [input, setInput] = useState('');
-  // Reply-language mode for the conversation; Auto is resolved per question.
   const [language, setLanguage] = useState<LanguageMode>(initial.language);
-  // Conversation area height in px, set on open and updated by the grip.
   const [listHeight, setListHeight] = useState<number>(defaultListHeight);
-  // The delete confirmation is modal, so Escape must not close the panel.
   const [clearOpen, setClearOpen] = useState(false);
+  const [micError, setMicError] = useState<string | null>(null);
+  const dictationBaseRef = useRef('');
 
-  // Chat transport: reply cache + transport-aware retry, shared app-wide.
   const { send, isReplying, phase } = useAskAtlas(responder);
+  const speech = useSpeechRecognition(language);
+  const micBusy = isReplying;
 
   const listRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Focus the composer when the panel opens.
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
-  // Escape closes the panel, unless the delete dialog is capturing input.
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !clearOpen) onClose();
+      if (e.key === 'Escape' && !clearOpen) {
+        speech.stop();
+        onClose();
+      }
     };
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
-  }, [onClose, clearOpen]);
+  }, [onClose, clearOpen, speech]);
 
-  // Keep the newest message (or the pending indicator) in view.
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
   }, [messages, isReplying]);
-
-  // Persist to the browser so the chat survives closing and reopening the panel.
   useEffect(() => {
     if (messages.length === 0) {
       clearConversation();
@@ -163,27 +179,57 @@ export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({
     }
     saveConversation(language, messages);
   }, [messages, language]);
+  useEffect(() => {
+    const copy = getSpeechErrorCopy(speech.error);
+    setMicError(copy);
+  }, [speech.error]);
+  useEffect(() => {
+    if (!speech.listening) {
+      return;
+    }
+    setMicError(null);
+  }, [speech.listening]);
 
-  const canSend = input.trim().length > 0 && !isReplying;
+  // While dictating, the composer shows a read-only preview built from the text
+  // captured at start plus the recognition output. `input` is not touched until
+  // confirm, so cancel can restore it exactly.
+  const dictationPreview = composeDictation(dictationBaseRef.current, speech.transcript, speech.interim);
+  const composerValue = speech.listening ? dictationPreview : input;
 
-  /** Append the user turn, send it through the hook, append the outcome. */
+  const canSend = input.trim().length > 0 && !isReplying && !speech.listening;
+
+  const startDictation = () => {
+    if (micBusy || speech.listening) return;
+    setMicError(null);
+    // Captured before start() so the live preview composes from the text
+    // already in the field rather than a stale base from a prior session.
+    dictationBaseRef.current = input;
+    speech.start();
+  };
+
+  const commitDictation = () => {
+    const next = composeDictation(dictationBaseRef.current, speech.transcript, '');
+    speech.stop();
+    setInput(next);
+    inputRef.current?.focus();
+  };
+
+  const cancelDictation = () => {
+    speech.stop();
+    inputRef.current?.focus();
+  };
+
+  const updateInput = (next: string) => setInput(next);
+
   const handleSend = async () => {
     const text = input.trim();
     if (!text || isReplying) return;
-
-    // Auto reads the question and replies in its language; a manual chip wins.
+    speech.stop();
     const auto = language === 'auto';
     const replyLanguage = auto ? detectLanguage(text).replyLanguage : language;
-
-    // Feature 10: carry the place the conversation is currently about, so a
-    // follow-up like "what are its LGAs?" has something to resolve against.
-    // The referent, not raw history, is what the model resolves against:
-    // N-ATLAS degrades once prior turns are in context, so only the current
-    // question travels as `text`.
     const context = { ...getContext(), referent: latestReferent(messages) };
     setMessages((prev) => [...prev, { ...makeMessage('user', text), context }]);
     setInput('');
-
     try {
       const res = await send({ text, context, language: replyLanguage });
       const reply: AskAtlasMessage = {
@@ -205,43 +251,45 @@ export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({
         autoDetected: auto,
       };
       setMessages((prev) => [...prev, reply]);
-      // Feature 8: the tool already validated this action, so the map moves
-      // for the request the user actually made.
       if (res.mapAction) onMapAction?.(res.mapAction);
     } catch (err) {
-      // AskApiError messages are already user-facing copy; fall back to
-      // a generic line for anything unexpected.
       const detail = err instanceof Error ? err.message : '';
       setMessages((prev) => [...prev, makeMessage('error', detail || GENERIC_ERROR_COPY)]);
     }
   };
 
-  /** Ask for confirmation before deleting the conversation. */
   const requestClear = () => setClearOpen(true);
-
-  /** Delete the conversation from state and browser storage, then refocus. */
   const confirmClear = () => {
+    speech.stop();
     setMessages([]);
     clearConversation();
     setClearOpen(false);
     inputRef.current?.focus();
   };
 
+  const handleClose = () => {
+    speech.stop();
+    onClose();
+  };
+
+  const handleLanguageChange = (next: LanguageMode) => {
+    if (speech.listening) {
+      speech.stop();
+    }
+    setLanguage(next);
+  };
+
   return (
     <DraggableCard
-      // Flex column plus the map-area cap: the header, grip, and composer keep
-      // their size and the message list is the only child that gives, so a
-      // short map area shrinks the conversation instead of cropping the panel.
-      // `pointer-events-auto` is needed because the wrapper above is inert.
       className="w-[min(94vw,420px)] pointer-events-auto flex flex-col ask-atlas-panel-fit"
       dragConstraintsRef={dragConstraintsRef}
       renderHandle={(startDrag) => (
         <AskAtlasHeader
           hasMessages={messages.length > 0}
           language={language}
-          onLanguageChange={setLanguage}
+          onLanguageChange={handleLanguageChange}
           onClear={requestClear}
-          onClose={onClose}
+          onClose={handleClose}
           onDragStart={startDrag}
         />
       )}
@@ -289,28 +337,20 @@ export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({
           />
         ))}
         {isReplying && <AskAtlasThinkingBubble phase={phase} />}
+        <div aria-live="polite" className="sr-only">
+          {speech.listening ? 'Listening for voice input' : ''}
+          {micError || ''}
+        </div>
       </div>
 
       <AskAtlasResizeHandle
         onResize={setListHeight}
         getCurrentHeight={() => listRef.current?.getBoundingClientRect().height ?? listHeight}
-        // The grip's ceiling follows the room above the panel rather than a
-        // flat share of the window: growing the list lifts the panel's top
-        // edge, so the distance from that edge to the top of the map area is
-        // the space the drag may spend. The map area's top matters, not the
-        // window's, because the shell header sits above it and the map clips
-        // what rises past it. The panel's own fit cap bounds it too, for a card
-        // dragged down a short screen.
         getMaxHeight={() => {
           const panel = listRef.current?.closest<HTMLElement>('.ask-atlas-panel-fit');
           const host = panel?.parentElement;
           if (!panel || !host || !listRef.current) return listHeight;
           const panelRect = panel.getBoundingClientRect();
-          // The panel's own fit cap, measured rather than read: its containing
-          // block is the wrapper's content box, so that height is the tallest
-          // the card may become wherever it has been dragged. The computed
-          // `max-height` cannot be used, because a percentage stays a `calc()`
-          // string there until layout applies it.
           const hostStyle = window.getComputedStyle(host);
           const fitCap =
             host.clientHeight -
@@ -328,11 +368,19 @@ export const AskAtlasPanel: React.FC<AskAtlasPanelProps> = ({
       />
 
       <AskAtlasComposer
-        value={input}
-        onChange={setInput}
+        value={composerValue}
+        onChange={updateInput}
         onSubmit={handleSend}
         canSend={canSend}
         inputRef={inputRef}
+        micSupported={speech.supported}
+        listening={speech.listening}
+        onStartMic={startDictation}
+        onCommitMic={commitDictation}
+        onCancelMic={cancelDictation}
+        micError={micError}
+        busy={micBusy}
+        readOnly={speech.listening}
       />
 
       <AskAtlasClearDialog open={clearOpen} onCancel={() => setClearOpen(false)} onConfirm={confirmClear} />

@@ -181,6 +181,24 @@
   animation: slide-up 150ms ease-out;
 }
 
+/* Listening equalizer for the Ask Atlas composer: a few bars breathing out of
+   phase so the recording state reads at a glance. The global
+   `prefers-reduced-motion` rule below neutralizes it for users who ask. */
+@keyframes atlas-voice-bar {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+.atlas-voice-bar {
+  height: 14px;
+  transform-origin: center;
+  animation: atlas-voice-bar 900ms ease-in-out infinite;
+}
+
 /* Safe area insets for notched devices. Inset only, so a device with no cutout
    resolves to 0 and renders exactly as before. Use these where the element has
    no spacing of its own on that side; where it does, compose the inset with the

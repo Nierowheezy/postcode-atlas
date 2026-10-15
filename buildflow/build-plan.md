@@ -110,3 +110,7 @@ and deployment readiness. Adapt it to the project as implementation progresses.
   - [x] 24b. **Ask Atlas on phones** - give the chat panel a phone layout that fits small and landscape screens, clamp dragging so it cannot leave the viewport, and keep the composer clear of the home indicator
   - [x] 24c. **Overlay bounds and touch targets** - constrain the draggable cards to the viewport and reconcile the coarse-pointer 44px rule so compact controls stay compact while small targets grow
   - [x] 24d. **Drawers and modals on phones** - one consistent phone presentation for the state explorer, assembly, changelog, story, and clear dialogs, with a scroll region and a clear close affordance
+
+## Post-MVP
+
+- [x] 25. **Voice input for Ask Atlas** - dictate a question into the composer with the browser Speech API, watch the live transcript fill the field, and send it through the existing Ask flow

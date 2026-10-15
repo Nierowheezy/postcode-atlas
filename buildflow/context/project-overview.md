@@ -1,6 +1,6 @@
 # Nigerian Postcode Atlas - N-ATLAS Integration - Project Overview
 
-<!-- buildflow:source-hash 3ad643d2d088d458a4c539e40b62c00854c63aa23f4796aef1ec9beac4c15b37 -->
+<!-- buildflow:source-hash 90439b00dc6a8dded371ed7299a089b4b63e104faba1f168ea887a7ed88e619e -->
 
 > A conversational map for exploring Nigeria's digital addressing and postcode system, extending the existing Postcode Atlas.
 
@@ -37,7 +37,7 @@ MVP, in build-plan order:
 15. **Challenge-ready demo** - polished end-to-end conversational experience.
 16. **Deployment readiness** - deploy and verify production app + N-ATLAS integration.
 
-Post-MVP (17-24): address interpretation (17), multilingual queries in Yoruba, Hausa, Igbo, and Nigerian Pidgin (18, done), richer Atlas explanations (19), saved discoveries (20), developer API (21), developer documentation (22), advanced evaluation (23), and mobile responsiveness (24, sliced into 24a viewport and safe areas, 24b Ask Atlas on phones, 24c overlay bounds and touch targets, 24d drawers and modals on phones).
+Post-MVP (17-25): address interpretation (17), multilingual queries in Yoruba, Hausa, Igbo, and Nigerian Pidgin (18, done), richer Atlas explanations (19), saved discoveries (20), developer API (21), developer documentation (22), advanced evaluation (23), mobile responsiveness (24, sliced into 24a viewport and safe areas, 24b Ask Atlas on phones, 24c overlay bounds and touch targets, 24d drawers and modals on phones; all done), and voice input for Ask Atlas (25, the next feature) - browser Speech API dictation that fills the composer with a live transcript and sends it through the existing Ask flow.
 
 Existing Atlas capabilities (map, explore/decode/assemble/locate, Hunt game, data/density views, themes, PWA) are treated as shipped and are not rebuilt.
 
@@ -103,5 +103,5 @@ Keep the existing Atlas visual identity: an interactive geographic instrument, n
 
 ## Open questions
 
-- Build plan progress: items 1-16 and 18 are done; items 17 and 19-24 remain, with 24 sliced into 24a-24d and 24a as the next feature.
+- Build plan progress: items 1-24 are done (24 split into 24a-24d, all complete); item 25 (voice input for Ask Atlas) is the next feature.
 - `buildflow/context/coding-standards.md` is still the BuildFlow default (Next.js, Prisma, Clerk, shadcn) and does not describe this Vite + React + Tailwind v4 app; tune it with `/onboard`.
