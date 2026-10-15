@@ -5,6 +5,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
+import { ModalSurface } from '../ui/ModalSurface';
 
 /** Word the user must type to arm the destructive confirm, GitHub-style. */
 const CONFIRM_WORD = 'delete';
@@ -25,7 +26,8 @@ export const AskAtlasClearDialog: React.FC<AskAtlasClearDialogProps> = ({ open, 
   const [value, setValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Reset the typed word and focus the field each time the dialog opens.
+  // Reset the typed word and focus the field each time the dialog opens. The
+  // shell focuses the panel first; this later focus is what puts the caret here.
   useEffect(() => {
     if (!open) return undefined;
     setValue('');
@@ -33,27 +35,24 @@ export const AskAtlasClearDialog: React.FC<AskAtlasClearDialogProps> = ({ open, 
     return () => window.clearTimeout(id);
   }, [open]);
 
-  if (!open) return null;
-
   const armed = value.trim().toLowerCase() === CONFIRM_WORD;
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="ask-atlas-clear-title"
-      className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onCancel();
-      }}
-    >
-      <div className="w-full max-w-sm rounded-2xl border border-[#E5E7EB] dark:border-[#374151] bg-white dark:bg-[#111827] shadow-2xl p-5">
+    <ModalSurface
+      open={open}
+      onClose={onCancel}
+      label="Delete this conversation?"
+      placement="center"
+      phonePlacement="center"
+      desktopSize="md:max-w-sm"
+      layerClassName="z-[80]"
+      header={
         <div className="flex items-start gap-3">
           <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400">
             <AlertTriangle className="h-4 w-4" />
           </span>
           <div className="min-w-0">
-            <h2 id="ask-atlas-clear-title" className="text-sm font-semibold text-[#111827] dark:text-white">
+            <h2 className="text-sm font-semibold text-[#111827] dark:text-white">
               Delete this conversation?
             </h2>
             <p className="mt-1 text-xs leading-relaxed text-[#6B7280] dark:text-[#9CA3AF]">
@@ -61,8 +60,10 @@ export const AskAtlasClearDialog: React.FC<AskAtlasClearDialogProps> = ({ open, 
             </p>
           </div>
         </div>
-
-        <label className="mt-4 block text-xs text-[#6B7280] dark:text-[#9CA3AF]">
+      }
+    >
+      <div className="p-4">
+        <label className="block text-xs text-[#6B7280] dark:text-[#9CA3AF]">
           Type{' '}
           <span className="font-mono font-semibold text-[#111827] dark:text-white">{CONFIRM_WORD}</span> to
           confirm
@@ -72,11 +73,6 @@ export const AskAtlasClearDialog: React.FC<AskAtlasClearDialogProps> = ({ open, 
           value={value}
           onChange={(event) => setValue(event.target.value)}
           onKeyDown={(event) => {
-            if (event.key === 'Escape') {
-              event.preventDefault();
-              event.stopPropagation();
-              onCancel();
-            }
             if (event.key === 'Enter' && armed) {
               event.preventDefault();
               onConfirm();
@@ -106,6 +102,6 @@ export const AskAtlasClearDialog: React.FC<AskAtlasClearDialogProps> = ({ open, 
           </button>
         </div>
       </div>
-    </div>
+    </ModalSurface>
   );
 };

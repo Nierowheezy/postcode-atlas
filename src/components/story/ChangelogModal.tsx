@@ -1,9 +1,10 @@
 import React, { useMemo } from 'react';
-import { X, GitCommitHorizontal } from 'lucide-react';
+import { GitCommitHorizontal } from 'lucide-react';
 // The changelog ships inside the bundle, so release notes are readable
 // offline and without a network round trip.
 import rawChangelog from '../../../CHANGELOG.md?raw';
 import { APP_VERSION } from '../../lib/version';
+import { ModalSurface } from '../ui/ModalSurface';
 
 interface ChangelogModalProps {
   isOpen: boolean;
@@ -124,41 +125,28 @@ function renderMarkdown(markdown: string): React.ReactNode[] {
 export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose }) => {
   const content = useMemo(() => renderMarkdown(rawChangelog), []);
 
-  if (!isOpen) return null;
-
   return (
-    <div
-      className="fixed inset-0 bg-stone-900/30 backdrop-blur-xs flex items-center justify-center p-4 z-50"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white dark:bg-[#111827] rounded-xl border border-stone-200 dark:border-stone-700 shadow-xl max-w-lg w-full p-6 max-h-[85vh] overflow-y-auto font-sans"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Release notes"
-      >
-        <div className="flex items-start justify-between pb-3 border-b border-stone-100 dark:border-stone-700 sticky top-0 bg-white dark:bg-[#111827]">
-          <div>
-            <h3 className="text-sm font-semibold tracking-tight text-stone-900 dark:text-white flex items-center gap-1.5">
-              <GitCommitHorizontal className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
-              What&rsquo;s new
-            </h3>
-            <p className="text-[11px] text-stone-500 dark:text-stone-400 font-mono">
-              v{APP_VERSION} &middot; github.com/Nierowheezy/postcode-atlas
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 rounded-md transition-colors cursor-pointer"
-            aria-label="Close"
-          >
-            <X className="w-4 h-4" />
-          </button>
+    <ModalSurface
+      open={isOpen}
+      onClose={onClose}
+      label="Release notes"
+      placement="center"
+      desktopSize="md:max-w-lg"
+      header={
+        <div>
+          <h3 className="text-sm font-semibold tracking-tight text-stone-900 dark:text-white flex items-center gap-1.5">
+            <GitCommitHorizontal className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+            What&rsquo;s new
+          </h3>
+          <p className="text-[11px] text-stone-500 dark:text-stone-400 font-mono">
+            v{APP_VERSION} &middot; github.com/Nierowheezy/postcode-atlas
+          </p>
         </div>
-
-        <div className="py-3">{content}</div>
-      </div>
-    </div>
+      }
+    >
+      {/* The shell's scroll body has no padding of its own, so the notes keep
+          the inner inset the card used to provide. */}
+      <div className="p-4">{content}</div>
+    </ModalSurface>
   );
 };

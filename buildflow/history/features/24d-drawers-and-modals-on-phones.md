@@ -1,0 +1,126 @@
+# Feature: Drawers and modals on phones
+
+**From build-plan:** feature 24d
+
+**Status:** verified
+
+## Goal
+
+Every drawer and modal in the app should present the same way on a phone. Today they are a mix of forms and a mix of quality. Three are right-side drawers at 85% width (`StateExplorerDrawer`, `PostcodeAssemblyDrawer`, `SavedDiscoveriesDrawer`); four are centred cards (`ChangelogModal`, `DatasetStoryModal`, `PostcodeHuntModal`, `AskAtlasClearDialog`). On a phone the differences bite:
+
+- `ChangelogModal` and `DatasetStoryModal` scroll as one block, so their close button scrolls out of reach (the changelog only dodges this because its header is `sticky`); `DatasetStoryModal` also has no `dark:` classes at all, so it flashes a white card in dark mode, and `PostcodeHuntModal` has the same dark-mode gap plus no height cap and no scroll region at all, so on a 844x390 landscape screen it is clipped and its Start button is unreachable.
+- The state explorer and assembly drawers have no Escape handler and no `role="dialog"` (only the saved drawer declares one), so their only dismissal is the close button or the backdrop.
+- `AskAtlasClearDialog` renders inside the Ask Atlas panel, which is a `DraggableCard`: once that card has been dragged, its motion transform becomes the containing block for fixed descendants and its `overflow-hidden` root clips them, so the dialog is captured by the card. Its text input also has no `type` attribute, so the repo's iOS rule at `src/index.css:314` never matches it and Safari zooms the page when the field is focused.
+
+This slice gives all seven one phone presentation: below 768px, a full-width bottom sheet with a fixed header (title plus a 44px close target), exactly one scroll region, safe-area insets, and a height capped against the visible viewport. At 768px and up each keeps its current presentation: a right-side drawer or a centred card. One shared shell component provides it, so scroll, close, focus, and stacking are written once.
+
+## Design reference
+
+No mockup. The reference is the app's own phone sheet, the TopBar actions sheet at `src/components/navigation/TopBar.tsx:339` (`rounded-t-2xl`, `border-t`, `pb-[calc(1rem_+_env(safe-area-inset-bottom,0px))]`, `max-h-[80vh] supports-[height:100dvh]:max-h-[80dvh]`, full width, docked to the bottom), plus the chrome the drawers already get right (a `shrink-0` header with a close button, one `flex-1 overflow-y-auto` body, an optional `shrink-0` footer). Intent lives in `buildflow/project-plan.md` section 7 (Responsive design, Accessibility) and `buildflow/build-plan.md` item 24d.
+
+## In scope
+
+- **One shared shell** (`ModalSurface`) used by all seven surfaces: one scrim, one panel, a header row that owns the close button, an optional toolbar row, exactly one scroll body, an optional footer.
+- **Phone presentation:** below 768px every in-scope surface is a full-width bottom sheet, docked to the bottom, `rounded-t-2xl`, capped against the visible viewport with the `vh`/`dvh` pair, with bottom and landscape side safe-area insets.
+- **Desktop presentation unchanged:** at 768px and up, `side` surfaces stay right-anchored drawers at their current widths and `center` surfaces stay centred cards at their current widths. One deliberate exception on phones: the typed confirm stays centred rather than becoming a sheet (Step 5).
+- **A scroll region on every surface**, with the header, toolbar, and footer outside it, so the close affordance never scrolls away.
+- **A clear close affordance:** a header close button, Escape to close, focus into the panel on open and back to the trigger on close, and `role="dialog"` / `aria-modal="true"` / `aria-label` on all seven (only the changelog and the clear dialog have any of that today).
+- **A portal to `document.body`**, so a transformed draggable card can no longer capture a fixed-position surface.
+- **Dark-mode parity** for `DatasetStoryModal` and `PostcodeHuntModal`, which have no `dark:` classes at all.
+- **The iOS input-zoom fix** for the clear dialog's field, at the CSS rule rather than the one call site.
+- **A height cap for the Hunt modal**, which has none today, so a landscape phone can reach its content.
+
+## Out of scope
+
+- **A full focus trap** (Tab cycling inside the panel). The shell moves focus in and restores it and marks the dialog `aria-modal`, but Tab can still reach the page behind. A trap is its own piece of work and there is no focus-trap library in the repo.
+- **iOS Safari keyboard behaviour for fixed surfaces.** Safari does not resize the layout viewport for `interactive-widget` (24b recorded this). The typed confirm stays centred on phones for exactly this reason, and real-device behaviour rides on the Try path.
+- **Swipe-to-dismiss, a drag handle, or a resizable sheet.** The sheet is dismissed by its close button, Escape, and the backdrop.
+- **The TopBar menus** (the phone actions sheet and the tablet/desktop dropdowns), the toast, and the PWA install banner. They are menus and single-line chrome, not drawers or modals, and the phone sheet already uses the idiom this slice copies.
+- **The floating cards** (Ask Atlas panel, Hunt objective bar, Postcode Inspector, telemetry overlay). They are draggable cards owned by 24b and 24c, and the coarse-pointer `touch-*` helpers stay as they are.
+- **Overlay-to-overlay bounds**, 24c's deferred item.
+- **Any change to a surface's inner content, copy, spacing, data, or behaviour** beyond the shell swap, the two dark-mode fixes, and the input `type` fix.
+- **The TopBar tablet band bug** (the actions trigger is `lg:hidden` while its sheet is `md:hidden`, so 768 to 1023px opens nothing). Still a separate fix.
+
+## Build loop
+
+Small steps, each reviewed before the next. `/implement` ticks the steps off here as it finishes them, so a fresh session resumes from the first unchecked one.
+
+## Build steps
+
+- [x] **Step 1 - The shared surface shell, and the changelog as its first consumer** - add `src/lib/ui/surfaceMode.ts` (the `SurfacePlacement`, `PhonePlacement`, and `SurfaceMode` types plus `resolveSurfaceMode(placement, phonePlacement, isPhone)`, a pure three-way mapper: a phone is a sheet unless the surface asks otherwise; a desktop surface is its placement) with `surfaceMode.test.ts` covering every input combination (both placements, both phone placements, phone and desktop). Add `src/hooks/useIsPhone.ts`, which reports `matchMedia('(max-width: 767px)')` and subscribes to its changes. Add `src/components/ui/ModalSurface.tsx` with `open`, `onClose`, `label`, `placement` (`side` or `center`), `phonePlacement` (default `sheet`), `desktopSize` (a Tailwind class applied at `md` and up), `layerClassName` (default `z-50`), `header`, `toolbar`, `footer`, and `children`. It renders through `createPortal` into `document.body`: a fixed container holding the scrim and the panel (a flex column of a `shrink-0` header row with the shell's close button, an optional `shrink-0` toolbar, the single body as `flex-1 min-h-0 overflow-y-auto overscroll-contain`, and an optional `shrink-0` footer). On phones the panel is a full-width bottom sheet (`w-full`, docked bottom, `rounded-t-2xl border-t`, `max-h-[85vh] supports-[height:100dvh]:max-h-[85dvh]`, `safe-bottom safe-left safe-right`); at `md` and up it is a stretched right drawer for `side` (fixed width from `desktopSize`) or a `w-full` centred card for `center` (`desktopSize` caps its width, `md:max-h-[85vh]`, `safe-top safe-right safe-bottom`). Sheet and side panels spring in on their own axis with the drawers' current spring; centre panels fade; the scrim fades; `useReducedMotion` disables the motion. A press on the container itself (not the panel) closes, Escape closes through a keydown handler on the panel so only the focused surface reacts, the panel is `tabIndex={-1}` and takes focus on open, and the previously focused element is focused again on close. Migrate `ChangelogModal` to it (`placement="center"`, `desktopSize="md:max-w-lg"`, `label="Release notes"`), dropping its own scrim, card, close button, `role`, and `aria-modal`, and moving its sticky header content into the `header` slot. *Done when:* at 390x844 the changelog is a full-width sheet docked to the bottom with rounded top corners; its header and close stay in place while the body scrolls to the end of the notes; its height never exceeds the visible viewport; Escape closes it; focus is inside the sheet after opening and back on the Release notes trigger after closing; `role="dialog"`, `aria-modal="true"`, and `aria-label="Release notes"` are present; at 1280x900 it is a centred card no wider than 32rem and no taller than 85vh, with the header fixed and the body scrolling under it, and the notes render unchanged; `surfaceMode.test.ts` passes.
+
+- [x] **Step 2 - The story and Hunt modals** - migrate `DatasetStoryModal` and `PostcodeHuntModal` to the shell (`placement="center"`, `desktopSize="md:max-w-lg"` and `"md:max-w-md"`, labels `About the NDAPS` and `Postcode Hunt`), moving each header into the `header` slot and leaving the card body as the shell's scroll body. The Hunt card has no height cap and no scroll region today, so the shell's body and cap are what make a landscape phone reachable. Both cards are also missing every `dark:` class (`bg-white`, `text-stone-900`, and their borders have no dark pair) while the changelog next to them is fully themed: add the dark pairs so the panel, header, body, borders, and their text match the changelog. *Done when:* at 390x844 both open as sheets with a fixed header and a scrolling body; at 844x390 the Hunt sheet is inside the visible viewport and its objective list scrolls to its Start button (today the card is clipped with no way to scroll); at 1280x900 both are centred cards at their current widths with the Hunt card now capped at 85vh; in dark mode neither renders a white card and their panel, borders, and text match the changelog.
+
+- [x] **Step 3 - The state explorer and assembly drawers** - migrate `StateExplorerDrawer` and `PostcodeAssemblyDrawer` to the shell with `placement="side"`, `desktopSize="md:w-96"` and `md:w-[420px]`, and labels `Nigerian states` and `NDAPS Assembly Engine`. The explorer's header slot keeps its conditional back button and title block, its state filter row becomes the `toolbar` slot (it is a `shrink-0` row above the list, not part of the scroll region), the state and LGA lists stay the body (wrapped in the `divide-y` div the shell body cannot carry), and the NIPOST source row becomes the `footer` slot. The assembly drawer's header slot keeps its icon and title, its Assemble/Disassemble tabs become the `toolbar` slot, and its `flex-1 p-4 overflow-y-auto space-y-4 pb-32` div becomes the body with its padding and `pb-32` intact. Both drop their own scrim, panel, close button, and any local Escape handling. *Done when:* at 390x844 both are bottom sheets, and scrolling the explorer's 37-state list, or picking a state and scrolling its LGA list, leaves the header and close in place and the NIPOST footer visible; the assembly sheet's tier selects scroll under the fixed header and tabs; at 1280x900 both are right-anchored drawers at 24rem and 26.25rem, sliding in from the right and behaving as today; Escape closes both (which the explorer and assembly could not do before); focus enters on open and returns to the trigger on close; neither leaves a duplicate scrim in the DOM.
+
+- [x] **Step 4 - The saved discoveries drawer** - migrate `SavedDiscoveriesDrawer` to the shell with `placement="side"`, `desktopSize="md:w-96"`, and label `Saved discoveries`, keeping the list as the body and the clear-all row (with its confirm/cancel swap) as the `footer` slot. Its own Escape listener goes, since the shell owns Escape now, and its `confirmingClear` reset on close stays. *Done when:* at 390x844 it is a bottom sheet whose list scrolls between a fixed header and the footer, and whose empty state still centres in the body; at 1280x900 it is the same right-anchored drawer as today; the confirm/cancel swap still works and still resets every time the drawer closes; Escape still closes it.
+
+- [x] **Step 5 - The clear-conversation dialog** - migrate `AskAtlasClearDialog` to the shell with `placement="center"`, `desktopSize="md:max-w-sm"`, `layerClassName="z-[80]"` (it must stay above the Ask Atlas panel), and `phonePlacement="center"`. It stays centred on phones because a bottom sheet would put its text field under the software keyboard, and both platform conventions put a text-field alert in the centre. Keep the type-to-confirm gate, the input autofocus, Enter to confirm, and the disabled delete button. Drop its local scrim, `role`, `aria-modal`, and `aria-labelledby` (the shell owns them) and the input's Escape branch (the panel-level Escape now cancels), keeping Enter. In `src/index.css`, add `input:not([type])` to the <=768px 16px rule at line 314 so a typeless input is covered, and note in the comment beside it that the selector list has to cover inputs without a `type` attribute (the clear dialog's field is one, and Safari zooms on focus below 16px). *Done when:* at 390x844 the dialog is centred over the viewport with the warning, the input, and both actions visible without scrolling, and the input's computed font-size is 16px at 390 wide; at 1280x900 it is the same centred card as today; Enter confirms once the word is typed, and Escape, the backdrop press, and Cancel all cancel; with the Ask Atlas card already dragged away from its start position, opening the dialog still pins it to the viewport rather than to the transformed card.
+
+- [x] **Step 6 - Sweep and evidence** - confirm every in-scope surface renders through `ModalSurface` and no longer carries its own scrim, panel positioning, `role="dialog"`, close button, or `max-h-[..vh]`. *Done when:* a search for `fixed inset-0` in `src` returns only the shell, the TopBar menus, and the out-of-scope chrome; the sheet geometry, the close target, and the scrim are identical across all seven at 390x844; the probe's before/after numbers are recorded in the completion archive; `npm run test && npm run lint && npm run build` passes.
+
+## Files / areas
+
+- `src/components/ui/ModalSurface.tsx` (new) - the shared shell.
+- `src/lib/ui/surfaceMode.ts` and `surfaceMode.test.ts` (new) - the placement/phone mode types and resolver, plus its test.
+- `src/hooks/useIsPhone.ts` (new) - the `(max-width: 767px)` media query hook.
+- `src/components/story/ChangelogModal.tsx`, `src/components/story/DatasetStoryModal.tsx` - migration, plus dark-mode parity for the story modal.
+- `src/components/hunt/PostcodeHuntModal.tsx` - migration, a height cap, a scroll region, and dark-mode parity.
+- `src/components/explorer/StateExplorerDrawer.tsx`, `src/components/assembly/PostcodeAssemblyDrawer.tsx`, `src/components/saved/SavedDiscoveriesDrawer.tsx` - drawer migrations.
+- `src/components/ask/AskAtlasClearDialog.tsx` - migration and the input `type`.
+- `src/index.css` - one selector added to the `<=768px` 16px input rule at line 314.
+- `src/App.tsx` is not touched: every surface keeps its current props.
+
+## Data / contracts
+
+- No type, route, API, or stored-shape change. Nothing here touches `postcodeClient`, the dataset snapshot, or persisted state.
+- `ModalSurfaceProps` (the shell's own interface) is internal to the UI but load-bearing for the seven surfaces: fixing it here is what lets the later steps be mechanical.
+- `SurfacePlacement` (`side` | `center`), `PhonePlacement` (`sheet` | `center`), and `SurfaceMode` (`sheet` | `side` | `center`) live in the pure `surfaceMode.ts` module so the resolution rule is covered by a test rather than by the component.
+- The phone band is `(max-width: 767px)`, Tailwind's `md` breakpoint, matching the TopBar phone actions sheet.
+- Each surface's public props stay exactly as they are, so no caller changes.
+
+## Testing
+
+- Logic gets vitest, node environment, next to the source: `surfaceMode.test.ts` covers the three-way mode resolution for both placements on a phone and on a desktop, including the `phonePlacement="center"` override. The `useIsPhone` subscription itself is a DOM API and the repo has no jsdom or component-test library, so it is not unit tested and is not given one mid-feature; the shell is presentation, and the repo's 445 existing tests must stay green.
+- `AGENTS.md` declares no `Browser tests` command, so none is added. The presentation claims ride on direct browser evidence: a scratch Playwright probe in system Chrome (as 24a to 24c used, deleted before `/complete`), run at 390x844 coarse, 844x390 coarse, 1280x900 fine, and once in dark mode. Per surface it measures the painted rect (full width, bottom docked, height at most 85% of the visible viewport, top below the notch on a phone), the header's y before and after scrolling the body to its end, `scrollHeight > clientHeight` on the body when the content overflows while the page itself does not scroll, the close target at 44x44 or more with its click closing the surface, Escape closing, focus inside the panel after open and back on the trigger after close, and the clear dialog's input font-size at 390 wide. It captures the "before" numbers from the current build first, so the archive can state what changed.
+- One claim needs a targeted check rather than a measurement: the clear dialog opening pinned to the viewport while the Ask Atlas card has already been dragged away from its start position (the portal). Drag the card first, then open the dialog.
+- Optional acceptance, not part of Verify: `npm run eval`, the project's own browser benchmark in system Chrome (24c ended at 37/37). It rewrites `scripts/eval-report.md` and `.json`; if it is run, do not fold a regenerated report into this feature's commit unless the refresh is deliberately part of it, as 24c reverted one as unrelated.
+- Verify with the project command: `npm run test && npm run lint && npm run build`.
+
+## Notes for the AI
+
+- Everything here is client-only. No server, route, API, or stored shape is involved.
+- **Portal, do not skip it.** `AskAtlasClearDialog` renders inside the Ask Atlas panel, which is a `DraggableCard`; a motion transform on that card makes it the containing block for fixed descendants, and its root is `overflow-hidden`, so once the panel has been dragged the dialog is captured and clipped by the card. `createPortal` into `document.body` is the fix, and it is a no-op for the six surfaces that already sit at the app root.
+- **Keep today's stacking values**: `z-50` for the six content surfaces, `z-[80]` for the clear dialog, so nothing re-stacks against the Ask Atlas panel or the toast. Portaling appends after the app root in DOM order, which is effectively where these surfaces already sat.
+- **The phone band is `(max-width: 767px)`.** Below it every surface is a sheet; at `md` and up each is its current drawer or card. Stop using the drawers' `sm:` widths: the `sm` band is inside the phone band now, so a `side` panel only needs its `md` width.
+- **Cap heights with the pair**, `max-h-[85vh] supports-[height:100dvh]:max-h-[85dvh]`, the idiom TopBar already uses at line 339. A bare `dvh` declaration is dropped by browsers without support, which would leave the sheet uncapped.
+- **Safe areas belong on the panel, not the body.** The sheet uses `safe-bottom safe-left safe-right` (a portrait sheet never reaches the notch, so no `safe-top`, which would only waste 40-odd pixels of sheet height); the framed modes keep the drawers' `safe-top safe-right safe-bottom`. An inset inside the scroll body would let the last row scroll into the home-indicator strip.
+- **Exactly one scroll region.** Header, toolbar, and footer are `shrink-0`; the body is `flex-1 min-h-0 overflow-y-auto overscroll-contain`. Do not add a second `overflow-y-auto` anywhere inside a surface. `min-h-0` is required or the body refuses to shrink inside the flex column.
+- **Unify the shell chrome and leave the inner content alone.** One scrim (`bg-black/30`, no blur: it matches the TopBar phone sheet, and a full-screen `backdrop-blur` over a live map is a phone GPU cost), one header row (`px-4 py-3`, `border-b border-[#E5E7EB] dark:border-[#374151]`), one close button (`p-1.5`, `text-[#9CA3AF]`, hover fill), one panel surface (`bg-white dark:bg-[#111827]`). This means the drawers' scrim gets stronger, the story and Hunt scrims lose their blur, the story cards' header and body inset tighten from 24px to 16px, and their header border tone moves to the app palette. Record those as deliberate unifications, not regressions.
+- **The shell's close button stays on the blanket coarse-pointer 44px rule**, which is what 24c left for full-page chrome, so a coarse header is about 44px of control plus padding. The body absorbs it. `.touch-target` is there if a later slice wants a compact header, but never combine it with a Tailwind `after:` utility.
+- **Escape is handled on the panel element, not `window`**, so only the surface holding focus reacts instead of every open surface closing at once. Remove the clear dialog's input-level Escape branch so it does not double-cancel; keep its Enter.
+- **Focus:** the panel is `tabIndex={-1}`, focused on open, and the previously focused element is focused again on close. There is no focus trap in this slice; do not add one. The clear dialog's own autofocus effect must still win for its input.
+- **The typed confirm stays centred on phones** (`phonePlacement="center"`): a bottom sheet would put its text field under the software keyboard, and both platform conventions centre a text-field alert. If you would rather have it as a sheet, it is one prop.
+- **Dark-mode parity** is in scope only because these two cards are otherwise entirely unthemed (`bg-white`, `text-stone-900`, no `dark:` pair) and they sit next to a themed changelog. Add the dark pairs; do not restyle anything else.
+- **The iOS fix belongs in the CSS rule.** `src/index.css:314` matches `input[type="text"]` and `input[type="search"]`, so a typeless input is missed. Add `input:not([type])` to that selector list rather than only giving this one input a `type`, and say why in the comment that already explains the rule.
+- **Do not touch 24b or 24c work**: the floating cards, their bounds, the `touch-*` helpers, and the Ask panel's own phone layout are all out of scope.
+- No em dashes, en dashes, or the ellipsis character in code, comments, or docs. Use hyphens.
+- Match existing file conventions: the SPDX header comment where the file has one, JSDoc on exported members, and comments that explain why rather than restating the code.
+
+## Browser evidence
+
+Scratch Playwright probes in system Chrome against the running dev server, run before and after the change from the same probe harness at 390x844 coarse, 844x390 coarse, 1280x900 fine, and once in dark mode. The probes were deleted before completion. Verify (`npm run test && npm run lint && npm run build`) passed: 448/448 tests, `tsc --noEmit` clean, build ok.
+
+| Surface / measurement | Before | After |
+| --- | --- | --- |
+| Phone 390x844, all six content surfaces | Right-anchored drawer 331.5px wide (85% of 390), full height 844; states/assembly had no `role="dialog"` and no Escape | Full-width (390) bottom sheet, bottom-docked (bottom 844), height at most 717.4 (85% of 844), rounded top, fixed header, one scrolling body, `role="dialog"` / `aria-modal="true"` / `aria-label`, Escape closes |
+| Phone 390x844, body scroll while the page stays still | No single scroll region on the centred cards; header scrolled away | `scrollHeight > clientHeight` on the body (e.g. changelog 3328 vs 647) with `window.scrollY === 0` |
+| Phone 390x844, clear dialog | Input font-size 14px, no `type` attribute, not portaled (captured by the dragged `DraggableCard`) | Centred, input font-size 16px, portaled to `document.body`, focus returns to the trigger on close |
+| Landscape 844x390, Hunt modal | Panel y=-83.25, h=556.5, bottom=473.25 on a 390px viewport; not capped, 0 internal scroll containers, page did not scroll (Start button unreachable) | Inside the visible viewport, capped at most 85% of the viewport, body scrolls to its end, Start reachable |
+| Desktop 1280x900 | Unchanged | Side drawers right-docked full height at 384px (states/saved) and 420px (assembly); centre cards capped at 512px (changelog/story) and 448px (Hunt), capped at 85vh, Escape closes, focus returns to the trigger |
+| Dark mode | Story and Hunt panels `rgb(255, 255, 255)` (no `dark:` classes) | Both `rgb(17, 24, 39)` |
+
+The probes measured the painted rect, the header's y before and after scrolling the body to its end, the body's overflow only when the content overflowed while the page itself did not scroll, the close target, Escape closing, focus in on open and back on the trigger on close, and the clear dialog's input font-size at 390 wide.
+
+One real bug surfaced in Step 6 and was fixed: Escape in the clear dialog also closed the Ask Atlas panel underneath it, because the native keydown reached the panel's `window` listener after the dialog's state update flushed. The shell now consumes the key with `event.stopPropagation()`, matching the slice's rule that only the surface holding focus reacts.
+

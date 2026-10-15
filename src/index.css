@@ -310,10 +310,13 @@
      circle stays centred. Sizing the element here shifted every marker. */
 }
 
-/* Prevent zoom on input focus on iOS */
+/* Prevent zoom on input focus on iOS. The list has to cover inputs with no
+   `type` attribute: the clear-conversation field is one, and Safari zooms when
+   it focuses a field below 16px. */
 @media screen and (max-width: 768px) {
   input[type="text"],
   input[type="search"],
+  input:not([type]),
   select,
   textarea {
     font-size: 16px !important;

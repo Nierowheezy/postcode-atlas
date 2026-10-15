@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { X, Wrench, ArrowRight, Loader2, RefreshCw, Copy, Check } from 'lucide-react';
-import { AnimatePresence, motion } from 'motion/react';
+import { Wrench, ArrowRight, Loader2, RefreshCw, Copy, Check } from 'lucide-react';
 import { postcodeApi } from '../../lib/api/postcodeClient';
 import { NamedCode, PostcodeSegments } from '../../types/postcode';
 import { NIGERIA_STATES } from '../../lib/geo/nigeriaData';
 import { SearchableSelect, SelectOption } from '../ui/SearchableSelect';
 import { useToast } from '../../hooks/useToast';
+import { ModalSurface } from '../ui/ModalSurface';
 
 interface PostcodeAssemblyDrawerProps {
   isOpen: boolean;
@@ -182,78 +182,59 @@ export const PostcodeAssemblyDrawer: React.FC<PostcodeAssemblyDrawerProps> = ({
   }));
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            onClick={onClose}
-            className="fixed inset-0 bg-stone-900/15 z-40"
-          />
-
-          {/* Drawer Panel */}
-          <motion.div
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 28, stiffness: 280 }}
-            className="fixed inset-y-0 right-0 w-[85%] max-w-md sm:w-96 md:w-[420px] bg-white dark:bg-[#111827] border-l border-[#E5E7EB] dark:border-[#374151] shadow-2xl z-50 flex flex-col font-sans transition-colors safe-top safe-right safe-bottom"
+    <ModalSurface
+      open={isOpen}
+      onClose={onClose}
+      label="NDAPS assembly engine"
+      placement="side"
+      desktopSize="md:w-[420px]"
+      header={
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-md bg-[#F0FDF4] dark:bg-[#064E3B] border border-[#DCFCE7] dark:border-[#065F46] flex items-center justify-center text-[#0F7B4D] dark:text-[#10B981]">
+            <Wrench className="w-3.5 h-3.5" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-[#111827] dark:text-white">
+              NDAPS Assembly Engine
+            </h3>
+            <p className="text-[11px] text-[#6B7280] dark:text-[#9CA3AF] font-mono">
+              Official NIPOST Assembly & Disassembly
+            </p>
+          </div>
+        </div>
+      }
+      toolbar={
+        <div className="p-2 border-b border-[#F3F4F6] dark:border-[#374151] bg-[#FAFAFA] dark:bg-[#1F2937]/50 flex gap-1">
+          <button
+            onClick={() => setMode('assemble')}
+            className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
+              mode === 'assemble'
+                ? 'bg-white dark:bg-[#374151] text-[#111827] dark:text-white shadow-xs border border-[#E5E7EB] dark:border-[#4B5563]'
+                : 'text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white'
+            }`}
           >
-            {/* Header */}
-            <div className="p-4 border-b border-[#E5E7EB] dark:border-[#374151] flex items-center justify-between bg-white dark:bg-[#111827] shrink-0">
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-md bg-[#F0FDF4] dark:bg-[#064E3B] border border-[#DCFCE7] dark:border-[#065F46] flex items-center justify-center text-[#0F7B4D] dark:text-[#10B981]">
-                  <Wrench className="w-3.5 h-3.5" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-[#111827] dark:text-white">
-                    NDAPS Assembly Engine
-                  </h3>
-                  <p className="text-[11px] text-[#6B7280] dark:text-[#9CA3AF] font-mono">
-                    Official NIPOST Assembly & Disassembly
-                  </p>
-                </div>
-              </div>
-
-              <button
-                onClick={onClose}
-                className="p-1.5 text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white hover:bg-[#F3F4F6] dark:hover:bg-[#1F2937] rounded-md transition-colors cursor-pointer"
-                aria-label="Close"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Segmented Mode Tabs */}
-            <div className="p-2 border-b border-[#F3F4F6] dark:border-[#374151] bg-[#FAFAFA] dark:bg-[#1F2937]/50 flex gap-1 shrink-0">
-              <button
-                onClick={() => setMode('assemble')}
-                className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
-                  mode === 'assemble'
-                    ? 'bg-white dark:bg-[#374151] text-[#111827] dark:text-white shadow-xs border border-[#E5E7EB] dark:border-[#4B5563]'
-                    : 'text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white'
-                }`}
-              >
-                Assemble Segments
-              </button>
-              <button
-                onClick={() => setMode('disassemble')}
-                className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
-                  mode === 'disassemble'
-                    ? 'bg-white dark:bg-[#374151] text-[#111827] dark:text-white shadow-xs border border-[#E5E7EB] dark:border-[#4B5563]'
-                    : 'text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white'
-                }`}
-              >
-                Disassemble Code
-              </button>
-            </div>
-
-            {/* Body */}
-            <div className="flex-1 p-4 overflow-y-auto space-y-4 pb-32">
+            Assemble Segments
+          </button>
+          <button
+            onClick={() => setMode('disassemble')}
+            className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
+              mode === 'disassemble'
+                ? 'bg-white dark:bg-[#374151] text-[#111827] dark:text-white shadow-xs border border-[#E5E7EB] dark:border-[#4B5563]'
+                : 'text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white'
+            }`}
+          >
+            Disassemble Code
+          </button>
+        </div>
+      }
+      footer={
+        <div className="p-3 border-t border-[#E5E7EB] dark:border-[#374151] bg-[#FAFAFA] dark:bg-[#1F2937]/50 text-[11px] text-[#6B7280] dark:text-[#9CA3AF] flex items-center justify-between">
+          <span>NDAPS Standards v1.0</span>
+          <span className="font-mono text-[#0F7B4D] dark:text-[#10B981] font-semibold">api.postcode.gov.ng</span>
+        </div>
+      }
+    >
+            <div className="p-4 space-y-4 pb-32">
               {mode === 'assemble' ? (
                 <>
                   <p className="text-xs text-[#6B7280] dark:text-[#9CA3AF] leading-relaxed">
@@ -484,15 +465,6 @@ export const PostcodeAssemblyDrawer: React.FC<PostcodeAssemblyDrawerProps> = ({
                 </>
               )}
             </div>
-
-            {/* Footer */}
-            <div className="p-3 border-t border-[#E5E7EB] dark:border-[#374151] bg-[#FAFAFA] dark:bg-[#1F2937]/50 text-[11px] text-[#6B7280] dark:text-[#9CA3AF] flex items-center justify-between shrink-0">
-              <span>NDAPS Standards v1.0</span>
-              <span className="font-mono text-[#0F7B4D] dark:text-[#10B981] font-semibold">api.postcode.gov.ng</span>
-            </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+    </ModalSurface>
   );
 };

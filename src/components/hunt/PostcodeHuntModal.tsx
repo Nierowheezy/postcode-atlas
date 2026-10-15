@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { X, Target, CheckCircle2, ChevronRight, Play } from 'lucide-react';
+import { Target, CheckCircle2, ChevronRight, Play } from 'lucide-react';
 import { PostcodeLocation } from '../../types/postcode';
+import { ModalSurface } from '../ui/ModalSurface';
 
 interface PostcodeHuntModalProps {
   isOpen: boolean;
@@ -55,39 +56,35 @@ export const PostcodeHuntModal: React.FC<PostcodeHuntModalProps> = ({
 }) => {
   const [selectedChallenge, setSelectedChallenge] = useState(HUNT_CHALLENGES[0]);
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-stone-900/30 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl border border-stone-200 shadow-xl max-w-md w-full p-5 text-stone-900 select-none">
-        {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-stone-100">
-          <div className="flex items-center gap-2">
-            <Target className="w-4 h-4 text-emerald-600" />
-            <h3 className="text-sm font-semibold tracking-tight text-stone-900">
-              Postcode Hunt
-            </h3>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1 text-stone-400 hover:text-stone-700 rounded-md transition-colors"
-            aria-label="Close"
-          >
-            <X className="w-4 h-4" />
-          </button>
+    <ModalSurface
+      open={isOpen}
+      onClose={onClose}
+      label="Postcode Hunt"
+      placement="center"
+      desktopSize="md:max-w-md"
+      header={
+        <div className="flex items-center gap-2">
+          <Target className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+          <h3 className="text-sm font-semibold tracking-tight text-stone-900 dark:text-white">
+            Postcode Hunt
+          </h3>
         </div>
-
-        {/* Content */}
+      }
+    >
+      {/* The shell body has no padding of its own and the shell caps the sheet
+          height, so this card gains the scroll region it never had. */}
+      <div className="p-4 text-stone-900 dark:text-white select-none">
         {hasFound ? (
-          <div className="py-6 text-center space-y-3">
-            <div className="inline-flex p-3 rounded-full bg-emerald-50 text-emerald-700">
+          <div className="text-center space-y-3">
+            <div className="inline-flex p-3 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
               <CheckCircle2 className="w-6 h-6" />
             </div>
             <div>
-              <div className="text-sm font-bold text-stone-900">Target Discovered</div>
-              <div className="text-xs font-mono text-emerald-700 mt-1">{activeTarget}</div>
+              <div className="text-sm font-bold text-stone-900 dark:text-white">Target Discovered</div>
+              <div className="text-xs font-mono text-emerald-700 dark:text-emerald-400 mt-1">{activeTarget}</div>
             </div>
-            <div className="text-xs text-stone-500 font-mono">
+            <div className="text-xs text-stone-500 dark:text-stone-400 font-mono">
               Score: +{score} pts · {attempts} attempts
             </div>
             <button
@@ -97,49 +94,49 @@ export const PostcodeHuntModal: React.FC<PostcodeHuntModalProps> = ({
                 onStartHunt(next.code, next.hint);
                 onClose();
               }}
-              className="mt-2 px-4 py-2 text-xs font-medium bg-stone-900 text-white rounded-lg hover:bg-stone-800 transition-colors cursor-pointer"
+              className="mt-2 px-4 py-2 text-xs font-medium bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900 rounded-lg hover:bg-stone-800 dark:hover:bg-white transition-colors cursor-pointer"
             >
               Next Challenge
             </button>
           </div>
         ) : activeTarget ? (
-          <div className="py-4 space-y-4">
-            <div className="p-3.5 rounded-lg bg-stone-50 border border-stone-200 space-y-1.5 font-mono text-xs">
-              <div className="text-[10px] text-stone-400 uppercase tracking-wider">
+          <div className="space-y-4">
+            <div className="p-3.5 rounded-lg bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 space-y-1.5 font-mono text-xs">
+              <div className="text-[10px] text-stone-400 dark:text-stone-500 uppercase tracking-wider">
                 Target Postcode
               </div>
-              <div className="text-base font-bold text-stone-900 tracking-wider">
+              <div className="text-base font-bold text-stone-900 dark:text-white tracking-wider">
                 {activeTarget}
               </div>
-              <div className="text-[11px] text-stone-600 font-sans pt-1 border-t border-stone-200">
+              <div className="text-[11px] text-stone-600 dark:text-stone-400 font-sans pt-1 border-t border-stone-200 dark:border-stone-700">
                 Hint: {selectedChallenge?.hint}
               </div>
             </div>
 
-            <div className="text-xs text-stone-500 leading-relaxed font-sans">
+            <div className="text-xs text-stone-500 dark:text-stone-400 leading-relaxed font-sans">
               Navigate the interactive map into the specified state and LGA. Zoom to building-level to find and select this exact addressable digital postcode.
             </div>
 
-            <div className="flex items-center justify-between pt-2 border-t border-stone-100">
-              <span className="text-xs font-mono text-stone-500">
+            <div className="flex items-center justify-between pt-2 border-t border-stone-100 dark:border-stone-700">
+              <span className="text-xs font-mono text-stone-500 dark:text-stone-400">
                 Attempts: {attempts}
               </span>
               <button
                 onClick={onClose}
-                className="px-3.5 py-1.5 text-xs font-medium text-stone-900 bg-stone-100 hover:bg-stone-200 rounded-md transition-colors cursor-pointer"
+                className="px-3.5 py-1.5 text-xs font-medium text-stone-900 dark:text-white bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 rounded-md transition-colors cursor-pointer"
               >
                 Resume Exploration
               </button>
             </div>
           </div>
         ) : (
-          <div className="py-4 space-y-4">
-            <p className="text-xs text-stone-600 leading-relaxed">
+          <div className="space-y-4">
+            <p className="text-xs text-stone-600 dark:text-stone-400 leading-relaxed">
               Test your spatial intuition of Nigeria's digital addressing system. Pick an official 11-character postcode target, locate its administrative zone on the map, and pinpoint the building.
             </p>
 
             <div className="space-y-2">
-              <div className="text-[11px] font-mono text-stone-400 uppercase tracking-wider">
+              <div className="text-[11px] font-mono text-stone-400 dark:text-stone-500 uppercase tracking-wider">
                 Select Mission
               </div>
               {HUNT_CHALLENGES.map((ch) => (
@@ -148,17 +145,17 @@ export const PostcodeHuntModal: React.FC<PostcodeHuntModalProps> = ({
                   onClick={() => setSelectedChallenge(ch)}
                   className={`w-full text-left p-2.5 rounded-lg border transition-all flex items-center justify-between cursor-pointer ${
                     selectedChallenge.id === ch.id
-                      ? 'border-emerald-600 bg-emerald-50/30'
-                      : 'border-stone-200 hover:border-stone-300 bg-stone-50/50'
+                      ? 'border-emerald-600 dark:border-emerald-500 bg-emerald-50/30 dark:bg-emerald-500/10'
+                      : 'border-stone-200 dark:border-stone-700 hover:border-stone-300 dark:hover:border-stone-600 bg-stone-50/50 dark:bg-stone-800/50'
                   }`}
                 >
                   <div>
-                    <div className="text-xs font-mono font-semibold text-stone-900">
+                    <div className="text-xs font-mono font-semibold text-stone-900 dark:text-white">
                       {ch.code}
                     </div>
-                    <div className="text-[11px] text-stone-500">{ch.hint}</div>
+                    <div className="text-[11px] text-stone-500 dark:text-stone-400">{ch.hint}</div>
                   </div>
-                  <span className="text-[10px] font-mono text-stone-400 bg-stone-100 px-1.5 py-0.5 rounded">
+                  <span className="text-[10px] font-mono text-stone-400 dark:text-stone-500 bg-stone-100 dark:bg-stone-800 px-1.5 py-0.5 rounded">
                     {ch.difficulty}
                   </span>
                 </button>
@@ -171,7 +168,7 @@ export const PostcodeHuntModal: React.FC<PostcodeHuntModalProps> = ({
                   onStartHunt(selectedChallenge.code, selectedChallenge.hint);
                   onClose();
                 }}
-                className="px-4 py-2 text-xs font-medium bg-emerald-700 text-white rounded-lg hover:bg-emerald-800 transition-colors flex items-center gap-1.5 cursor-pointer"
+                className="px-4 py-2 text-xs font-medium bg-emerald-700 text-white rounded-lg hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 transition-colors flex items-center gap-1.5 cursor-pointer"
               >
                 <Play className="w-3.5 h-3.5" />
                 <span>Start Hunt</span>
@@ -180,6 +177,6 @@ export const PostcodeHuntModal: React.FC<PostcodeHuntModalProps> = ({
           </div>
         )}
       </div>
-    </div>
+    </ModalSurface>
   );
 };
