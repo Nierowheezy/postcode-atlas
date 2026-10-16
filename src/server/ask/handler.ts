@@ -42,7 +42,7 @@ const MAX_TOOL_ID_CHARS = 64;
 const MAX_TOOL_NAME_CHARS = 64;
 const MAX_TOOL_ARGUMENT_CHARS = 4000;
 
-const TOOL_ERROR_CODES: readonly ToolErrorCode[] = ['invalid_args', 'unknown_tool', 'not_found', 'internal_error'];
+const TOOL_ERROR_CODES: readonly ToolErrorCode[] = ['invalid_args', 'unknown_tool', 'not_found', 'ungrounded_args', 'internal_error'];
 
 /** Server-only env keys, looked up once by the caller. */
 export type AskServerEnv = Record<string, string | undefined>;

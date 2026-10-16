@@ -22,6 +22,7 @@ import {
 import { ASK_API_ENDPOINT, AskApiErrorResponse } from './api-types';
 import { AskApiError } from './errors';
 import { postcodesIn, stripUnbackedPostcodes } from './postcode';
+import { findUngroundedArg } from './argumentGuard';
 import { runTool } from '../tools/registry';
 import { atlasStore } from '../atlas/store';
 import type { InterpretedAddress } from '../address/types';
@@ -112,6 +113,14 @@ const TOOL_LOOP_EXHAUSTED_COPY =
 /** Max completed tool rounds per ask (the server allows one more, so we stay under it). */
 const MAX_TOOL_ROUNDS = 3;
 
+/** Error fed back when a guarded tool call quotes nothing from the user's message. */
+function ungroundedArgsError(name: string, arg: string): AskToolResult['error'] {
+  return {
+    code: 'ungrounded_args',
+    message: `The argument "${arg}" for "${name}" is not in the user's message.`,
+  };
+}
+
 /** Error fed back when a tool call's `arguments` is not valid JSON. */
 function invalidArgsError(): AskToolResult['error'] {
   return { code: 'invalid_args', message: 'Tool arguments were not valid JSON.' };
@@ -121,8 +130,10 @@ function invalidArgsError(): AskToolResult['error'] {
  * Run one tool call locally through the 3b dispatcher. `runTool` never throws
  * and safe-parses arguments again, so malformed arguments surface as a failed
  * result (`ok: false`, `invalid_args`) that feeds back - never a rejection.
+ * A guarded call whose argument the user's message does not support is refused
+ * before it runs (`ok: false`, `ungrounded_args`), so the model answers without it.
  */
-async function executeToolCalls(calls: AskToolCall[]): Promise<AskToolResult[]> {
+async function executeToolCalls(calls: AskToolCall[], text: string): Promise<AskToolResult[]> {
   const results: AskToolResult[] = [];
   for (const call of calls) {
     let args: unknown;
@@ -130,6 +141,16 @@ async function executeToolCalls(calls: AskToolCall[]): Promise<AskToolResult[]> 
       args = JSON.parse(call.arguments);
     } catch {
       results.push({ tool_call_id: call.id, name: call.name, ok: false, error: invalidArgsError() });
+      continue;
+    }
+    const ungrounded = findUngroundedArg(call.name, args, text);
+    if (ungrounded !== undefined) {
+      results.push({
+        tool_call_id: call.id,
+        name: call.name,
+        ok: false,
+        error: ungroundedArgsError(call.name, ungrounded),
+      });
       continue;
     }
     const outcome = await runTool(call.name, args);
@@ -1098,7 +1119,7 @@ export function createApiResponder(): AskAtlasResponder {
 
         // The model asked for tools: this round is spent running them locally.
         onProgress?.({ phase: 'searching', round });
-        const toolResults = await executeToolCalls(response.toolCalls);
+        const toolResults = await executeToolCalls(response.toolCalls, request.text);
         grounded = grounded || toolResults.some((result) => result.ok);
         toolTurns = [...toolTurns, { assistantToolCalls: response.toolCalls, toolResults }];
       }

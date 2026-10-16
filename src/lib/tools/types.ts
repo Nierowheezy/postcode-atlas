@@ -40,7 +40,7 @@ export const EXPLAIN_TOPICS = ['hierarchy', 'postcode_parts', 'single_postcode',
 
 export type ExplainTopic = (typeof EXPLAIN_TOPICS)[number];
 
-export type ToolErrorCode = 'invalid_args' | 'unknown_tool' | 'not_found' | 'internal_error';
+export type ToolErrorCode = 'invalid_args' | 'unknown_tool' | 'not_found' | 'ungrounded_args' | 'internal_error';
 
 export interface ToolError {
   code: ToolErrorCode;
