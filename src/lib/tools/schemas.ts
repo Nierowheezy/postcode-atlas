@@ -10,7 +10,7 @@
  */
 
 import { z } from 'zod';
-import { EXPLAIN_TOPICS, type ToolName } from './types';
+import { EXPLAIN_TOPICS, type ToolName } from './types.js';
 
 export const searchLocationSchema = z.object({
   query: z.string().trim().min(1).max(120),

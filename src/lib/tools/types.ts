@@ -10,9 +10,9 @@
  */
 
 import type { ZodType } from 'zod';
-import type { PostcodeLocation, PostcodeSegments, StateGeoInfo } from '../../types/postcode';
-import type { InterpretedAddress } from '../address/types';
-import type { AtlasArea, AtlasDistrict, AtlasLga, AtlasState, LocationCandidate } from '../atlas/dataset';
+import type { PostcodeLocation, PostcodeSegments, StateGeoInfo } from '../../types/postcode.js';
+import type { InterpretedAddress } from '../address/types.js';
+import type { AtlasArea, AtlasDistrict, AtlasLga, AtlasState, LocationCandidate } from '../atlas/dataset.js';
 
 export const TOOL_NAMES = [
   'searchLocation',

@@ -10,7 +10,7 @@
  * reusing the shared codec so the two never drift.
  */
 
-import { POSTCODE_PATTERN, toDashedCode } from '../../lib/atlas/postcodeCode';
+import { POSTCODE_PATTERN, toDashedCode } from '../../lib/atlas/postcodeCode.js';
 
 /** The five dashed segments of a well-formed postcode. */
 export interface AtlasPostcodeSegments {

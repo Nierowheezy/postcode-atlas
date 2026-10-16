@@ -9,9 +9,9 @@
  * interface; the UI must not know which implementation it is talking to.
  */
 
-import type { DecodedPostcode, MapAction, NearbyUnit, ToolError } from '../tools/types';
-import type { AtlasExplanation } from '../tools/types';
-import type { InterpretedAddress } from '../address/types';
+import type { DecodedPostcode, MapAction, NearbyUnit, ToolError } from '../tools/types.js';
+import type { AtlasExplanation } from '../tools/types.js';
+import type { InterpretedAddress } from '../address/types.js';
 
 export interface AtlasContextSnapshot {
   selectedState?: { code: string; name: string };

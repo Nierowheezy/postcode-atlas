@@ -11,8 +11,8 @@
  * record's `source: 'nipost-ndaps'`.
  */
 
-import { EXPLANATION_CONTENT, getExplanation } from '../../lib/explain/topics';
-import { EXPLAIN_TOPICS, type AtlasExplanation, type ExplainTopic } from '../../lib/tools/types';
+import { EXPLANATION_CONTENT, getExplanation } from '../../lib/explain/topics.js';
+import { EXPLAIN_TOPICS, type AtlasExplanation, type ExplainTopic } from '../../lib/tools/types.js';
 
 /**
  * Provenance for editorial Atlas copy. The record routes use

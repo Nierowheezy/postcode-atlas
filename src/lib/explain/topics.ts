@@ -12,7 +12,7 @@
  * if that modal is edited, update these to match.
  */
 
-import type { AtlasExplanation, ExplainTopic } from '../tools/types';
+import type { AtlasExplanation, ExplainTopic } from '../tools/types.js';
 
 export const EXPLANATION_CONTENT: Record<ExplainTopic, AtlasExplanation> = {
   hierarchy: {

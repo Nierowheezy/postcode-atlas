@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { AskToolCall } from '../../lib/ask/types';
-import type { ProviderTool } from '../../lib/tools/provider';
+import type { AskToolCall } from '../../lib/ask/types.js';
+import type { ProviderTool } from '../../lib/tools/provider.js';
 import {
   callProvider,
   ProviderError,

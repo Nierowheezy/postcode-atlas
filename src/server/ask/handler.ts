@@ -10,8 +10,8 @@ import type {
   AskAtlasResponse,
   AtlasContextSnapshot,
   AtlasReferent,
-} from '../../lib/ask/types';
-import type { ToolError, ToolErrorCode } from '../../lib/tools/types';
+} from '../../lib/ask/types.js';
+import type { ToolError, ToolErrorCode } from '../../lib/tools/types.js';
 import { ATLAS_PROVIDER_TOOLS } from '../../lib/tools/provider.js';
 import { isRefusalText } from '../../lib/ask/refusal.js';
 import { hasUnbackedPostcode, postcodesIn } from '../../lib/ask/postcode.js';

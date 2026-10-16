@@ -12,7 +12,7 @@
  * window, so it is best-effort by design (see `checkRateLimit`).
  */
 
-import type { NipostGatewayEnv } from '../nipost/gateway';
+import type { NipostGatewayEnv } from '../nipost/gateway.js';
 
 /** Name of the server-only env var holding the accepted API keys. */
 export const API_KEYS_ENV = 'ATLAS_API_KEYS';

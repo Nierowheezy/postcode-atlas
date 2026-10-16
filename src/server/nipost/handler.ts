@@ -18,7 +18,7 @@ import {
   readNipostApiKey,
   resolveNipostBaseUrl,
   type NipostGatewayEnv,
-} from './gateway';
+} from './gateway.js';
 
 /** Server-side environment. Matches `process.env` and Vite's `loadEnv` result. */
 export type NipostServerEnv = NipostGatewayEnv;

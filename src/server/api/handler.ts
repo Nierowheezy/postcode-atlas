@@ -10,7 +10,7 @@
  * Feature 21b adds routes here; 21e adds the access gate around them.
  */
 
-import { fetchNipostJson, type NipostFetchResult, type NipostGatewayEnv } from '../nipost/gateway';
+import { fetchNipostJson, type NipostFetchResult, type NipostGatewayEnv } from '../nipost/gateway.js';
 import {
   checkRateLimit,
   extractApiKey,
@@ -18,9 +18,9 @@ import {
   rateLimitIdentity,
   resolveApiKeys,
   resolveRateLimit,
-} from './access';
-import { listExplanations, readExplanation } from './explain';
-import { decodePostcode, normalizePostcodeCode, toPostcodeRecord } from './postcode';
+} from './access.js';
+import { listExplanations, readExplanation } from './explain.js';
+import { decodePostcode, normalizePostcodeCode, toPostcodeRecord } from './postcode.js';
 import {
   NEARBY_MAX_RADIUS_M,
   normalizeCoordinate,
@@ -29,14 +29,14 @@ import {
   toAutocomplete,
   toNearbyUnits,
   toReverseUnit,
-} from './search';
+} from './search.js';
 import {
   REFERENCE_LIST_KEY,
   REFERENCE_PATH,
   normalizeReferenceParam,
   toNamedCodes,
   type ReferenceLevel,
-} from './hierarchy';
+} from './hierarchy.js';
 
 /** Version prefix for every route. */
 export const API_PREFIX = '/api/v1';

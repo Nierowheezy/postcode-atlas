@@ -12,7 +12,7 @@
  * `./postcode`, because it needs no upstream data.
  */
 
-import { normalizePostcodeCode, type AtlasCoordinate } from './postcode';
+import { normalizePostcodeCode, type AtlasCoordinate } from './postcode.js';
 
 /** Cap on an autocomplete query, so a runaway search cannot flood the gateway. */
 const MAX_QUERY_LENGTH = 64;

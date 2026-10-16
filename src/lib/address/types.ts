@@ -10,8 +10,8 @@
  * test without IndexedDB or the network.
  */
 
-import type { AtlasLga, AtlasState, LocationCandidate } from '../atlas/dataset';
-import type { PostcodeLocation } from '../../types/postcode';
+import type { AtlasLga, AtlasState, LocationCandidate } from '../atlas/dataset.js';
+import type { PostcodeLocation } from '../../types/postcode.js';
 
 /** One comma, semicolon, or newline-separated part of an address. */
 export interface AddressSegment {

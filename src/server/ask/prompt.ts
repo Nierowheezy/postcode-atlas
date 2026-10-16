@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { AskLanguage, AtlasContextSnapshot } from '../../lib/ask/types';
+import type { AskLanguage, AtlasContextSnapshot } from '../../lib/ask/types.js';
 
 /** Human label for each reply-language; used in the system prompt. */
 const LANGUAGE_NAMES: Record<AskLanguage, string> = {

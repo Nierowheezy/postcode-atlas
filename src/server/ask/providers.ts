@@ -16,8 +16,8 @@
  * without tools so the chat still degrades to an honest text-only answer.
  */
 
-import type { AskToolCall } from '../../lib/ask/types';
-import type { ProviderTool } from '../../lib/tools/provider';
+import type { AskToolCall } from '../../lib/ask/types.js';
+import type { ProviderTool } from '../../lib/tools/provider.js';
 
 /** The always-available free-tier providers, plus the optional N-ATLAS slot. */
 export type AskProviderId = 'gemini' | 'openrouter' | 'nvidia' | 'natlas';
